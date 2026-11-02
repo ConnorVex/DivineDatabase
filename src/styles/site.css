@@ -1,0 +1,21 @@
+@font-face {
+	font-family: 'Anime Inept';
+	src: url('../assets/fonts/AnimeInept.otf') format('opentype');
+	font-display: swap;
+}
+
+/* Exo 2 for all regular text. */
+body {
+	font-family: 'Exo 2 Variable', sans-serif;
+}
+
+/* Anime Inept for headings and the site name; body text keeps the default font. */
+h1,
+h2,
+h3,
+.site-title {
+	font-family: 'Anime Inept', sans-serif;
+}
+h1#_top {
+	text-align: center;
+}

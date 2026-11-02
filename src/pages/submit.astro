@@ -1,0 +1,18 @@
+---
+// Create or edit a character (?id=… edits an existing one).
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import PortalNav from '../components/portal/PortalNav.astro';
+import SubmitForm from '../components/portal/SubmitForm.tsx';
+import '../styles/portal.css';
+---
+
+<StarlightPage
+	frontmatter={{
+		title: 'Submit a Character',
+		description: 'Create an OC or canon tryout, or evolve an approved character.',
+		template: 'splash', tableOfContents: false,
+	}}
+>
+	<PortalNav current="submit" />
+	<SubmitForm client:only="preact" />
+</StarlightPage>
