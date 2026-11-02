@@ -3,16 +3,15 @@ import starlight from '@astrojs/starlight';
 import preact from '@astrojs/preact';
 
 // The Divine Database: character, evolution, equipment and family submissions for Singularity.
-// Its rules live on the Singularity Index (https://connorvex.github.io/SingularityV5/).
+// Its rules live on the Singularity Index (https://index.singularityeco.us/).
 export default defineConfig({
-	site: 'https://connorvex.github.io',
-	base: '/DivineDatabase',
+	site: 'https://database.singularityeco.us',
 	integrations: [
 		preact(),
 		starlight({
 			title: 'Divine Database',
 			logo: { src: './src/assets/singularity-logo.webp' },
-			favicon: '/favicon.svg',
+			favicon: '/favicon.png',
 			pagefind: false,
 			tableOfContents: false,
 			pagination: false,
