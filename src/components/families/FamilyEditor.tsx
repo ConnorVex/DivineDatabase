@@ -30,6 +30,7 @@ import {
 	type RelationDraft,
 	type Standing,
 } from '../../lib/families/api.ts';
+import { abilitySystem, systemById } from '../../lib/portal/systems.ts';
 import { AbilityBuilder, TraitPicker, blankDetails, detailProblems, isBuilt } from './PerkBuilders.tsx';
 import { FamilyForm, familyProblems } from './FamilyForm.tsx';
 import { messageOf } from './shared.tsx';
@@ -558,6 +559,22 @@ function RelationsTab({ b, families, onSaved }: { b: FamilyBundle; families: { i
 
 // ───────────────────────────── Perks ─────────────────────────────
 
+const KIND_ICON: Record<PerkKind, string> = {
+	starting_stats: '📈',
+	trait: '🧬',
+	trait_slots: '➕',
+	system_start: '⚡',
+	locked_power: '✨',
+	technique: '🌀',
+	fighting_style: '🥋',
+	item: '🎒',
+	rolls: '🎲',
+	progression: '⏫',
+	economy: '💰',
+	social: '🛡️',
+	other: '◆',
+};
+
 const PERK_STATUS = { pending: 'Waiting for an admin', approved: 'Approved', denied: 'Denied' } as const;
 const NEW_PERK: PerkDraft = { kind: 'trait', access: 'automatic', title: '', description: '', hidden: false, details: blankDetails('trait') };
 const perkFields = (p: PerkDraft): PerkDraft => ({
@@ -575,18 +592,28 @@ type PerkRow = { key: string; draft: PerkDraft; saved?: Perk; removed?: boolean 
 
 function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onChange: (d: PerkDraft) => void }) {
 	return (
-		<div class="pf-grid">
+		<div class="pf-grid fm-perk-form">
+			<div class="pf-field pf-wide">
+				<label class="pf-label" for={`p-title-${id}`}>
+					Name
+				</label>
+				<input id={`p-title-${id}`} value={draft.title} maxLength={100} onInput={(e) => onChange({ ...draft, title: e.currentTarget.value })} />
+			</div>
 			<div class="pf-field">
 				<label class="pf-label" for={`p-kind-${id}`}>
 					Kind
 				</label>
-				<select id={`p-kind-${id}`} value={draft.kind} onChange={(e) => {
+				<select
+					id={`p-kind-${id}`}
+					value={draft.kind}
+					onChange={(e) => {
 						const kind = e.currentTarget.value as PerkKind;
 						onChange({ ...draft, kind, details: blankDetails(kind) });
-					}}>
+					}}
+				>
 					{PERK_KINDS.map((k) => (
 						<option key={k.id} value={k.id}>
-							{k.label}
+							{KIND_ICON[k.id]} {k.label}
 						</option>
 					))}
 				</select>
@@ -604,12 +631,6 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 					))}
 				</select>
 			</div>
-			<div class="pf-field pf-wide">
-				<label class="pf-label" for={`p-title-${id}`}>
-					Name
-				</label>
-				<input id={`p-title-${id}`} value={draft.title} maxLength={100} onInput={(e) => onChange({ ...draft, title: e.currentTarget.value })} />
-			</div>
 			{draft.kind === 'trait' && (
 				<TraitPicker
 					value={draft.details}
@@ -618,34 +639,52 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 					}
 				/>
 			)}
-			{draft.kind === 'locked_power' && draft.details.ability && (
-				<AbilityBuilder value={draft.details.ability} onChange={(ability) => onChange({ ...draft, details: { ability } })} />
-			)}
-			<div class="pf-field pf-wide">
-				<label class="pf-label" for={`p-desc-${id}`}>
-					{draft.kind === 'locked_power' ? 'Description' : draft.kind === 'trait' ? 'Notes (optional)' : 'What it gives'}
-				</label>
-				<textarea
-					id={`p-desc-${id}`}
-					rows={4}
-					maxLength={8000}
-					value={draft.description}
-					onInput={(e) => onChange({ ...draft, description: e.currentTarget.value })}
-					placeholder={
-						draft.kind === 'locked_power'
-							? 'What the ability is and how it works in the family. **bold** and *italic* work.'
-							: draft.kind === 'trait'
+			{draft.kind === 'locked_power' && draft.details.ability ? (
+				// A Family ability's description lives inside its card.
+				<AbilityBuilder
+					value={draft.details.ability}
+					onChange={(ability) => onChange({ ...draft, details: { ability } })}
+					description={draft.description}
+					onDescription={(description) => onChange({ ...draft, description })}
+				/>
+			) : (
+				<div class="pf-field pf-wide">
+					<label class="pf-label" for={`p-desc-${id}`}>
+						{draft.kind === 'trait' ? (draft.details.customTrait ? 'What the trait does' : 'Notes (optional)') : 'What it gives'}
+					</label>
+					<textarea
+						id={`p-desc-${id}`}
+						rows={4}
+						maxLength={8000}
+						value={draft.description}
+						onInput={(e) => onChange({ ...draft, description: e.currentTarget.value })}
+						placeholder={
+							draft.kind === 'trait' && !draft.details.customTrait
 								? 'Anything about how the family passes this trait on.'
 								: 'Effects, limits, cooldowns, and any rolls. **bold** and *italic* work.'
-					}
-				/>
-			</div>
+						}
+					/>
+				</div>
+			)}
 			<label class="pf-check pf-wide">
 				<input type="checkbox" checked={draft.hidden} onChange={(e) => onChange({ ...draft, hidden: e.currentTarget.checked })} />
 				Members only: hide it from anyone outside the family
 			</label>
 		</div>
 	);
+}
+
+/** One line under a perk's name: its kind, what it gives, and who gets it. */
+function perkSubline(d: PerkDraft) {
+	const kind = PERK_KINDS.find((k) => k.id === d.kind)?.label ?? 'Perk';
+	const what =
+		d.kind === 'locked_power' && d.details.ability
+			? systemById.get(abilitySystem(d.details.ability))?.label
+			: d.kind === 'trait' && d.details.trait
+				? `${d.details.trait}${d.details.customTrait ? ' (custom)' : ''}`
+				: '';
+	const access = PERK_ACCESS.find((a) => a.id === d.access)?.label;
+	return [kind, what, access].filter(Boolean).join(' · ');
 }
 
 function PerksTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
@@ -658,6 +697,12 @@ function PerksTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
 	const removed = rows.filter((r) => r.removed && r.saved);
 	const added = sending.filter((r) => !r.saved).length;
 	const summary = [added && `${added} new`, sending.length - added && `${sending.length - added} changed`, removed.length && `${removed.length} removed`].filter(Boolean).join(' · ');
+	// Saved perks are grouped by the kind they were saved as, so a row doesn't jump while it's edited.
+	const groups = [
+		...PERK_KINDS.map((k) => ({ label: k.label, rows: rows.filter((r) => r.saved?.kind === k.id) })),
+		{ label: 'Older kinds', rows: rows.filter((r) => r.saved && !PERK_KINDS.some((k) => k.id === r.saved!.kind)) },
+		{ label: 'New perks', rows: rows.filter((r) => !r.saved) },
+	].filter((g) => g.rows.length);
 	const problems = [
 		...(sending.some((r) => !r.draft.title.trim()) ? ['Every perk needs a name.'] : []),
 		...sending.flatMap((r) => detailProblems(r.draft.kind, r.draft.details, r.draft.title)),
@@ -673,47 +718,64 @@ function PerksTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
 					A perk can be anything: a stat boost, a trait, a technique, gear, money, or protection in RP. Add or change as many as you like, then send them together. The admins
 					approve or deny each perk on its own, including whether it's <strong>members only</strong>. Changing a perk sends it back for approval.
 				</p>
-				{rows.map((r) => {
-					const status = r.saved?.status;
-					const edited = r.saved && changed(r);
-					return (
-						<details class={`fm-perk-edit${status ? ` perk-${status}` : ''}${r.removed ? ' removed' : ''}`} key={r.key} open={!r.saved}>
-							<summary>
-								<span class="fm-perk-edit-name">{r.draft.title.trim() || 'New perk'}</span>
-								<span class="fm-perk-edit-tags">
-									{r.removed ? (
-										<span class="fm-chip lock">Will be removed</span>
-									) : !r.saved ? (
-										<span class="fm-chip">New</span>
-									) : edited ? (
-										<span class="fm-chip">Changed</span>
-									) : (
-										status && <span class={`fm-chip state-${status}`}>{PERK_STATUS[status]}</span>
-									)}
-									{r.draft.hidden && <span class="fm-chip lock">Members only</span>}
-								</span>
-							</summary>
-							<div class="fm-perk-edit-body">
-								{r.saved?.review_note && !edited && <p class="fm-perk-state">Admin note: {r.saved.review_note}</p>}
-								{!r.removed && <PerkFields id={r.key} draft={r.draft} onChange={(draft) => set(r.key, { draft })} />}
-								<div class="fm-edit-row-tools">
-									{edited && !r.removed && (
-										<button type="button" class="pf-button subtle" onClick={() => set(r.key, { draft: perkFields(r.saved!) })}>
-											Undo changes
-										</button>
-									)}
-									<button
-										type="button"
-										class="pf-button subtle"
-										onClick={() => (r.saved ? set(r.key, { removed: !r.removed }) : setRows(rows.filter((x) => x.key !== r.key)))}
-									>
-										{r.removed ? 'Keep it' : 'Remove'}
-									</button>
-								</div>
-							</div>
-						</details>
-					);
-				})}
+				{groups.map((g) => (
+					<div class="fm-perk-group" key={g.label}>
+						<h3 class="fm-perk-group-head">
+							{g.label} <span>{g.rows.length}</span>
+						</h3>
+						{g.rows.map((r) => {
+							const status = r.saved?.status;
+							const edited = r.saved && changed(r);
+							return (
+								<details class={`fm-perk-edit${status ? ` perk-${status}` : ''}${r.removed ? ' removed' : ''}`} key={r.key} open={!r.saved}>
+									<summary>
+										<span class="fm-perk-icon" aria-hidden="true">
+											{KIND_ICON[r.draft.kind]}
+										</span>
+										<span class="fm-perk-edit-text">
+											<span class="fm-perk-edit-name">{r.draft.title.trim() || 'New perk'}</span>
+											<span class="fm-perk-edit-sub">{perkSubline(r.draft)}</span>
+										</span>
+										<span class="fm-perk-edit-tags">
+											{r.removed ? (
+												<span class="fm-chip lock">Will be removed</span>
+											) : !r.saved ? (
+												<span class="fm-chip">New</span>
+											) : edited ? (
+												<span class="fm-chip">Changed</span>
+											) : (
+												status && <span class={`fm-chip state-${status}`}>{PERK_STATUS[status]}</span>
+											)}
+											{r.draft.hidden && (
+												<span class="fm-chip lock" title="Members only">
+													🔒 Members
+												</span>
+											)}
+										</span>
+									</summary>
+									<div class="fm-perk-edit-body">
+										{r.saved?.review_note && !edited && <p class="fm-perk-state">Admin note: {r.saved.review_note}</p>}
+										{!r.removed && <PerkFields id={r.key} draft={r.draft} onChange={(draft) => set(r.key, { draft })} />}
+										<div class="fm-edit-row-tools">
+											{edited && !r.removed && (
+												<button type="button" class="pf-button subtle" onClick={() => set(r.key, { draft: perkFields(r.saved!) })}>
+													Undo changes
+												</button>
+											)}
+											<button
+												type="button"
+												class="pf-button subtle"
+												onClick={() => (r.saved ? set(r.key, { removed: !r.removed }) : setRows(rows.filter((x) => x.key !== r.key)))}
+											>
+												{r.removed ? 'Keep it' : 'Remove'}
+											</button>
+										</div>
+									</div>
+								</details>
+							);
+						})}
+					</div>
+				))}
 				<button type="button" class="pf-button" onClick={() => setRows([...rows, { key: `new-${Date.now()}`, draft: { ...NEW_PERK } }])}>
 					+ Add a perk
 				</button>

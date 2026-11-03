@@ -51,6 +51,8 @@ export interface SystemDef {
 	/** What a canon pick is called here, e.g. 'Stand'. Enables picking from the claim board. */
 	claimLabel?: string;
 	fields: Field[];
+	/** Sections the card's fields are shown in, in order; fields not listed go in a last “Other” section. */
+	groups?: { label: string; keys: string[] }[];
 	/** Starting points to spend on this system's stats. */
 	budget?: { label: string; total: (f: Fields) => number; spent: (f: Fields) => number };
 	/** Most skills a brand-new character may start with. */
@@ -112,6 +114,10 @@ export const systems: SystemDef[] = [
 	{
 		id: 'abilities',
 		label: 'Abilities',
+		groups: [
+			{ label: 'Ability', keys: ['classes', 'power', 'range'] },
+			{ label: 'Progress', keys: ['upgradePoints'] },
+		],
 		fields: [
 			{
 				key: 'classes',
@@ -137,6 +143,10 @@ export const systems: SystemDef[] = [
 		label: 'My Hero Academia (Quirk)',
 		universe: 'my-hero-academia',
 		claimLabel: 'Canon Quirk',
+		groups: [
+			{ label: 'Quirk', keys: ['type', 'power', 'range'] },
+			{ label: 'Progress', keys: ['upgradePoints'] },
+		],
 		fields: [
 			{ key: 'type', label: 'Quirk type', type: 'select', options: [{ value: 'Emitter' }, { value: 'Transformation' }, { value: 'Mutation' }], required: true },
 			{ key: 'power', label: 'Quirk Power', type: 'select', options: quirkPower, default: 'No Power' },
@@ -155,6 +165,11 @@ export const systems: SystemDef[] = [
 		label: 'Jujutsu Kaisen',
 		universe: 'jujutsu-kaisen',
 		claimLabel: 'Cursed Technique',
+		groups: [
+			{ label: 'Cursed Energy', keys: ['ceClass', 'ceAmount', 'ceOutput', 'ceControl', 'rp2rpRecharge', 'completeRecharge', 'ceUpgradePoints'] },
+			{ label: 'Cursed Technique', keys: ['ctName', 'ctType', 'ctClass', 'ctRange', 'ctPower', 'ctEfficiency', 'ctUpgradePoints'] },
+			{ label: 'Restrictions & tools', keys: ['heavenlyRestriction', 'bindingVows', 'cursedTools'] },
+		],
 		fields: [
 			{
 				key: 'ceClass',
@@ -225,6 +240,11 @@ export const systems: SystemDef[] = [
 		universe: 'jojo',
 		claimLabel: 'Canon Stand',
 		limitedChoice: { key: 'path', value: 'Stand', label: 'Stand' },
+		groups: [
+			{ label: 'Path', keys: ['path'] },
+			{ label: 'Stand', keys: ['standName', 'standArrow', 'standDestructivePower', 'standSpeed', 'standRange', 'standDurability', 'standPrecision', 'standDevelopmentalPotential'] },
+			{ label: 'Mastery', keys: ['hamonMastery', 'spinMastery', 'vampireMastery', 'vampireUpgradePoints'] },
+		],
 		fields: [
 			{
 				key: 'path',
@@ -265,6 +285,10 @@ export const systems: SystemDef[] = [
 		label: 'Fire Force',
 		universe: 'fire-force',
 		claimLabel: 'Canon Ignition Ability',
+		groups: [
+			{ label: 'Pyrokinesis', keys: ['generation', 'theme'] },
+			{ label: 'Levels', keys: ['manipulation', 'power', 'oxygenTank', 'efficiency', 'absorption'] },
+		],
 		fields: [
 			{ key: 'generation', label: 'Generation', type: 'select', options: [{ value: 'Second' }, { value: 'Third' }], required: true },
 			{ key: 'theme', label: 'Theme', type: 'text', required: true, help: 'Every Pyrokinetic follows a theme and sticks to it.' },
@@ -285,6 +309,10 @@ export const systems: SystemDef[] = [
 		label: 'inFAMOUS (Conduit)',
 		universe: 'infamous',
 		claimLabel: 'Canon Conduit',
+		groups: [
+			{ label: 'Conduit', keys: ['class', 'element', 'karma'] },
+			{ label: 'Levels', keys: ['power', 'tank'] },
+		],
 		fields: [
 			{ key: 'class', label: 'Conduit class', type: 'select', options: infamousClasses, required: true, help: 'Quantum can’t be picked.' },
 			{ key: 'element', label: 'Element / Energy', type: 'text', showIf: { key: 'class', in: ['Elemental', 'Energy'] }, required: true },
@@ -303,6 +331,11 @@ export const systems: SystemDef[] = [
 		id: 'tokyo-ghoul',
 		label: 'Tokyo Ghoul',
 		universe: 'tokyo-ghoul',
+		groups: [
+			{ label: 'Path', keys: ['path'] },
+			{ label: 'Kagune', keys: ['kagune', 'rcTank', 'gep'] },
+			{ label: 'Quinque', keys: ['quinque'] },
+		],
 		fields: [
 			{ key: 'path', label: 'Path', type: 'select', options: [{ value: 'Ghoul' }, { value: 'Human (Quinque user)' }], required: true },
 			{
@@ -326,6 +359,11 @@ export const systems: SystemDef[] = [
 		id: 'chainsaw-man',
 		label: 'Chainsaw Man',
 		universe: 'chainsaw-man',
+		groups: [
+			{ label: 'Path & nature', keys: ['path', 'devilClass', 'concept'] },
+			{ label: 'Blood & power', keys: ['bloodTank', 'dap'] },
+			{ label: 'Contracts', keys: ['contracts'] },
+		],
 		fields: [
 			{ key: 'path', label: 'Path', type: 'select', options: [{ value: 'Devil' }, { value: 'Fiend' }, { value: 'Hybrid' }, { value: 'Human with contracts' }], required: true },
 			{
@@ -365,6 +403,10 @@ export const systems: SystemDef[] = [
 		id: 'cyberpunk',
 		label: 'Cyberpunk 2077',
 		universe: 'cyberpunk-2077',
+		groups: [
+			{ label: 'Start & progress', keys: ['start', 'streetCred', 'xp', 'skillPoints'] },
+			{ label: 'Cyberware', keys: ['cyberware'] },
+		],
 		fields: [
 			{ key: 'start', label: 'Start', type: 'select', options: [{ value: 'Powered' }, { value: 'Unpowered' }], required: true, help: 'Unpowered starts unlock the Mastery System.' },
 			{ key: 'streetCred', label: 'Street Cred', type: 'number', default: 0, min: 0 },
@@ -430,6 +472,16 @@ export function openRolledKeys(def: SystemDef | undefined, familyFields: Fields)
 	const set = (v: FieldValue | undefined) => v !== undefined && v !== '' && v !== 0;
 	if (!rolled.length || rolled.some((f) => set(familyFields[f.key]))) return [];
 	return [...rolled.map((f) => f.key), 'ceLevel'];
+}
+
+/** A card's visible fields, split into its sections. */
+export function groupedFields(def: SystemDef, f: Fields) {
+	const shown = visibleFields(def, f);
+	const listed = new Set(def.groups?.flatMap((g) => g.keys));
+	const out = (def.groups ?? []).map((g) => ({ label: g.label, fields: shown.filter((x) => g.keys.includes(x.key)) }));
+	const rest = shown.filter((x) => !listed.has(x.key));
+	if (rest.length) out.push({ label: def.groups ? 'Other' : 'Details', fields: rest });
+	return out.filter((g) => g.fields.length);
 }
 
 /** Whether a card counts toward its system's one-per-character limit. */

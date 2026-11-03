@@ -6,8 +6,8 @@
 import { Fragment } from 'preact';
 import type { PerkDetails, PerkKind } from '../../lib/families/api.ts';
 import { rules, traits } from '../../lib/portal/rules.ts';
-import { abilitySystem, systemById, systems, visibleFields, type FieldValue } from '../../lib/portal/systems.ts';
-import { SelectField, TextField } from '../portal/fields.tsx';
+import { abilitySystem, groupedFields, systemById, systems, visibleFields, type FieldValue } from '../../lib/portal/systems.ts';
+import { SelectField, TextArea, TextField } from '../portal/fields.tsx';
 import { FieldInput, SkillsEditor, defaults } from '../portal/SystemsSection.tsx';
 
 type Ability = NonNullable<PerkDetails['ability']>;
@@ -52,7 +52,8 @@ export function detailProblems(kind: PerkKind, details: PerkDetails, title: stri
 	return [];
 }
 
-export function AbilityBuilder({ value, onChange }: { value: Ability; onChange: (v: Ability) => void }) {
+export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) => void; description: string; onDescription: (v: string) => void }) {
+	const { value, onChange } = props;
 	const system = abilitySystem(value);
 	const def = systemById.get(system)!;
 	const budget = def.budget ? { total: def.budget.total(value.fields), spent: def.budget.spent(value.fields) } : null;
@@ -71,36 +72,65 @@ export function AbilityBuilder({ value, onChange }: { value: Ability; onChange: 
 				Built the same way as a character’s card, but these are the family’s own starting stats instead of the usual defaults. Members who link it get this card on their sheet; the admins judge anything over the usual limits.
 			</p>
 			<div class="pf-grid">
-				<SelectField
-					label="Power system"
-					required
-					value={system}
-					onChange={(v) => v !== system && onChange(blankAbility(v))}
-					options={systems.map((s) => ({ value: s.id, label: s.label }))}
-					help="Changing the system starts the card fresh."
-				/>
-				{def.notes?.map((n) => (
-					<p class="pf-help pf-wide" key={n}>
-						ℹ {n}
-					</p>
-				))}
-				{visibleFields(def, value.fields).map((field) => (
-					<Fragment key={field.key}>
-						<FieldInput
-							field={field.rolled ? { ...field, required: false, help: 'Leave empty to have each member roll it.' } : field}
-							value={value.fields[field.key]}
-							disabled={false}
-							onChange={(v) => setField(field.key, v)}
+				<fieldset class="sys-group pf-wide">
+					<legend>System</legend>
+					<div class="pf-grid">
+						<SelectField
+							label="Power system"
+							required
+							value={system}
+							onChange={(v) => v !== system && onChange(blankAbility(v))}
+							options={systems.map((s) => ({ value: s.id, label: s.label }))}
+							help="Changing the system starts the card fresh."
 						/>
-					</Fragment>
+						{def.notes?.map((n) => (
+							<p class="pf-help pf-wide" key={n}>
+								ℹ {n}
+							</p>
+						))}
+					</div>
+				</fieldset>
+				<fieldset class="sys-group pf-wide">
+					<legend>Description</legend>
+					<div class="pf-grid">
+						<TextArea
+							label="What the ability is"
+							rows={4}
+							value={props.description}
+							placeholder="What it does and how it works in the family. **bold** and *italic* work."
+							onInput={props.onDescription}
+						/>
+					</div>
+				</fieldset>
+				{groupedFields(def, value.fields).map((group) => (
+					<fieldset class="sys-group pf-wide" key={group.label}>
+						<legend>{group.label}</legend>
+						<div class="pf-grid">
+							{group.fields.map((field) => (
+								<Fragment key={field.key}>
+									<FieldInput
+										field={field.rolled ? { ...field, required: false, help: 'Leave empty to have each member roll it.' } : field}
+										value={value.fields[field.key]}
+										disabled={false}
+										onChange={(v) => setField(field.key, v)}
+									/>
+								</Fragment>
+							))}
+						</div>
+					</fieldset>
 				))}
-				<SkillsEditor
-					skills={value.skills}
-					disabled={false}
-					limits={def.startingMoves?.(value.fields)}
-					isEvolution={false}
-					onUpdate={(fn) => onChange({ ...value, skills: fn(value.skills) })}
-				/>
+				<fieldset class="sys-group pf-wide">
+					<legend>Skills</legend>
+					<div class="pf-grid">
+						<SkillsEditor
+							skills={value.skills}
+							disabled={false}
+							limits={def.startingMoves?.(value.fields)}
+							isEvolution={false}
+							onUpdate={(fn) => onChange({ ...value, skills: fn(value.skills) })}
+						/>
+					</div>
+				</fieldset>
 			</div>
 		</div>
 	);

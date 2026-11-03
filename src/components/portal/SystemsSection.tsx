@@ -5,7 +5,7 @@ import type { ClaimRow, Universe } from '../../lib/portal/api.ts';
 import type { LinkablePerk } from '../../lib/portal/families.ts';
 import { minimumMoves, rules, systemLimit } from '../../lib/portal/rules.ts';
 import { PROOF_LABEL, familyCardChanged, type Sheet, type Skill, type SystemEntry } from '../../lib/portal/sheet.ts';
-import { abilitySystem, countsTowardLimit, openRolledKeys, systemById, systems, visibleFields, type Field, type FieldValue, type Option } from '../../lib/portal/systems.ts';
+import { abilitySystem, countsTowardLimit, groupedFields, openRolledKeys, systemById, systems, visibleFields, type Field, type FieldValue, type Option } from '../../lib/portal/systems.ts';
 import { CheckboxGroup, NumberField, Section, SelectField, TextArea, TextField } from './fields.tsx';
 import { RollPanel, type Roller } from './RollPanel.tsx';
 
@@ -444,34 +444,51 @@ export function SystemsSection(props: Props) {
 									}
 								/>
 							)}
-							{visibleFields(def, entry.fields).filter((field) => !field.rolled).map((field) => (
-								<Fragment key={field.key}>
-									<FieldInput
-										field={field}
-										value={entry.fields[field.key]}
-										disabled={locked}
-										blocked={def.limitedChoice?.key === field.key && limitedChoiceFull(entry) ? { value: def.limitedChoice.value, reason: 'max reached' } : undefined}
-										onChange={(v) => setEntry(entry.key, (e) => void (e.fields[field.key] = v))}
-										onUpdate={(fn) => setEntry(entry.key, (e) => void (e.fields[field.key] = fn(e.fields[field.key])))}
+							{groupedFields(def, entry.fields).map((group) => {
+								// Rolled fields are filled by the roll panel above.
+								const fields = group.fields.filter((field) => !field.rolled);
+								if (!fields.length) return null;
+								return (
+									<fieldset class="sys-group pf-wide" key={group.label}>
+										<legend>{group.label}</legend>
+										<div class="pf-grid">
+											{fields.map((field) => (
+											<Fragment key={field.key}>
+												<FieldInput
+													field={field}
+													value={entry.fields[field.key]}
+													disabled={locked}
+													blocked={def.limitedChoice?.key === field.key && limitedChoiceFull(entry) ? { value: def.limitedChoice.value, reason: 'max reached' } : undefined}
+													onChange={(v) => setEntry(entry.key, (e) => void (e.fields[field.key] = v))}
+													onUpdate={(fn) => setEntry(entry.key, (e) => void (e.fields[field.key] = fn(e.fields[field.key])))}
+												/>
+												{field.rollProof && (
+													<TextField
+														label={`${field.label}: roll link`}
+														value={entry.rollProofs[field.key] ?? ''}
+														placeholder="https://discord.com/channels/…"
+														disabled={readOnly}
+														onInput={(v) => setEntry(entry.key, (e) => void (e.rollProofs[field.key] = v))}
+													/>
+												)}
+											</Fragment>
+											))}
+										</div>
+									</fieldset>
+								);
+							})}
+							<fieldset class="sys-group pf-wide">
+								<legend>Description</legend>
+								<div class="pf-grid">
+									<TextArea
+										label={linked ? 'How your character uses it' : 'Description'}
+										help={linked ? 'Your character’s take on the family ability, in your own words.' : 'What it is and how it works, in your own words.'}
+										value={entry.description}
+										disabled={readOnly}
+										onInput={(v) => setEntry(entry.key, (e) => void (e.description = v))}
 									/>
-									{field.rollProof && (
-										<TextField
-											label={`${field.label}: roll link`}
-											value={entry.rollProofs[field.key] ?? ''}
-											placeholder="https://discord.com/channels/…"
-											disabled={readOnly}
-											onInput={(v) => setEntry(entry.key, (e) => void (e.rollProofs[field.key] = v))}
-										/>
-									)}
-								</Fragment>
-							))}
-							<TextArea
-								label={linked ? 'How your character uses it' : 'Description'}
-								help={linked ? 'Your character’s take on the family ability, in your own words.' : 'What it is and how it works, in your own words.'}
-								value={entry.description}
-								disabled={readOnly}
-								onInput={(v) => setEntry(entry.key, (e) => void (e.description = v))}
-							/>
+								</div>
+							</fieldset>
 							{def.universe && def.claimLabel && (
 								<ClaimPicker
 									universe={def.universe}
