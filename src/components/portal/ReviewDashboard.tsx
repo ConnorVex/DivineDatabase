@@ -96,7 +96,10 @@ const Row = ({ label, value }: { label: string; value: ComponentChildren }) =>
 
 const Text = ({ value }: { value: string }) => (value?.trim() ? <p class="rv-text">{value}</p> : <p class="pf-empty">Empty.</p>);
 
-function IssueList({ issues }: { issues: Issue[] }) {
+type PermissionDecision = 'approved' | 'denied';
+
+/** Issues by level. With `onDecide`, each “needs permission” item gets Approve / Deny buttons. */
+function IssueList({ issues, decisions, onDecide }: { issues: Issue[]; decisions?: Record<string, PermissionDecision>; onDecide?: (message: string, d: PermissionDecision | null) => void }) {
 	if (issues.length === 0) return <p class="pf-ok">✅ No problems found.</p>;
 	const groups = [
 		['error', '⛔ Breaks the rules'],
@@ -113,11 +116,29 @@ function IssueList({ issues }: { issues: Issue[] }) {
 							{title} ({list.length})
 						</h3>
 						<ul>
-							{list.map((i, n) => (
-								<li key={n}>
-									<span class="pf-issue-section">{i.section}</span> {i.message}
-								</li>
-							))}
+							{list.map((i, n) => {
+								const d = decisions?.[i.message];
+								return (
+									<li key={n} class={d ? `rv-perm ${d}` : undefined}>
+										<span class="pf-issue-section">{i.section}</span> {i.message}
+										{level === 'permission' && onDecide && (
+											<span class="rv-perm-buttons">
+												{(['approved', 'denied'] as const).map((choice) => (
+													<button
+														key={choice}
+														type="button"
+														class={`pf-button subtle${d === choice ? ` active ${choice}` : ''}`}
+														aria-pressed={d === choice}
+														onClick={() => onDecide(i.message, d === choice ? null : choice)}
+													>
+														{choice === 'approved' ? '✓ Approve' : '✕ Deny'}
+													</button>
+												))}
+											</span>
+										)}
+									</li>
+								);
+							})}
 						</ul>
 					</div>
 				) : null;
@@ -374,6 +395,7 @@ function Detail(props: {
 	const [perks, setPerks] = useState<LinkablePerk[] | null>(null);
 	const [memberOf, setMemberOf] = useState<string[]>([]);
 	const [note, setNote] = useState('');
+	const [permissions, setPermissions] = useState<Record<string, PermissionDecision>>({});
 	const [confirm, setConfirm] = useState<'approved' | 'denied' | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState('');
@@ -434,16 +456,27 @@ function Detail(props: {
 		: c.status === 'pending' || c.status === 'needs_correction';
 	const picked = c.sheet.families.map((id) => props.families.find((f) => f.id === id)).filter((f): f is FamilyCard => Boolean(f));
 
+	// Permission decisions go into the review note, so the player sees them in Discord and their history.
+	const permissionNote = () => {
+		const pick = (d: PermissionDecision) =>
+			issues.filter((i) => i.level === 'permission' && permissions[i.message] === d).map((i) => i.message.replace(/ needs? permission\.?$/, ''));
+		const ok = pick('approved');
+		const no = pick('denied');
+		return [ok.length ? `✅ Approved: ${ok.join('; ')}` : '', no.length ? `❌ Denied: ${no.join('; ')}` : ''].filter(Boolean).join('\n');
+	};
+	const denied = issues.some((i) => i.level === 'permission' && permissions[i.message] === 'denied');
+
 	async function decide(outcome: 'approved' | 'needs_correction' | 'denied') {
-		if ((outcome === 'denied' || (outcome === 'approved' && errors > 0)) && confirm !== outcome) {
+		if ((outcome === 'denied' || (outcome === 'approved' && (errors > 0 || denied))) && confirm !== outcome) {
 			setConfirm(outcome);
 			return;
 		}
 		setBusy(true);
 		setError('');
 		try {
-			if (openEvolution) await reviewEvolution(openEvolution.id, outcome, note.trim());
-			else await reviewCharacter(c.id, outcome, note.trim());
+			const full = [permissionNote(), note.trim()].filter(Boolean).join('\n\n');
+			if (openEvolution) await reviewEvolution(openEvolution.id, outcome, full);
+			else await reviewCharacter(c.id, outcome, full);
 			props.onDecided();
 		} catch (e) {
 			setError(messageOf(e));
@@ -498,7 +531,16 @@ function Detail(props: {
 			{error && <p class="portal-error">{error}</p>}
 
 			<Block title="Checks">
-				<IssueList issues={issues} />
+				<IssueList
+					issues={issues}
+					decisions={decidable ? permissions : undefined}
+					onDecide={decidable ? (message, d) => setPermissions((p) => {
+						const next = { ...p };
+						if (d) next[message] = d;
+						else delete next[message];
+						return next;
+					}) : undefined}
+				/>
 			</Block>
 
 			{picked.length > 0 && (
@@ -623,13 +665,18 @@ function Detail(props: {
 							placeholder="What to fix, or a welcome message. The player sees this on My Stuff."
 						/>
 					</div>
+					{permissionNote() && (
+						<p class="pf-help rv-perm-note">
+							Added to the note: <span>{permissionNote()}</span>
+						</p>
+					)}
 					{confirm && (
 						<p class="roll-note bad" role="alert">
 							{confirm === 'denied' && openEvolution
 								? 'Denying the evolution throws these changes away; the character goes back to its last approved version. Click again to confirm.'
 								: confirm === 'denied'
 								? 'Denying is final for the player: the character is locked and they must make a new one. Click Deny again to confirm.'
-								: `This sheet still has ${errors} rule problem${errors === 1 ? '' : 's'}. Click Approve again to approve anyway.`}
+								: `${[errors > 0 ? `This sheet still has ${errors} rule problem${errors === 1 ? '' : 's'}` : '', denied ? 'you denied something that needs permission' : ''].filter(Boolean).join(', and ').replace(/^y/, 'Y')}. Click Approve again to approve anyway, or Send back so the player can change it.`}
 						</p>
 					)}
 					<div class="rv-buttons">
@@ -731,6 +778,8 @@ function CharacterQueue(props: {
 				</div>
 				{current ? (
 					<Detail
+						// A fresh note and permission decisions for each character.
+						key={current.id}
 						c={current}
 						owner={players.get(current.owner_id)}
 						board={props.board}

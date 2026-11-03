@@ -2764,3 +2764,34 @@
 .sys-group > .pf-grid {
 	margin-top: 0.5rem;
 }
+
+/* Review: approve or deny each item that needs permission. */
+.rv-perm-buttons {
+	display: flex;
+	gap: 0.35rem;
+	margin-top: 0.4rem;
+}
+.rv-perm-buttons > *,
+.sl-markdown-content .rv-perm-buttons > * {
+	margin: 0;
+}
+.rv-perm-buttons .pf-button.pf-button {
+	padding: 0.2rem 0.75rem;
+	font-size: var(--sl-text-xs);
+	line-height: 1.4;
+	height: 1.9rem;
+	box-shadow: none;
+	transform: none;
+}
+.rv-perm-buttons .pf-button.active.approved {
+	border-color: var(--sl-color-green-high);
+	color: var(--sl-color-green-high);
+}
+.rv-perm-buttons .pf-button.active.denied {
+	border-color: var(--sl-color-red-high);
+	color: var(--sl-color-red-high);
+}
+.rv-perm-note span {
+	white-space: pre-line;
+	color: var(--pf-text);
+}

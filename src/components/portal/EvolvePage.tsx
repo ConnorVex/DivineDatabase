@@ -185,7 +185,7 @@ export default function EvolvePage() {
 
 			{open?.status === 'needs_correction' && (
 				<div class="pf-status status-needs_correction">
-					<strong>Sent back</strong> · {open.review_note || 'An admin asked for changes. Open a ticket if you’re not sure what to fix.'}
+					<strong>Sent back</strong> · {open.review_note || 'An admin asked for changes. Check the review notes on your dashboard to see what to fix.'}
 				</div>
 			)}
 			{reviewing && (

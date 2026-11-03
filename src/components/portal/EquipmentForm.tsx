@@ -133,7 +133,7 @@ export default function EquipmentForm() {
 		<div class="pf eq">
 			{existing?.status === 'needs_correction' && (
 				<div class="pf-status status-needs_correction">
-					<strong>Sent back</strong> · {existing.review_note || 'A Gamemaster asked for changes. Open a ticket if you’re not sure what to fix.'}
+					<strong>Sent back</strong> · {existing.review_note || 'A Gamemaster asked for changes. Check the review notes on your dashboard to see what to fix.'}
 				</div>
 			)}
 			{existing?.status === 'pending' && (
