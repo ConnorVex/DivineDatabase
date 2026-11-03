@@ -2,7 +2,8 @@
 // (e.g. 5 JJUUP → 2 CEUP), the skill trees they unlock, recent history, and for admins a way to
 // add or take points.
 import { useEffect, useState } from 'preact/hooks';
-import { adjustPoints, convertPoints, loadPoints, removeSkillUnlock, unlockSkill, type CharacterPoints } from '../../lib/portal/api.ts';
+import { adjustPoints, convertCustomPoints, convertPoints, loadPoints, removeSkillUnlock, unlockSkill, type CharacterPoints } from '../../lib/portal/api.ts';
+import { CUSTOM, customTreeNodes } from '../../lib/portal/customTree.ts';
 import { applies, cardCurrencies, cardLabel } from '../../lib/portal/points.ts';
 import type { Sheet } from '../../lib/portal/sheet.ts';
 import { SkillTreeView } from './SkillTreeView.tsx';
@@ -40,28 +41,57 @@ export function PointsPanel({ characterId, sheet, admin = false, initial }: { ch
 	}
 
 	if (!data) return error ? <p class="portal-error">{error}</p> : <p class="portal-status">Loading points…</p>;
-	const cards = cardCurrencies(sheet, data.currencies);
+	const systemCurrencies = cardCurrencies(sheet, data.currencies);
+	// Each card's wallets: its system points, plus its custom tree's own currency (kept in the CUSTOM wallet).
+	const customOf = (key: string) => {
+		const tree = sheet.systems.find((e) => e.key === key)?.customTree;
+		return tree?.currency === CUSTOM ? tree.custom : null;
+	};
+	const cards = sheet.systems
+		.map((entry) => {
+			const system = systemCurrencies.find((c) => c.entry.key === entry.key)?.currencies ?? [];
+			const custom = customOf(entry.key);
+			const codes = new Set(system.map((c) => c.code));
+			return {
+				entry,
+				wallets: [
+					...system.map((c) => ({ wallet: c.code, code: c.code, label: c.label, earn: c.earn })),
+					...(custom ? [{ wallet: CUSTOM, code: custom.code || 'Custom', label: custom.name, earn: custom.gain }] : []),
+				],
+				conversions: [
+					...data.conversions
+						.filter((v) => codes.has(v.from_code) && codes.has(v.to_code))
+						.map((v) => ({ id: String(v.id), from: v.from_code, fromAmount: v.from_amount, to: v.to_code, toAmount: v.to_amount, run: (n: number) => convertPoints(characterId, entry.key, v.id, n) })),
+					...(custom?.convertFrom
+						? [{ id: 'custom', from: custom.convertFrom, fromAmount: custom.convertFromAmount, to: custom.code, toAmount: custom.convertToAmount, run: (n: number) => convertCustomPoints(characterId, entry.key, n) }]
+						: []),
+				],
+			};
+		})
+		.filter((c) => c.wallets.length);
 	if (!cards.length) return <p class="pf-help">None of this character’s systems use upgrade points.</p>;
 	const balance = (card: string, code: string) => data.balances.find((b) => b.card_key === card && b.currency === code)?.balance ?? 0;
 	const tracked = new Set(data.currencies.map((c) => c.code));
-	const treeCards = sheet.systems.flatMap((entry) =>
-		data.trees.filter((t) => t.system === entry.system && applies(t, entry)).map((tree) => ({ entry, tree })),
-	);
-	const targets = cards.flatMap(({ entry, currencies }) => currencies.map((c) => ({ value: `${entry.key}|${c.code}`, label: `${cardLabel(sheet, entry)} · ${c.code}` })));
+	const currencyName = (card: string, code: string) => (code === CUSTOM ? customOf(card)?.code || 'Custom' : code);
+	const treeCards = sheet.systems.flatMap((entry) => [
+		...data.trees.filter((t) => t.system === entry.system && applies(t, entry)).map((tree) => ({ entry, tree, nodes: data.nodes.filter((n) => n.tree_id === tree.id) })),
+		...(entry.customTree
+			? [{ entry, tree: { id: 'custom', system: entry.system, label: entry.customTree.name || 'Custom tree', show_if: null, sort: 0 }, nodes: customTreeNodes(entry.customTree) }]
+			: []),
+	]);
+	const targets = cards.flatMap(({ entry, wallets }) => wallets.map((c) => ({ value: `${entry.key}|${c.wallet}`, label: `${cardLabel(sheet, entry)} · ${c.code}` })));
 
 	return (
 		<div class="pts">
 			<div class="pts-cards">
-				{cards.map(({ entry, currencies }) => {
-					const codes = new Set(currencies.map((c) => c.code));
-					const conversions = data.conversions.filter((v) => codes.has(v.from_code) && codes.has(v.to_code));
+				{cards.map(({ entry, wallets, conversions }) => {
 					return (
 						<div class="hud-panel pts-card" key={entry.key}>
 							<h3 class="hud-panel-title">{cardLabel(sheet, entry)}</h3>
 							<ul class="pts-balances">
-								{currencies.map((c) => (
-									<li key={c.code} title={c.label}>
-										<strong>{balance(entry.key, c.code)}</strong>
+								{wallets.map((c) => (
+									<li key={c.wallet} title={c.label}>
+										<strong>{balance(entry.key, c.wallet)}</strong>
 										<span>{c.code}</span>
 										{c.earn > 0 && <small>+{c.earn} per session</small>}
 									</li>
@@ -70,21 +100,21 @@ export function PointsPanel({ characterId, sheet, admin = false, initial }: { ch
 							{conversions.map((v) => {
 								const id = `${entry.key}:${v.id}`;
 								const n = times[id] ?? 1;
-								const affordable = Math.floor(balance(entry.key, v.from_code) / v.from_amount);
+								const affordable = Math.floor(balance(entry.key, v.from) / v.fromAmount);
 								return (
 									<div class="pts-convert" key={v.id}>
 										<span>
-											{v.from_amount * n} {v.from_code} → {v.to_amount * n} {v.to_code}
+											{v.fromAmount * n} {v.from} → {v.toAmount * n} {v.to}
 										</span>
 										<input
 											type="number"
 											min={1}
 											max={Math.max(1, affordable)}
 											value={n}
-											aria-label={`How many times to convert ${v.from_code} to ${v.to_code}`}
+											aria-label={`How many times to convert ${v.from} to ${v.to}`}
 											onInput={(e) => setTimes({ ...times, [id]: Math.max(1, Math.floor(Number(e.currentTarget.value) || 1)) })}
 										/>
-										<button type="button" class="pf-button" disabled={busy || affordable < n} onClick={() => run(() => convertPoints(characterId, entry.key, v.id, n))}>
+										<button type="button" class="pf-button" disabled={busy || affordable < n} onClick={() => run(() => v.run(n))}>
 											Convert
 										</button>
 									</div>
@@ -99,7 +129,7 @@ export function PointsPanel({ characterId, sheet, admin = false, initial }: { ch
 				<div class="pts-trees">
 					<h3 class="pf-subhead">Skill trees</h3>
 					<p class="pf-help">Tap a skill to see what it needs. Unlocking spends the card’s points and adds a line to the evolution log.</p>
-					{treeCards.map(({ entry, tree }) => {
+					{treeCards.map(({ entry, tree, nodes }) => {
 						const unlocks = data.unlocks.filter((u) => u.card_key === entry.key && u.tree_id === tree.id);
 						return (
 							<details class="pts-tree" key={`${entry.key}:${tree.id}`}>
@@ -110,10 +140,11 @@ export function PointsPanel({ characterId, sheet, admin = false, initial }: { ch
 								</summary>
 								<SkillTreeView
 									tree={tree}
-									nodes={data.nodes.filter((n) => n.tree_id === tree.id)}
+									nodes={nodes}
+									currencyName={(code) => currencyName(entry.key, code)}
 									unlocks={unlocks}
 									balance={(code) => balance(entry.key, code)}
-									tracked={(code) => tracked.has(code)}
+									tracked={(code) => tracked.has(code) || code === CUSTOM}
 									admin={admin}
 									busy={busy}
 									onUnlock={(node, free) => run(() => unlockSkill(characterId, entry.key, tree.id, node, free))}
@@ -162,7 +193,7 @@ export function PointsPanel({ characterId, sheet, admin = false, initial }: { ch
 							<li key={r.id}>
 								<span class={r.change > 0 ? 'pts-up' : 'pts-down'}>
 									{r.change > 0 ? '+' : ''}
-									{r.change} {r.currency}
+									{r.change} {currencyName(r.card_key, r.currency)}
 								</span>{' '}
 								· {cardLabel(sheet, r.card_key)} · {SOURCE[r.source]}
 								{r.reason ? ` · ${r.reason}` : ''} · <time>{new Date(r.created_at).toLocaleDateString()}</time>

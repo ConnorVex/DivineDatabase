@@ -31,6 +31,7 @@ export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[]
 		isEvolution: Boolean(draft.approvedAt),
 		extraTraitSlots: draft.extraTraitSlots,
 		bonusPtp: draft.bonusPtp,
+		approvedSheet: draft.approvedSheet,
 		claims,
 		heldClaimIds: held,
 		requestedClaims: effectiveClaims(draft, board),

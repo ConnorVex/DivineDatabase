@@ -11,6 +11,10 @@ export function SkillTreeView(props: {
 	tracked: (code: string) => boolean;
 	admin: boolean;
 	busy: boolean;
+	/** How a cost currency is shown (custom trees cost CUSTOM, shown as the currency's code). */
+	currencyName?: (code: string) => string;
+	/** Just show the tree: no unlock buttons. */
+	preview?: boolean;
 	onUnlock: (node: string, free: boolean) => Promise<boolean>;
 	onRemove: (node: string, refund: boolean) => Promise<boolean>;
 }) {
@@ -21,7 +25,8 @@ export function SkillTreeView(props: {
 	const node = picked ? byId.get(picked) : undefined;
 
 	const state = (n: SkillNode) => (owned.has(n.id) ? 'owned' : n.requires.every((r) => owned.has(r)) ? 'open' : 'locked');
-	const costText = (n: SkillNode) => (n.start ? 'Start' : n.cost_amount === null ? 'Free' : `${n.cost_amount} ${n.cost_currency}`);
+	const name = (code: string | null) => (code ? (props.currencyName?.(code) ?? code) : '');
+	const costText = (n: SkillNode) => (n.start ? 'Start' : n.cost_amount === null ? 'Free' : `${n.cost_amount} ${name(n.cost_currency)}`);
 	const affordable = (n: SkillNode) => n.cost_amount === null || (props.tracked(n.cost_currency ?? '') && props.balance(n.cost_currency ?? '') >= n.cost_amount);
 	const done = (ok: boolean) => ok && setPicked(null);
 
@@ -72,14 +77,14 @@ export function SkillTreeView(props: {
 							))}
 						</p>
 					)}
-					<div class="st-actions">
+					{!props.preview && <div class="st-actions">
 						{state(node) === 'open' && (
 							<>
 								{node.cost_amount !== null && !props.tracked(node.cost_currency ?? '') ? (
-									<span class="pf-help">{node.cost_currency} isn’t tracked yet. Ask staff to unlock it.</span>
+									<span class="pf-help">{name(node.cost_currency)} isn’t tracked yet. Ask staff to unlock it.</span>
 								) : (
 									<button type="button" class="pf-button primary" disabled={props.busy || !affordable(node)} onClick={() => props.onUnlock(node.id, false).then(done)}>
-										{affordable(node) ? `Unlock for ${costText(node)}` : `Need ${node.cost_amount} ${node.cost_currency} (have ${props.balance(node.cost_currency ?? '')})`}
+										{affordable(node) ? `Unlock for ${costText(node)}` : `Need ${node.cost_amount} ${name(node.cost_currency)} (have ${props.balance(node.cost_currency ?? '')})`}
 									</button>
 								)}
 								{props.admin && node.cost_amount !== null && (
@@ -102,7 +107,7 @@ export function SkillTreeView(props: {
 							</>
 						)}
 						{state(node) === 'locked' && <span class="pf-help">Unlock what it needs first.</span>}
-					</div>
+					</div>}
 				</div>
 			)}
 		</div>

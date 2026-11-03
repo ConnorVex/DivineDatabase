@@ -5,6 +5,7 @@ import type { ClaimRow, Universe } from '../../lib/portal/api.ts';
 import type { LinkablePerk } from '../../lib/portal/families.ts';
 import { minimumMoves, rules, systemBudget, systemLimit } from '../../lib/portal/rules.ts';
 import { PROOF_LABEL, familyCardChanged, type Sheet, type Skill, type SystemEntry } from '../../lib/portal/sheet.ts';
+import { CustomTreeBuilder } from './CustomTreeBuilder.tsx';
 import { isTrackedField, TRACKED_HELP } from '../../lib/portal/points.ts';
 import { abilitySystem, countsTowardLimit, familyScope, groupedFields, memberKeys, systemById, systems, visibleFields, type Field, type FieldValue, type Option } from '../../lib/portal/systems.ts';
 import { CheckboxGroup, NumberField, Section, SelectField, TextArea, TextField } from './fields.tsx';
@@ -490,6 +491,7 @@ export function SystemsSection(props: Props) {
 									/>
 								</div>
 							</fieldset>
+							<CustomTreeBuilder entry={entry} disabled={readOnly} onChange={(tree) => setEntry(entry.key, (e) => void (e.customTree = tree))} />
 							{def.universe && def.claimLabel && (
 								<ClaimPicker
 									universe={def.universe}

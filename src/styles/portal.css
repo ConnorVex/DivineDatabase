@@ -3020,3 +3020,110 @@
 .st-actions > * {
 	margin: 0;
 }
+
+/* Custom skill tree builder */
+.ct-empty {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.4rem 0.8rem;
+}
+.ct-empty > * {
+	margin: 0;
+}
+.ct-currency {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+	gap: 0.75rem;
+	padding: 0.75rem;
+	border-radius: 0.5rem;
+	background: var(--sl-color-gray-6);
+}
+.ct-currency > * {
+	margin: 0;
+}
+.ct-rate {
+	display: flex;
+	align-items: flex-end;
+	gap: 0.5rem;
+}
+.ct-rate > * {
+	margin: 0;
+	flex: 1;
+}
+.ct-rate > span {
+	flex: 0;
+	padding-bottom: 0.6rem;
+}
+.ct-nodes {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+	margin: 0.75rem 0 0;
+	padding: 0;
+	list-style: none;
+}
+.ct-node {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	margin: 0;
+	padding: 0.75rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.5rem;
+}
+.ct-node > * {
+	margin: 0;
+}
+.ct-node > .pf-button {
+	align-self: flex-start;
+}
+.ct-node-head {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 9rem);
+	gap: 0.6rem;
+}
+.ct-node-head > * {
+	margin: 0;
+}
+.ct-requires {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.35rem;
+}
+.ct-requires > * {
+	margin: 0;
+}
+.ct-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	padding: 0.15rem 0.55rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 999px;
+	font-size: var(--sl-text-xs);
+	cursor: pointer;
+}
+.ct-chip:has(input:checked) {
+	border-color: var(--sl-color-accent);
+	background: var(--sl-color-accent-low);
+}
+.ct-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	margin-top: 0.75rem;
+}
+.ct-actions > * {
+	margin: 0;
+}
+.ct-preview {
+	margin-top: 0.75rem;
+}
+.rv-custom-tree {
+	margin-top: 0.6rem;
+}
+.rv-custom-rates {
+	margin: 0 0.8rem 0.5rem;
+}

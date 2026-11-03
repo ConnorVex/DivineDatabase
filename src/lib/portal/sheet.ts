@@ -1,5 +1,6 @@
 // The shape of a character sheet as stored in characters.sheet (jsonb).
 import type { PerkAccess } from '../families/api.ts';
+import type { CustomTree } from './customTree.ts';
 import { familyScope, memberKeys, systemById, type Fields } from './systems.ts';
 
 export type SkillType = 'passive' | 'standard' | 'ultimate';
@@ -40,6 +41,8 @@ export interface SystemEntry {
 	/** Rolls for this system's rolled fields: field key → Discord message link. */
 	rollProofs: Record<string, string>;
 	familyLink?: FamilyLink;
+	/** The player's own skill tree for this card (optional). */
+	customTree?: CustomTree | null;
 }
 
 export interface PickedTrait {

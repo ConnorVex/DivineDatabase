@@ -28,6 +28,8 @@ import {
 	type Universe,
 } from '../../lib/portal/api.ts';
 import { sheetChanges } from '../../lib/portal/diff.ts';
+import { CUSTOM, customTreeNodes, treeCurrencyLabel } from '../../lib/portal/customTree.ts';
+import { SkillTreeView } from './SkillTreeView.tsx';
 import { PointsPanel } from './PointsPanel.tsx';
 import { ChangeList } from './ChangeList.tsx';
 import { ReviewFamily, ReviewRequest } from '../families/FamilyAdmin.tsx';
@@ -348,6 +350,35 @@ function SheetView({ c, combos, board, universes, perks, families }: { c: AdminC
 										))}
 									</ul>
 								)}
+								{e.customTree && (
+									<details class="pts-tree rv-custom-tree">
+										<summary>
+											Custom tree: {e.customTree.name || 'Unnamed'}
+											<span class="pts-tree-count">
+												{e.customTree.nodes.length} skills · costs {treeCurrencyLabel(e.customTree)}
+											</span>
+										</summary>
+										{e.customTree.currency === CUSTOM && (
+											<p class="pf-help rv-custom-rates">
+												{e.customTree.custom.name} ({e.customTree.custom.code}): +{e.customTree.custom.gain} per session
+												{e.customTree.custom.convertFrom && ` · ${e.customTree.custom.convertFromAmount} ${e.customTree.custom.convertFrom} → ${e.customTree.custom.convertToAmount} ${e.customTree.custom.code}`}
+											</p>
+										)}
+										<SkillTreeView
+											tree={{ id: 'custom', system: e.system, label: e.customTree.name, show_if: null, sort: 0 }}
+											nodes={customTreeNodes(e.customTree)}
+											currencyName={() => treeCurrencyLabel(e.customTree!)}
+											unlocks={[]}
+											balance={() => 0}
+											tracked={() => true}
+											admin={false}
+											busy={false}
+											preview
+											onUnlock={async () => false}
+											onRemove={async () => false}
+										/>
+									</details>
+								)}
 								{claims
 									.filter((b) => b.universe === def?.universe)
 									.map((b) => (
@@ -444,6 +475,7 @@ function Detail(props: {
 				isEvolution,
 				extraTraitSlots: c.extra_trait_slots,
 				bonusPtp: c.bonus_ptp,
+				approvedSheet: c.approved_sheet,
 				claims: new Map(props.board.map((r) => [r.id, { name: r.name, usedSlots: r.used_slots, maxUsers: r.max_users, category: r.category }])),
 				heldClaimIds: held,
 				requestedClaims: c.requested_claims,
@@ -778,6 +810,7 @@ function CharacterQueue(props: {
 								isEvolution: Boolean(c.approved_at),
 								extraTraitSlots: c.extra_trait_slots,
 								bonusPtp: c.bonus_ptp,
+								approvedSheet: c.approved_sheet,
 								families: c.sheet.families,
 							}).filter((i) => i.level === 'error').length;
 							return (

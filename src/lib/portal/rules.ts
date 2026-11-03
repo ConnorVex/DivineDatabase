@@ -1,5 +1,6 @@
 // Live rule checks for the submit form. Everything here is a pure function of the sheet,
 // so the same checks can run in the form, on the admin dashboard and in tests.
+import { currencyChanged, treeProblems } from './customTree.ts';
 import ranksData from '../../data/portal/ranks.json' with { type: 'json' };
 import rulesData from '../../data/portal/rules.json' with { type: 'json' };
 import traitsData from '../../data/portal/traits.json' with { type: 'json' };
@@ -32,6 +33,8 @@ export interface CheckContext {
 	extraTraitSlots?: number;
 	/** Extra starting PTP staff granted. */
 	bonusPtp?: number;
+	/** The approved sheet, when there is one: custom currency rates only need approval when they change. */
+	approvedSheet?: Sheet | null;
 	/** Claim board rows for the picked claims: id → usage. */
 	claims?: Map<string, { name: string; usedSlots: number; maxUsers: number | null; category?: string }>;
 	/** Power-set limits from the character's discovered trait combinations. */
@@ -307,6 +310,15 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 		}
 		const link = entry.familyLink;
 		const where = link ? `${def.label} (${link.title})` : def.label;
+		if (entry.customTree) {
+			for (const problem of treeProblems(entry.customTree, entry)) add('error', 'Systems', `${where}: ${problem}`);
+			const approved = ctx.approvedSheet?.systems.find((e) => e.key === entry.key)?.customTree;
+			if (currencyChanged(entry.customTree, approved)) {
+				const c = entry.customTree.custom;
+				const conversion = c.convertFrom ? `, ${c.convertFromAmount} ${c.convertFrom} → ${c.convertToAmount} ${c.code}` : '';
+				add('permission', 'Systems', `${where}: custom currency “${c.name}” (+${c.gain} ${c.code} per session${conversion}) needs its rates approved.`);
+			}
+		}
 		if (link) {
 			// A linked card is the family's approved ability: check the link, not the build.
 			checkFamilyLink(entry, ctx, where, add);

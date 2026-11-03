@@ -364,3 +364,30 @@ test('staff-granted bonus PTP raises the starting budget', () => {
 	assert.ok(!checkSheet(s, { kind: 'oc', name: 'X', bonusPtp: 15 }).some((i) => i.message.includes('PTP')));
 	assert.ok(checkSheet(s, { kind: 'oc', name: 'X' }).some((i) => i.message.includes('15 granted') === false && i.message.includes('PTP')));
 });
+
+test('custom skill trees: problems block sending, new custom rates need permission', () => {
+	const tree = {
+		name: 'Commune Mastery',
+		currency: 'CUSTOM',
+		custom: { name: 'Wisp Points', code: 'WP', gain: 3, convertFrom: 'AUP', convertFromAmount: 5, convertToAmount: 1 },
+		nodes: [
+			{ id: 'r', label: 'Start', description: '', cost: 0, requires: [], start: true },
+			{ id: 'a', label: 'Swarm', description: '', cost: 2, requires: ['r'], start: false },
+		],
+	};
+	const sheet = goodSheet();
+	const card = { key: 'c1', system: 'abilities', fields: { classes: ['Manipulation'], power: 'Average', range: 'Close', upgradePoints: 0 }, description: '', skills: [], rollProofs: {}, customTree: structuredClone(tree) };
+	sheet.systems = [card];
+	const issues = checkSheet(sheet, { kind: 'oc', name: 'X' });
+	assert.ok(issues.some((i) => i.level === 'permission' && i.message.includes('Wisp Points')));
+	assert.deepEqual(issues.filter((i) => i.level === 'error' && /custom|tree/.test(i.message)), []);
+	// Approved with the same rates: no permission needed again.
+	const approved = structuredClone(sheet);
+	assert.ok(!checkSheet(sheet, { kind: 'oc', name: 'X', approvedSheet: approved }).some((i) => i.message.includes('Wisp Points')));
+	// A loop and a missing name are errors.
+	card.customTree.name = '';
+	card.customTree.nodes[0].requires = ['a'];
+	const errors = checkSheet(sheet, { kind: 'oc', name: 'X' }).filter((i) => i.level === 'error').map((i) => i.message);
+	assert.ok(errors.some((m) => m.includes('name the custom skill tree')));
+	assert.ok(errors.some((m) => m.includes('circle')));
+});

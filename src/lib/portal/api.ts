@@ -537,3 +537,8 @@ export async function removeSkillUnlock(characterId: string, card: string, tree:
 	const { error } = await db().rpc('remove_skill_unlock', { p_character: characterId, p_card: card, p_tree: tree, p_node: node, p_refund: refund });
 	fail(error);
 }
+
+export async function convertCustomPoints(characterId: string, card: string, times: number) {
+	const { error } = await db().rpc('convert_custom_points', { p_character: characterId, p_card: card, p_times: times });
+	fail(error);
+}
