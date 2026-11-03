@@ -53,6 +53,9 @@ export interface SystemDef {
 	fields: Field[];
 	/** Sections the card's fields are shown in, in order; fields not listed go in a last “Other” section. */
 	groups?: { label: string; keys: string[] }[];
+	/** Parts of the card a Family ability can give on their own, by group label; members fill in
+	 * the parts the family leaves out. Without it a Family ability sets the whole card. */
+	familyParts?: { label: string; groups: string[]; skills?: boolean }[];
 	/** Starting points to spend on this system's stats. */
 	budget?: { label: string; total: (f: Fields) => number; spent: (f: Fields) => number };
 	/** Most skills a brand-new character may start with. */
@@ -169,6 +172,11 @@ export const systems: SystemDef[] = [
 			{ label: 'Cursed Energy', keys: ['ceClass', 'ceAmount', 'ceOutput', 'ceControl', 'rp2rpRecharge', 'completeRecharge', 'ceUpgradePoints'] },
 			{ label: 'Cursed Technique', keys: ['ctName', 'ctType', 'ctClass', 'ctRange', 'ctPower', 'ctEfficiency', 'ctUpgradePoints'] },
 			{ label: 'Restrictions & tools', keys: ['heavenlyRestriction', 'bindingVows', 'cursedTools'] },
+		],
+		familyParts: [
+			{ label: 'Cursed Energy', groups: ['Cursed Energy'] },
+			{ label: 'Cursed Technique', groups: ['Cursed Technique'], skills: true },
+			{ label: 'Restrictions & tools', groups: ['Restrictions & tools'] },
 		],
 		fields: [
 			{
@@ -472,6 +480,27 @@ export function openRolledKeys(def: SystemDef | undefined, familyFields: Fields)
 	const set = (v: FieldValue | undefined) => v !== undefined && v !== '' && v !== 0;
 	if (!rolled.length || rolled.some((f) => set(familyFields[f.key]))) return [];
 	return [...rolled.map((f) => f.key), 'ceLevel'];
+}
+
+/** What a Family ability sets on a member's card: field keys (null = all) and whether the skills. */
+export function familyScope(def: SystemDef | undefined, ability: { parts?: string[] }) {
+	if (!def?.familyParts || !ability.parts) return { keys: null as Set<string> | null, skills: true };
+	const parts = def.familyParts.filter((p) => ability.parts!.includes(p.label));
+	const groups = new Set(parts.flatMap((p) => p.groups));
+	return {
+		keys: new Set(def.groups?.filter((g) => groups.has(g.label)).flatMap((g) => g.keys) ?? []),
+		skills: parts.some((p) => p.skills),
+	};
+}
+
+/** Field keys a member fills in on a linked card: parts the family left out, and rolls it left open. */
+export function memberKeys(def: SystemDef | undefined, ability: { parts?: string[]; fields: Fields }) {
+	const { keys } = familyScope(def, ability);
+	const open = openRolledKeys(def, ability.fields);
+	const own = keys ? (def?.fields.map((f) => f.key) ?? []).filter((k) => !keys.has(k)) : [];
+	// ceLevel comes with the Cursed Energy roll.
+	if (own.some((k) => def?.fields.find((f) => f.key === k)?.rolled)) own.push('ceLevel');
+	return [...new Set([...own, ...open])];
 }
 
 /** A card's visible fields, split into its sections. */

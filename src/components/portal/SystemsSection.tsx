@@ -5,7 +5,7 @@ import type { ClaimRow, Universe } from '../../lib/portal/api.ts';
 import type { LinkablePerk } from '../../lib/portal/families.ts';
 import { minimumMoves, rules, systemLimit } from '../../lib/portal/rules.ts';
 import { PROOF_LABEL, familyCardChanged, type Sheet, type Skill, type SystemEntry } from '../../lib/portal/sheet.ts';
-import { abilitySystem, countsTowardLimit, groupedFields, openRolledKeys, systemById, systems, visibleFields, type Field, type FieldValue, type Option } from '../../lib/portal/systems.ts';
+import { abilitySystem, countsTowardLimit, familyScope, groupedFields, memberKeys, systemById, systems, visibleFields, type Field, type FieldValue, type Option } from '../../lib/portal/systems.ts';
 import { CheckboxGroup, NumberField, Section, SelectField, TextArea, TextField } from './fields.tsx';
 import { RollPanel, type Roller } from './RollPanel.tsx';
 
@@ -50,6 +50,9 @@ export function FieldInput(props: {
 		const isBlocked = blocked?.value === o.value && value !== o.value;
 		return { value: o.value, label: `${o.label ?? o.value}${o.permission ? ' 🔑' : ''}${isBlocked ? ` (${blocked!.reason})` : ''}`, disabled: isBlocked };
 	});
+	// A family ability can set its own value outside the list.
+	if (field.type === 'select' && value !== undefined && value !== '' && !options.some((o) => o.value === String(value)))
+		options.push({ value: String(value), label: `${value} (custom)`, disabled: false });
 	switch (field.type) {
 		case 'select':
 			return <SelectField label={label} help={help} required={field.required} value={String(value ?? '')} options={options} disabled={disabled} onChange={onChange} />;
@@ -347,10 +350,12 @@ export function SystemsSection(props: Props) {
 				const def = systemById.get(entry.system);
 				if (!def) return null;
 				const linked = Boolean(entry.familyLink);
-				const locked = readOnly || linked;
-				const linkedPerk = entry.familyLink && props.familyAbilities?.find((p) => p.id === entry.familyLink!.perkId);
-				// A family ability that sets the rolled stats itself leaves nothing to roll.
-				const rollOpen = !linkedPerk?.details.ability || openRolledKeys(def, linkedPerk.details.ability.fields).length > 0;
+				const linkedAbility = entry.familyLink && props.familyAbilities?.find((p) => p.id === entry.familyLink!.perkId)?.details.ability;
+				// On a linked card the member only fills in what the family leaves to them.
+				const own = linkedAbility ? memberKeys(def, linkedAbility) : [];
+				const fieldLocked = (key: string) => readOnly || (linked && !own.includes(key));
+				const skillsLocked = readOnly || (linked && (!linkedAbility || familyScope(def, linkedAbility).skills));
+				const rollOpen = !linked || own.some((k) => def.fields.find((f) => f.key === k)?.rolled);
 				const budget = def.budget && !props.isEvolution && !linked ? { total: def.budget.total(entry.fields), spent: def.budget.spent(entry.fields) } : null;
 				const universe = props.universes.find((u) => u.slug === def.universe);
 				return (
@@ -398,10 +403,11 @@ export function SystemsSection(props: Props) {
 									setEntry(entry.key, (e) => {
 										const proof = e.familyLink?.proof ?? '';
 										if (perk.id && perk.details.ability) {
-											// Rolls the family leaves to each member stay as the member rolled them.
-											const kept = openRolledKeys(def, perk.details.ability.fields).filter((k) => k in e.fields);
-											e.fields = { ...copy(perk.details.ability.fields), ...Object.fromEntries(kept.map((k) => [k, e.fields[k]])) };
-											e.skills = copy(perk.details.ability.skills);
+											// Whatever the family leaves to the member (other parts, open rolls) stays as the member set it.
+											const own = memberKeys(def, perk.details.ability);
+											const family = Object.entries(copy(perk.details.ability.fields)).filter(([k]) => !own.includes(k));
+											e.fields = { ...e.fields, ...Object.fromEntries(family) };
+											if (familyScope(def, perk.details.ability).skills) e.skills = copy(perk.details.ability.skills);
 										}
 										e.familyLink = { perkId: perk.id, familyId: perk.family_id, title: perk.title, proof };
 									})
@@ -457,7 +463,7 @@ export function SystemsSection(props: Props) {
 												<FieldInput
 													field={field}
 													value={entry.fields[field.key]}
-													disabled={locked}
+													disabled={fieldLocked(field.key)}
 													blocked={def.limitedChoice?.key === field.key && limitedChoiceFull(entry) ? { value: def.limitedChoice.value, reason: 'max reached' } : undefined}
 													onChange={(v) => setEntry(entry.key, (e) => void (e.fields[field.key] = v))}
 													onUpdate={(fn) => setEntry(entry.key, (e) => void (e.fields[field.key] = fn(e.fields[field.key])))}
@@ -502,7 +508,7 @@ export function SystemsSection(props: Props) {
 							)}
 							<SkillsEditor
 								skills={entry.skills}
-								disabled={locked}
+								disabled={skillsLocked}
 								limits={def.startingMoves?.(entry.fields)}
 								isEvolution={props.isEvolution}
 								onUpdate={(fn) => setEntry(entry.key, (e) => void (e.skills = fn(e.skills)))}

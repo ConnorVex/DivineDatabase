@@ -31,7 +31,7 @@ import {
 	type Standing,
 } from '../../lib/families/api.ts';
 import { abilitySystem, systemById } from '../../lib/portal/systems.ts';
-import { AbilityBuilder, TraitPicker, blankDetails, detailProblems, isBuilt } from './PerkBuilders.tsx';
+import { AbilityBuilder, StatsBuilder, TraitPicker, blankDetails, detailProblems, isBuilt } from './PerkBuilders.tsx';
 import { FamilyForm, familyProblems } from './FamilyForm.tsx';
 import { messageOf } from './shared.tsx';
 
@@ -639,6 +639,9 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 					}
 				/>
 			)}
+			{draft.kind === 'starting_stats' && draft.details.stats && (
+				<StatsBuilder value={draft.details.stats} onChange={(stats) => onChange({ ...draft, details: { stats } })} />
+			)}
 			{draft.kind === 'locked_power' && draft.details.ability ? (
 				// A Family ability's description lives inside its card.
 				<AbilityBuilder
@@ -650,7 +653,7 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 			) : (
 				<div class="pf-field pf-wide">
 					<label class="pf-label" for={`p-desc-${id}`}>
-						{draft.kind === 'trait' ? (draft.details.customTrait ? 'What the trait does' : 'Notes (optional)') : 'What it gives'}
+						{draft.kind === 'trait' ? (draft.details.customTrait ? 'What the trait does' : 'Notes (optional)') : draft.kind === 'starting_stats' ? 'Anything else (optional)' : 'What it gives'}
 					</label>
 					<textarea
 						id={`p-desc-${id}`}

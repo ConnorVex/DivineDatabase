@@ -1053,3 +1053,24 @@
 		padding-left: 2.85rem;
 	}
 }
+
+/* Starting stats perk: the character form's stat panel, with custom values. */
+.perk-stats-panel {
+	margin-top: 1rem;
+}
+.perk-stat-custom {
+	width: 100%;
+	margin-top: 0.4rem;
+}
+.perk-parts {
+	grid-column: 1 / -1;
+}
+/* A select is as wide as its longest option; keep it inside the panel on phones. */
+.perk-stats-panel .hud-stat-select {
+	min-width: 0;
+	max-width: 11rem;
+	text-overflow: ellipsis;
+}
+.perk-stats-panel .hud-stat-head {
+	flex-wrap: wrap;
+}

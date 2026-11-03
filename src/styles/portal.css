@@ -356,7 +356,8 @@
 .pf-field select,
 .pf-field textarea,
 .trait-search input,
-.trait-proof {
+.trait-proof,
+.perk-stat-custom {
 	width: 100%;
 	font: inherit;
 		font-size: var(--sl-text-sm);
@@ -378,6 +379,7 @@
 .pf-field textarea:focus-visible,
 .trait-search input:focus-visible,
 .trait-proof:focus-visible,
+.perk-stat-custom:focus-visible,
 .hud-stat-select:focus-visible {
 	outline: none;
 	border-color: var(--pf-accent);
