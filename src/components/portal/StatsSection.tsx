@@ -1,6 +1,6 @@
 // S.T.S stats as a control panel: stat rows with bars, Calculated Power, Recoil, PTP and a radar.
 import { useId, useState } from 'preact/hooks';
-import { power, ptp, rankInfo, ranks, recoil, rules } from '../../lib/portal/rules.ts';
+import { power, ptp, rankInfo, ranks, recoil, rules, statStart } from '../../lib/portal/rules.ts';
 import type { Sheet } from '../../lib/portal/sheet.ts';
 import { NumberField, Section, SelectField } from './fields.tsx';
 
@@ -123,7 +123,8 @@ export function StatsSection({ sheet, update, readOnly, isEvolution }: { sheet: 
 					<h3 class="hud-panel-title">Parameter tuning</h3>
 					{STATS.map((stat) => {
 						const info = rankInfo(s[stat.key]);
-						const above = info && phase && info.tier > phase.maxTier;
+						// A rank a trait or system starts the stat at isn't “above” anything.
+						const above = info && phase && info.tier > phase.maxTier && info.value > statStart(sheet, stat.key);
 						return (
 							<StatRow
 								key={stat.key}

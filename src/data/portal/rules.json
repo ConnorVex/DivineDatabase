@@ -241,7 +241,63 @@
 				"baseRanks": {
 					"stamina": "1E"
 				},
-				"note": "Starts at Str 1F, Spd 1F, Def 1F, Sta 1E; no starting PTP can be applied."
+				"note": "Starts at Str 1F, Spd 1F, Def 1F, Sta 1E; no starting PTP can be applied, and any stat imbalance is maximum recoil.",
+				"maxRecoil": true
+			},
+			{
+				"trait": "Body Of Adaptation",
+				"ptp": 5
+			},
+			{
+				"trait": "Endurance Star",
+				"baseRanks": {
+					"stamina": "6F"
+				},
+				"freeLevels": {
+					"fire-force": {
+						"efficiency": 4
+					}
+				},
+				"note": "Starting Stamina 6F; Fire Force: starts at Pyrokinetic Efficiency level 4."
+			},
+			{
+				"trait": "Anomalous Body",
+				"baseRanks": {
+					"strength": "2D",
+					"speed": "2D",
+					"defense": "2D",
+					"stamina": "2D"
+				},
+				"recoilFreeGap": 5,
+				"note": "Physical stats start at 2D; recoil threshold 6 Sub-Tiers."
+			},
+			{
+				"trait": "Unnatural Body",
+				"baseRanks": {
+					"strength": "1A",
+					"speed": "1A",
+					"defense": "1A",
+					"stamina": "1A"
+				},
+				"recoilFreeGap": 3,
+				"note": "Physical stats start at 1A; recoil threshold 4 Sub-Tiers."
+			},
+			{
+				"trait": "Genius",
+				"baseIntelligence": "Genius",
+				"note": "Starts with Genius Intelligence."
+			},
+			{
+				"trait": "Impaired Cognitive Skills",
+				"baseIntelligence": "Below Average",
+				"note": "Starts with Below Average Intelligence."
+			},
+			{
+				"trait": "Stand Prodigy",
+				"systemPoints": {
+					"jojo": 5
+				},
+				"note": "+5 extra starting Stand Points."
 			}
 		]
 	},

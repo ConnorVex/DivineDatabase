@@ -3,7 +3,7 @@ import { Fragment } from 'preact';
 import { useState } from 'preact/hooks';
 import type { ClaimRow, Universe } from '../../lib/portal/api.ts';
 import type { LinkablePerk } from '../../lib/portal/families.ts';
-import { minimumMoves, rules, systemLimit } from '../../lib/portal/rules.ts';
+import { minimumMoves, rules, systemBudget, systemLimit } from '../../lib/portal/rules.ts';
 import { PROOF_LABEL, familyCardChanged, type Sheet, type Skill, type SystemEntry } from '../../lib/portal/sheet.ts';
 import { abilitySystem, countsTowardLimit, familyScope, groupedFields, memberKeys, systemById, systems, visibleFields, type Field, type FieldValue, type Option } from '../../lib/portal/systems.ts';
 import { CheckboxGroup, NumberField, Section, SelectField, TextArea, TextField } from './fields.tsx';
@@ -356,7 +356,7 @@ export function SystemsSection(props: Props) {
 				const fieldLocked = (key: string) => readOnly || (linked && !own.includes(key));
 				const skillsLocked = readOnly || (linked && (!linkedAbility || familyScope(def, linkedAbility).skills));
 				const rollOpen = !linked || own.some((k) => def.fields.find((f) => f.key === k)?.rolled);
-				const budget = def.budget && !props.isEvolution && !linked ? { total: def.budget.total(entry.fields), spent: def.budget.spent(entry.fields) } : null;
+				const budget = !props.isEvolution && !linked ? systemBudget(sheet, entry) : null;
 				const universe = props.universes.find((u) => u.slug === def.universe);
 				return (
 					<article class="system-card pf-wide" key={entry.key}>
@@ -365,7 +365,7 @@ export function SystemsSection(props: Props) {
 							{entry.familyLink && <span class="pf-badge ok">Family ability</span>}
 							{budget && budget.total > 0 && (
 								<span class={`pf-badge ${budget.spent > budget.total ? 'bad' : 'ok'}`}>
-									{def.budget!.label}: {budget.spent} / {budget.total}
+									{budget.label}: {budget.spent} / {budget.total}
 								</span>
 							)}
 							{!readOnly && (
@@ -468,15 +468,6 @@ export function SystemsSection(props: Props) {
 													onChange={(v) => setEntry(entry.key, (e) => void (e.fields[field.key] = v))}
 													onUpdate={(fn) => setEntry(entry.key, (e) => void (e.fields[field.key] = fn(e.fields[field.key])))}
 												/>
-												{field.rollProof && (
-													<TextField
-														label={`${field.label}: roll link`}
-														value={entry.rollProofs[field.key] ?? ''}
-														placeholder="https://discord.com/channels/…"
-														disabled={readOnly}
-														onInput={(v) => setEntry(entry.key, (e) => void (e.rollProofs[field.key] = v))}
-													/>
-												)}
 											</Fragment>
 											))}
 										</div>

@@ -25,7 +25,7 @@ export interface FamilyLink {
 export const PROOF_LABEL: Record<PerkAccess, string | null> = {
 	automatic: null,
 	choice: null,
-	rolled: 'Roll link',
+	rolled: null,
 	earned: 'Link to the RP where it was earned',
 	taught: 'Link to the RP where a member taught it',
 };
@@ -49,7 +49,7 @@ export interface PickedTrait {
 	/** The family trait perk it's linked to (older sheets only have `family`). */
 	perkId?: string;
 	familyId?: string;
-	/** A roll link, or for a family trait the proof its perk asks for (if any). */
+	/** For a family trait, the proof its perk asks for (if any). Older sheets may hold a roll link. */
 	rollProof?: string;
 }
 

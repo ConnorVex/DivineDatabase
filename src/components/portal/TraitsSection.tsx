@@ -223,8 +223,8 @@ export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits,
 						const rarity = rarityLabel.get(info?.rarity ?? '');
 						const locked = lockedTraits.has(t.name) && Boolean(info?.sticky);
 						const perk = t.perkId ? familyTraits?.find((p) => p.id === t.perkId) : undefined;
-						// Regular traits need a roll link; a family trait only when its perk asks for proof.
-						const proofLabel = !t.family ? 'Roll link (Discord)' : perk ? PROOF_LABEL[perk.access] : t.perkId ? null : 'Roll link (Discord)';
+						// Only a family trait whose perk asks for proof (an RP link) has a link to fill in.
+						const proofLabel = t.family && perk ? PROOF_LABEL[perk.access] : null;
 						return (
 							<li key={t.name} class="trait-row">
 								<div class="trait-row-main">

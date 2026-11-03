@@ -251,11 +251,7 @@ function SheetView({ c, combos, board, universes, perks, families }: { c: AdminC
 										</span>
 										{t.family && t.perkId ? (
 											<FamilyLinkNote familyId={t.familyId} title={t.name} perk={perkById.get(t.perkId)} proof={t.rollProof} families={families} />
-										) : t.rollProof && (
-											<a href={t.rollProof} target="_blank" rel="noreferrer noopener" class="rv-proof">
-												roll
-											</a>
-										)}
+										) : null}
 									</li>
 								);
 							})}
@@ -271,7 +267,7 @@ function SheetView({ c, combos, board, universes, perks, families }: { c: AdminC
 					<Block title="Combat">
 						<Text value={s.combat.info} />
 						{s.combat.styles.map((st, i) => (
-							<Row key={i} label="Fighting style" value={st.rollProof ? <a href={st.rollProof} target="_blank" rel="noreferrer noopener">{st.name}</a> : st.name} />
+							<Row key={i} label="Fighting style" value={st.name} />
 						))}
 					</Block>
 

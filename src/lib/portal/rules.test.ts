@@ -313,3 +313,46 @@ test('old sheets get an empty families list', () => {
 	assert.deepEqual(normalizeSheet({}).families, []);
 	assert.deepEqual(normalizeSheet({ families: ['a', 3] }).families, ['a']);
 });
+
+test('trait start effects from the trait list', () => {
+	// Endurance Star: Stamina starts at 6F, so it costs no PTP and isn't above Phase 0.
+	const star = goodSheet();
+	star.traits = [{ name: 'Endurance Star' }];
+	star.stats.stamina = '6F';
+	assert.equal(ptp(star).spent, ptp(goodSheet()).spent - 3); // goodSheet's 1C stamina cost 3
+	const msgs = messages(checkSheet(star, ocCtx));
+	assert.ok(!msgs.some((m) => m.includes('Stamina (6F)')), msgs.join('\n'));
+	assert.ok(!msgs.some((m) => m.includes('roll link')), 'no roll links');
+
+	// Genius starts Intelligence at Genius for free; Impaired Cognitive Skills makes Average cost PTP.
+	const genius = goodSheet();
+	genius.traits = [{ name: 'Genius' }];
+	genius.stats.intelligence = 'Genius';
+	assert.equal(ptp(genius).spent, ptp(goodSheet()).spent);
+	const impaired = goodSheet();
+	impaired.traits = [{ name: 'Impaired Cognitive Skills' }];
+	assert.equal(ptp(impaired).spent, ptp(goodSheet()).spent + 10);
+
+	// Unnatural Body: everything starts at 1A, and recoil starts after 3 Sub-Tiers apart.
+	const unnatural = goodSheet();
+	unnatural.traits = [{ name: 'Unnatural Body' }];
+	assert.equal(ptp(unnatural).spent, 0);
+	Object.assign(unnatural.stats, { strength: '2D', speed: '1A', defense: '1A' }); // 3 apart
+	assert.equal(recoil(unnatural), null);
+	assert.equal(ptp({ ...goodSheet(), traits: [{ name: 'Body Of Adaptation' }] }).traitBonus, 5);
+});
+
+test('trait bonuses to system points, and JJK with only Cursed Energy Utilization', () => {
+	const s = goodSheet();
+	s.traits = [{ name: 'Endurance Star' }];
+	s.systems = [
+		{ key: 'f', system: 'fire-force', fields: { generation: 'Third', theme: 'Sun', power: 4, oxygenTank: 1, efficiency: 4, absorption: 4 }, description: '', skills: [], rollProofs: {} },
+		{ key: 'j', system: 'jujutsu-kaisen', fields: { start: 'Cursed Energy Utilization only', ceClass: 'Common', ceAmount: 100 }, description: '', skills: [], rollProofs: {} },
+	];
+	s.prioritySystem = 'f';
+	const msgs = messages(checkSheet(s, ocCtx));
+	assert.ok(!msgs.some((m) => m.includes('Fire Force Tier Points spent')), msgs.join('\n'));
+	assert.ok(!msgs.some((m) => m.includes('Extension Technique')), msgs.join('\n'));
+	s.systems[1].fields.start = 'Cursed Technique';
+	assert.ok(messages(checkSheet(s, ocCtx)).some((m) => m.includes('Extension Technique')));
+});

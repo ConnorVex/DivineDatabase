@@ -55,8 +55,53 @@ export function power(sheet: Sheet): number | null {
 
 const STAT_LABELS = { strength: 'Strength', speed: 'Speed', defense: 'Defense' } as const;
 
-/** Recoil: Strength, Speed and Defense must stay within 2 Sub-Tiers of each other. */
-export function recoil(sheet: Sheet): { level: number; high: string; low: string; gap: number } | null {
+/** What a trait changes at the start (rules.json stats.traitPtp). */
+interface TraitStart {
+	trait: string;
+	ptp?: number;
+	noStartingPtp?: boolean;
+	baseRanks?: Record<string, string>;
+	baseIntelligence?: string;
+	recoilFreeGap?: number;
+	maxRecoil?: boolean;
+	/** Extra starting points for a system's budget, by system id. */
+	systemPoints?: Record<string, number>;
+	/** Levels of a system field that start free, by system id then field key. */
+	freeLevels?: Record<string, Record<string, number>>;
+}
+
+/** The start effects of the character's traits. */
+export function traitStarts(sheet: Sheet): TraitStart[] {
+	const picked = new Set(sheet.traits.map((t) => t.name));
+	return (rules.stats.traitPtp as TraitStart[]).filter((t) => picked.has(t.trait));
+}
+
+/** Where a physical stat starts before any PTP: 1F, unless a system or trait says otherwise. */
+export function statStart(sheet: Sheet, stat: string): number {
+	const ghoul = sheet.systems.map((e) => systemById.get(e.system)?.baseStats?.(e.fields)).find(Boolean) ?? null;
+	let from = rankValue(rules.stats.baseRank) ?? 1;
+	if (ghoul?.stats.includes(stat)) from = rankValue(ghoul.rank) ?? from;
+	for (const t of traitStarts(sheet)) if (t.baseRanks?.[stat]) from = rankValue(t.baseRanks[stat]) ?? from;
+	return from;
+}
+
+/** A system card's starting points, with trait bonuses (extra points, free levels). Null when it has none. */
+export function systemBudget(sheet: Sheet, entry: SystemEntry) {
+	const def = systemById.get(entry.system);
+	if (!def?.budget) return null;
+	let total = def.budget.total(entry.fields);
+	let spent = def.budget.spent(entry.fields);
+	if (total > 0) {
+		for (const t of traitStarts(sheet)) {
+			total += t.systemPoints?.[entry.system] ?? 0;
+			for (const [key, free] of Object.entries(t.freeLevels?.[entry.system] ?? {})) spent -= Math.min(free, Number(entry.fields[key]) || 0);
+		}
+	}
+	return { label: def.budget.label, total, spent: Math.max(0, spent) };
+}
+
+/** Recoil: Strength, Speed and Defense must stay within 2 Sub-Tiers of each other (traits can change this). */
+export function recoil(sheet: Sheet): { level: number; high: string; low: string; gap: number; freeGap: number } | null {
 	const entries = (Object.keys(STAT_LABELS) as (keyof typeof STAT_LABELS)[])
 		.map((key) => ({ key, value: rankValue(sheet.stats[key]) }))
 		.filter((e): e is { key: keyof typeof STAT_LABELS; value: number } => e.value !== undefined);
@@ -65,8 +110,11 @@ export function recoil(sheet: Sheet): { level: number; high: string; low: string
 	const high = entries[0];
 	const low = entries.at(-1)!;
 	const gap = high.value - low.value;
-	if (gap <= rules.stats.recoilFreeGap) return null;
-	return { level: Math.min(3, gap - rules.stats.recoilFreeGap), high: STAT_LABELS[high.key], low: STAT_LABELS[low.key], gap };
+	const starts = traitStarts(sheet);
+	const maxRecoil = starts.some((t) => t.maxRecoil);
+	const freeGap = maxRecoil ? 0 : Math.max(rules.stats.recoilFreeGap, ...starts.map((t) => t.recoilFreeGap ?? 0));
+	if (gap <= freeGap) return null;
+	return { level: maxRecoil ? 3 : Math.min(3, gap - freeGap), high: STAT_LABELS[high.key], low: STAT_LABELS[low.key], gap, freeGap };
 }
 
 export function traitSlots(sheet: Sheet, extraSlots = 0) {
@@ -84,32 +132,23 @@ export function ptp(sheet: Sheet) {
 	const entries = sheet.systems.map((e) => ({ e, def: systemById.get(e.system) }));
 	const ghoul = entries.map(({ e, def }) => def?.baseStats?.(e.fields)).find(Boolean) ?? null;
 	const role = rules.roles.find((r) => r.id === sheet.role);
-	const picked = new Set(sheet.traits.map((t) => t.name));
-	const traitRules = rules.stats.traitPtp.filter((t) => picked.has(t.trait));
-	const noPtp = Boolean(ghoul?.noPtp) || traitRules.some((t) => 'noStartingPtp' in t && t.noStartingPtp);
+	const traitRules = traitStarts(sheet);
+	const noPtp = Boolean(ghoul?.noPtp) || traitRules.some((t) => t.noStartingPtp);
 
 	const start = noPtp ? 0 : role?.startingPtp ?? 0;
 	const bonus = noPtp ? 0 : entries.reduce((sum, { e, def }) => sum + (def?.ptpBonus?.(e.fields) ?? 0), 0);
-	const traitBonus = noPtp ? 0 : traitRules.reduce((sum, t) => sum + ('ptp' in t ? (t.ptp ?? 0) : 0), 0);
+	const traitBonus = noPtp ? 0 : traitRules.reduce((sum, t) => sum + (t.ptp ?? 0), 0);
 	const available = Math.max(0, start + bonus + traitBonus);
 
-	// Where each stat starts before any PTP: 1F, unless a system or trait says otherwise.
-	const base = rankValue(rules.stats.baseRank) ?? 1;
-	const startOf = (stat: string) => {
-		let from = base;
-		if (ghoul?.stats.includes(stat)) from = rankValue(ghoul.rank) ?? from;
-		for (const t of traitRules) {
-			const ranks = 'baseRanks' in t ? (t.baseRanks as Record<string, string>) : undefined;
-			if (ranks?.[stat]) from = rankValue(ranks[stat]) ?? from;
-		}
-		return from;
-	};
 	let spent = 0;
 	for (const stat of ['strength', 'speed', 'defense', 'stamina'] as const) {
 		const value = rankValue(sheet.stats[stat]);
-		if (value !== undefined) spent += Math.max(0, value - startOf(stat));
+		if (value !== undefined) spent += Math.max(0, value - statStart(sheet, stat));
 	}
-	spent += rules.stats.intelligence.find((i) => i.value === sheet.stats.intelligence)?.ptp ?? 0;
+	// Intelligence costs (or refunds) PTP relative to where it starts: Average, unless a trait says otherwise.
+	const intelPtp = (v: string) => rules.stats.intelligence.find((i) => i.value === v)?.ptp ?? 0;
+	const intelBase = traitRules.find((t) => t.baseIntelligence)?.baseIntelligence ?? 'Average';
+	spent += intelPtp(sheet.stats.intelligence) - intelPtp(intelBase);
 	spent += rules.stats.phases.filter((p) => p.phase <= sheet.stats.phase).reduce((sum, p) => sum + p.hopCost, 0);
 	return { spent, available, start, bonus, traitBonus, noPtp, roleKnown: Boolean(role) };
 }
@@ -163,12 +202,13 @@ export function checkSheet(sheet: Sheet, ctx: CheckContext): Issue[] {
 	const phase = rules.stats.phases.find((p) => p.phase === s.phase);
 	for (const stat of ['strength', 'speed', 'defense', 'stamina'] as const) {
 		const info = rankInfo(s[stat]);
-		if (info && phase && info.tier > phase.maxTier) {
+		// A rank a trait or system starts the stat at is never a problem.
+		if (info && phase && info.tier > phase.maxTier && info.value > statStart(sheet, stat)) {
 			add('warning', 'Stats', `${stat[0].toUpperCase() + stat.slice(1)} (${info.rank}) is above ${phase.label} (up to Tier ${phase.maxTier}).`);
 		}
 	}
 	const r = recoil(sheet);
-	if (r) add('warning', 'Stats', `Recoil Lv ${r.level}: ${r.high} is ${r.gap} Sub-Tiers above ${r.low} (more than 2 apart).`);
+	if (r) add('warning', 'Stats', `Recoil Lv ${r.level}: ${r.high} is ${r.gap} Sub-Tiers above ${r.low} (more than ${r.freeGap} apart).`);
 
 	const potential = rules.potentials.find((p) => p.id === sheet.potential.grade);
 	if (!potential) add('error', 'Traits', 'Roll your Potential.');
@@ -177,7 +217,7 @@ export function checkSheet(sheet: Sheet, ctx: CheckContext): Issue[] {
 		if (s.phase > potential.maxPhase) add('warning', 'Stats', `${potential.label} Potential can’t reach Phase ${s.phase} (max Phase ${potential.maxPhase}).`);
 		for (const stat of ['strength', 'speed', 'defense', 'stamina'] as const) {
 			const info = rankInfo(s[stat]);
-			if (info && info.tier > potential.maxTier) add('warning', 'Stats', `${potential.label} Potential stops at Tier ${potential.maxTier}, but ${stat} is ${info.rank}.`);
+			if (info && info.tier > potential.maxTier && info.value > statStart(sheet, stat)) add('warning', 'Stats', `${potential.label} Potential stops at Tier ${potential.maxTier}, but ${stat} is ${info.rank}.`);
 		}
 	}
 	const intel = rules.stats.intelligence.find((i) => i.value === s.intelligence);
@@ -206,13 +246,11 @@ export function checkSheet(sheet: Sheet, ctx: CheckContext): Issue[] {
 		if (seen.has(picked.name)) add('error', 'Traits', `“${picked.name}” is picked twice.`);
 		seen.add(picked.name);
 		if (picked.family) checkFamilyTrait(picked, ctx, add);
-		else if (blank(picked.rollProof)) add('warning', 'Traits', `Add the roll link for ${picked.name}.`);
 	}
 
 	// ── Combat ──
 	for (const style of sheet.combat.styles) {
 		if (blank(style.name)) add('error', 'Combat', 'A Fighting Style is missing its name.');
-		else if (blank(style.rollProof)) add('warning', 'Combat', `Add the roll link for ${style.name}.`);
 	}
 
 	// ── Systems ──
@@ -285,14 +323,11 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 				missingRolls.add(field.rolled);
 				continue;
 			}
-			checkField(field, entry.fields[field.key], where, add, entry.rollProofs?.[field.key]);
+			checkField(field, entry.fields[field.key], where, add);
 		}
 
-		if (!ctx.isEvolution && def.budget) {
-			const total = def.budget.total(entry.fields);
-			const spent = def.budget.spent(entry.fields);
-			if (spent > total) add('warning', 'Systems', `${where}: ${spent} ${def.budget.label} spent, but you start with ${total}.`);
-		}
+		const budget = systemBudget(sheet, entry);
+		if (!ctx.isEvolution && budget && budget.spent > budget.total) add('warning', 'Systems', `${where}: ${budget.spent} ${budget.label} spent, but you start with ${budget.total}.`);
 		for (const extra of def.checks?.(entry.fields, !ctx.isEvolution) ?? []) add(extra.level, 'Systems', extra.message);
 		const moves = def.startingMoves?.(entry.fields);
 		for (const type of ['standard', 'ultimate'] as const) {
@@ -347,7 +382,7 @@ function checkFamilyTrait(picked: PickedTrait, ctx: CheckContext, add: (level: I
 	if (proof && blank(picked.rollProof)) add('warning', 'Traits', `${picked.name}: add the ${proof.charAt(0).toLowerCase() + proof.slice(1)}.`);
 }
 
-function checkField(field: Field, value: unknown, where: string, add: (level: IssueLevel, section: string, message: string) => void, rollProof?: string) {
+function checkField(field: Field, value: unknown, where: string, add: (level: IssueLevel, section: string, message: string) => void) {
 	if (field.required && blank(value)) {
 		add('error', 'Systems', field.rolled ? `${where}: roll your ${field.label}.` : `${where}: fill in ${field.label}.`);
 		return;
@@ -356,7 +391,6 @@ function checkField(field: Field, value: unknown, where: string, add: (level: Is
 	for (const option of field.options ?? []) {
 		if (option.permission && picked.includes(option.value)) add('permission', 'Systems', `${where}: ${option.value} (${field.label}) needs permission.`);
 	}
-	if (field.rollProof && !blank(value) && value !== 'None' && blank(rollProof)) add('warning', 'Systems', `${where}: add the roll link for ${field.label}.`);
 	if (field.type === 'list' && Array.isArray(value)) {
 		(value as Record<string, string>[]).forEach((row, i) => {
 			for (const column of field.columns ?? []) {

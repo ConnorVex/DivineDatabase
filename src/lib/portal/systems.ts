@@ -35,8 +35,6 @@ export interface Field {
 	/** Only shown while another field has one of these values. */
 	showIf?: { key: string; in: string[] };
 	required?: boolean;
-	/** A Discord message link proving a roll. */
-	rollProof?: boolean;
 	/** Filled by a roll on the portal (read-only on the card). */
 	rolled?: 'cursed_energy';
 	/** For list columns: other cells to fill in when this one is picked (e.g. an item's slot). */
@@ -113,6 +111,11 @@ const infamousClasses: Option[] = [
 	{ value: 'Meta', points: 0, permission: true },
 ];
 
+// A Jujutsu Kaisen card can start with only Cursed Energy Utilization: no technique yet.
+const JJK_TECHNIQUE = 'Cursed Technique';
+const JJK_CEU_ONLY = 'Cursed Energy Utilization only';
+const JJK_HAS_TECHNIQUE = { key: 'start', in: [JJK_TECHNIQUE, ''] };
+
 export const systems: SystemDef[] = [
 	{
 		id: 'abilities',
@@ -169,6 +172,7 @@ export const systems: SystemDef[] = [
 		universe: 'jujutsu-kaisen',
 		claimLabel: 'Cursed Technique',
 		groups: [
+			{ label: 'Start', keys: ['start'] },
 			{ label: 'Cursed Energy', keys: ['ceClass', 'ceAmount', 'ceOutput', 'ceControl', 'rp2rpRecharge', 'completeRecharge', 'ceUpgradePoints'] },
 			{ label: 'Cursed Technique', keys: ['ctName', 'ctType', 'ctClass', 'ctRange', 'ctPower', 'ctEfficiency', 'ctUpgradePoints'] },
 			{ label: 'Restrictions & tools', keys: ['heavenlyRestriction', 'bindingVows', 'cursedTools'] },
@@ -179,6 +183,15 @@ export const systems: SystemDef[] = [
 			{ label: 'Restrictions & tools', groups: ['Restrictions & tools'] },
 		],
 		fields: [
+			{
+				key: 'start',
+				label: 'Start with',
+				type: 'select',
+				options: [{ value: JJK_TECHNIQUE }, { value: JJK_CEU_ONLY }],
+				default: JJK_TECHNIQUE,
+				required: true,
+				help: 'Cursed Energy Utilization only: no Cursed Technique or Extension Techniques yet.',
+			},
 			{
 				key: 'ceClass',
 				label: 'Cursed Energy',
@@ -199,11 +212,12 @@ export const systems: SystemDef[] = [
 			{ key: 'rp2rpRecharge', label: 'RP2RP Recharge level', type: 'number', default: 0, min: 0 },
 			{ key: 'completeRecharge', label: 'Complete Recharge level', type: 'number', default: 0, min: 0 },
 			{ key: 'ceUpgradePoints', label: 'Cursed Energy Upgrade Points (CEUP)', type: 'number', default: 0, min: 0 },
-			{ key: 'ctName', label: 'Cursed Technique name', type: 'text' },
-			{ key: 'ctType', label: 'Cursed Technique type', type: 'select', options: [{ value: 'Innate' }, { value: 'Inherited' }] },
-			{ key: 'ctClass', label: 'Cursed Technique class', type: 'select', options: [{ value: 'General' }, { value: 'Shikigami' }, { value: 'Support' }] },
+			{ key: 'ctName', label: 'Cursed Technique name', type: 'text', showIf: JJK_HAS_TECHNIQUE },
+			{ key: 'ctType', label: 'Cursed Technique type', type: 'select', options: [{ value: 'Innate' }, { value: 'Inherited' }], showIf: JJK_HAS_TECHNIQUE },
+			{ key: 'ctClass', label: 'Cursed Technique class', type: 'select', options: [{ value: 'General' }, { value: 'Shikigami' }, { value: 'Support' }], showIf: JJK_HAS_TECHNIQUE },
 			{
 				key: 'ctRange',
+				showIf: JJK_HAS_TECHNIQUE,
 				label: 'Cursed Technique Range',
 				type: 'select',
 				options: levels(['Physical', 'Close', 'Medium', 'Long', 'Impossible', 'Heavenly', 'Unknown'], ['Impossible', 'Heavenly', 'Unknown']),
@@ -211,6 +225,7 @@ export const systems: SystemDef[] = [
 			},
 			{
 				key: 'ctPower',
+				showIf: JJK_HAS_TECHNIQUE,
 				label: 'Cursed Technique Power',
 				type: 'select',
 				options: levels(['Below Grade 4', 'Grade 4', 'Semi Grade 3', 'Grade 3', 'Semi Grade 2', 'Grade 2', 'Semi Grade 1', 'Grade 1', 'Special Grade'], ['Special Grade']),
@@ -218,6 +233,7 @@ export const systems: SystemDef[] = [
 			},
 			{
 				key: 'ctEfficiency',
+				showIf: JJK_HAS_TECHNIQUE,
 				label: 'Cursed Technique Efficiency',
 				type: 'select',
 				options: levels(
@@ -226,19 +242,18 @@ export const systems: SystemDef[] = [
 				),
 				default: 'Extremely Poor',
 			},
-			{ key: 'ctUpgradePoints', label: 'Cursed Technique Upgrade Points (CTUP)', type: 'number', default: 0, min: 0 },
+			{ key: 'ctUpgradePoints', label: 'Cursed Technique Upgrade Points (CTUP)', type: 'number', default: 0, min: 0, showIf: JJK_HAS_TECHNIQUE },
 			{
 				key: 'heavenlyRestriction',
 				label: 'Heavenly Restriction',
 				type: 'select',
 				options: [{ value: 'None' }, { value: 'Physical' }, { value: 'Cursed Energy' }, { value: 'Twins' }, { value: 'Equilibrium' }],
 				default: 'None',
-				rollProof: true,
 			},
 			{ key: 'bindingVows', label: 'Binding Vows', type: 'textarea' },
 			{ key: 'cursedTools', label: 'Cursed Tools', type: 'textarea' },
 		],
-		startingMoves: () => ({ standard: 2, label: 'Extension Technique' }),
+		startingMoves: (f) => (f.start === JJK_CEU_ONLY ? {} : { standard: 2, label: 'Extension Technique' }),
 		ptpBonus: (f) => (f.heavenlyRestriction === 'Physical' ? 9 : 0),
 		notes: ['Barriers and Domain Expansions are added later as evolutions.'],
 	},
@@ -272,7 +287,7 @@ export const systems: SystemDef[] = [
 					required: true,
 				}),
 			),
-			{ key: 'standArrow', label: 'Stand Arrow roll (if not born with it)', type: 'text', showIf: { key: 'path', in: ['Stand'] }, rollProof: true },
+			{ key: 'standArrow', label: 'Stand Arrow roll (if not born with it)', type: 'text', showIf: { key: 'path', in: ['Stand'] } },
 			{ key: 'hamonMastery', label: 'Hamon Mastery', type: 'number', default: 0, min: 0, showIf: { key: 'path', in: ['Hamon'] } },
 			{ key: 'spinMastery', label: 'Spin Mastery', type: 'number', default: 0, min: 0, showIf: { key: 'path', in: ['Spin'] } },
 			{ key: 'vampireMastery', label: 'Vampire Mastery', type: 'number', default: 0, min: 0, showIf: { key: 'path', in: ['Vampire'] } },
@@ -353,7 +368,6 @@ export const systems: SystemDef[] = [
 				options: [{ value: 'Ukaku' }, { value: 'Koukaku' }, { value: 'Bikaku' }, { value: 'Ashiaku' }, { value: 'Rinkaku' }, { value: 'Udeaku' }, { value: 'Chimera', permission: true }],
 				showIf: { key: 'path', in: ['Ghoul'] },
 				required: true,
-				rollProof: true,
 			},
 			{ key: 'rcTank', label: 'Rc Tank', type: 'number', default: 460, min: 0, showIf: { key: 'path', in: ['Ghoul'] } },
 			{ key: 'gep', label: 'Ghoul Evolution Points (GEP)', type: 'number', default: 0, min: 0, showIf: { key: 'path', in: ['Ghoul'] } },

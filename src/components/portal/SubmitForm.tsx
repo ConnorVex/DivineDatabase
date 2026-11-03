@@ -584,13 +584,6 @@ export default function SubmitForm() {
 													disabled={readOnly}
 													onInput={(v) => updateSheet((x) => void (x.combat.styles[i].name = v))}
 												/>
-												<TextField
-													label="Roll link"
-													value={style.rollProof}
-													placeholder="https://discord.com/channels/…"
-													disabled={readOnly}
-													onInput={(v) => updateSheet((x) => void (x.combat.styles[i].rollProof = v))}
-												/>
 												{!readOnly && (
 													<button type="button" class="pf-button subtle" onClick={() => updateSheet((x) => void x.combat.styles.splice(i, 1))}>
 														Remove
