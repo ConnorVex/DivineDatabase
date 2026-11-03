@@ -1,12 +1,13 @@
 // The two perks members can link on their character: a Family ability, built with the same
-// Abilities card as the character form, and a Family trait, picked from the trait list.
+// Abilities card as the character form, and a Family trait, picked from the trait list or made
+// by the family itself (a custom trait).
 // Also the read-only summary shown on the family page and in the admin review.
 import { Fragment } from 'preact';
 import type { PerkDetails, PerkKind } from '../../lib/families/api.ts';
 import { rules, traits } from '../../lib/portal/rules.ts';
 import type { Skill } from '../../lib/portal/sheet.ts';
 import { systemById, visibleFields, type FieldValue, type Fields } from '../../lib/portal/systems.ts';
-import { SelectField } from '../portal/fields.tsx';
+import { SelectField, TextField } from '../portal/fields.tsx';
 import { FieldInput, SkillsEditor, defaults } from '../portal/SystemsSection.tsx';
 
 const abilities = systemById.get('abilities')!;
@@ -27,7 +28,14 @@ export function blankDetails(kind: PerkKind): PerkDetails {
 /** What still has to be filled in before a built perk can be sent. */
 export function detailProblems(kind: PerkKind, details: PerkDetails, title: string): string[] {
 	const name = title.trim() || 'A new perk';
-	if (kind === 'trait' && !details.trait) return [`${name}: pick the trait it gives.`];
+	if (kind === 'trait') {
+		if (!details.customTrait) return details.trait ? [] : [`${name}: pick the trait it gives.`];
+		const out: string[] = [];
+		if (!details.trait?.trim()) out.push(`${name}: give the custom trait a name.`);
+		else if (traitByName.has(details.trait.trim())) out.push(`${name}: “${details.trait.trim()}” is already a listed trait, so pick it from the list instead.`);
+		if (!details.customTrait.category || !details.customTrait.effect) out.push(`${name}: pick the custom trait’s type and effect.`);
+		return out;
+	}
 	if (kind === 'locked_power') {
 		const a = details.ability;
 		const out: string[] = [];
@@ -79,22 +87,43 @@ export function AbilityBuilder({ value, onChange }: { value: { fields: Fields; s
 	);
 }
 
-export function TraitPicker({ value, onChange }: { value: string; onChange: (name: string) => void }) {
-	const info = traitByName.get(value);
+const CATEGORIES = [...new Set(traits.map((t) => t.category))].sort();
+const EFFECTS = [...new Set(traits.map((t) => t.effect))].sort();
+const CUSTOM = '__custom__';
+
+/** Pick a listed trait, or make a custom one; its description is the perk's description. */
+export function TraitPicker({ value, onChange }: { value: PerkDetails; onChange: (details: PerkDetails) => void }) {
+	const custom = value.customTrait;
+	const info = custom ? undefined : traitByName.get(value.trait ?? '');
+	const setCustom = (patch: Partial<NonNullable<PerkDetails['customTrait']>>) =>
+		onChange({ trait: value.trait ?? '', customTrait: { category: '', effect: '', ...custom, ...patch } });
 	return (
-		<SelectField
-			label="Trait"
-			required
-			value={value}
-			placeholder="Pick the trait it gives…"
-			onChange={onChange}
-			options={rarities.flatMap((r) =>
-				traits
-					.filter((t) => t.rarity === r.id)
-					.map((t) => ({ value: t.name, label: `${t.name} (${cap(t.category)} ${t.effect})`, group: r.label })),
+		<>
+			<SelectField
+				label="Trait"
+				required
+				value={custom ? CUSTOM : value.trait ?? ''}
+				placeholder="Pick the trait it gives…"
+				onChange={(v) => onChange(v === CUSTOM ? { trait: '', customTrait: { category: '', effect: '' } } : { trait: v })}
+				options={[
+					{ value: CUSTOM, label: '✦ Custom trait (make your own)', group: 'Custom' },
+					...rarities.flatMap((r) =>
+						traits
+							.filter((t) => t.rarity === r.id)
+							.map((t) => ({ value: t.name, label: `${t.name} (${cap(t.category)} ${t.effect})`, group: r.label })),
+					),
+				]}
+				help={info ? `${cap(info.rarity)} · ${rules.traitSlots.familyTrait.note}` : rules.traitSlots.familyTrait.note}
+			/>
+			{custom && (
+				<>
+					<TextField label="Custom trait name" required value={value.trait ?? ''} onInput={(trait) => onChange({ trait, customTrait: custom })} />
+					<SelectField label="Type" required value={custom.category} placeholder="Pick a type…" onChange={(category) => setCustom({ category })} options={CATEGORIES.map((c) => ({ value: c, label: cap(c) }))} />
+					<SelectField label="Effect" required value={custom.effect} placeholder="Pick an effect…" onChange={(effect) => setCustom({ effect })} options={EFFECTS.map((e) => ({ value: e, label: cap(e) }))} />
+					<p class="pf-help pf-wide">Describe what the trait does in the perk’s description. The admins review custom traits when the perk is sent.</p>
+				</>
 			)}
-			help={info ? `${cap(info.rarity)} · ${rules.traitSlots.familyTrait.note}` : rules.traitSlots.familyTrait.note}
-		/>
+		</>
 	);
 }
 
@@ -104,10 +133,12 @@ const SKILL_TYPE = { passive: 'Passive', standard: 'Standard', ultimate: 'Ultima
 export function PerkBuilt({ kind, details }: { kind: PerkKind | null; details: PerkDetails | undefined }) {
 	if (kind === 'trait' && details?.trait) {
 		const info = traitByName.get(details.trait);
+		const custom = details.customTrait;
 		return (
 			<p class="perk-built">
-				<span class="fm-chip">Trait</span> <strong>{details.trait}</strong>
-				{info && <span class="pf-help"> · {cap(info.rarity)} {info.category} {info.effect}</span>}
+				<span class="fm-chip">{custom ? 'Custom trait' : 'Trait'}</span> <strong>{details.trait}</strong>
+				{info && !custom && <span class="pf-help"> · {cap(info.rarity)} {info.category} {info.effect}</span>}
+				{custom && <span class="pf-help"> · {custom.category} {custom.effect}</span>}
 			</p>
 		);
 	}

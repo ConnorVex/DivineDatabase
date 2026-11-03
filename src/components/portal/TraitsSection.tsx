@@ -143,7 +143,7 @@ function FamilyTraits(props: { perks: LinkablePerk[]; sheet: Sheet; left: number
 							<button type="button" disabled={linked || Boolean(blocked)} onClick={() => props.onTake(p)}>
 								<TraitChip name={name} />
 								<span class="trait-meta">
-									{props.familyName(p.family_id)} · {PERK_ACCESS.find((a) => a.id === p.access)?.label}
+									{props.familyName(p.family_id)} · {p.details.customTrait ? 'Custom · ' : ''}{PERK_ACCESS.find((a) => a.id === p.access)?.label}
 									{p.title !== name && ` · ${p.title}`}
 								</span>
 								<span class="trait-need">{linked ? 'Your Family trait' : blocked || (regular ? 'Make it your Family trait' : 'Add as Family trait')}</span>
@@ -230,7 +230,9 @@ export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits,
 								<div class="trait-row-main">
 									<TraitChip name={t.name} />
 									<span class="trait-meta">
-										{rarity?.label ?? 'Unknown'} · {info?.category} · {info?.effect} · {t.family ? 1 : rarity?.slots ?? '?'} slot{(t.family ? 1 : rarity?.slots) === 1 ? '' : 's'}
+										{perk?.details.customTrait
+											? `Custom · ${perk.details.customTrait.category} · ${perk.details.customTrait.effect} · 1 slot`
+											: `${rarity?.label ?? 'Unknown'} · ${info?.category} · ${info?.effect} · ${t.family ? 1 : rarity?.slots ?? '?'} slot${(t.family ? 1 : rarity?.slots) === 1 ? '' : 's'}`}
 									</span>
 									{t.family && <span class="fam-tag">Family trait{t.familyId ? ` · ${familyName(t.familyId)}` : ''}</span>}
 									{comboOf.has(t.name) && <span class="combo-tag">✨ Combined into {comboOf.get(t.name)}</span>}

@@ -201,7 +201,8 @@ export function checkSheet(sheet: Sheet, ctx: CheckContext): Issue[] {
 	if (sheet.traits.some((t) => t.family) && !inFamily) add('error', 'Families', 'A Family trait needs a family: pick the family that offers it.');
 	const seen = new Set<string>();
 	for (const picked of sheet.traits) {
-		if (!traitByName.has(picked.name)) add('error', 'Traits', `“${picked.name}” isn’t a known trait.`);
+		// A linked family trait may be the family's own custom trait; checkFamilyTrait checks the link.
+		if (!traitByName.has(picked.name) && !(picked.family && picked.perkId)) add('error', 'Traits', `“${picked.name}” isn’t a known trait.`);
 		if (seen.has(picked.name)) add('error', 'Traits', `“${picked.name}” is picked twice.`);
 		seen.add(picked.name);
 		if (picked.family) checkFamilyTrait(picked, ctx, add);

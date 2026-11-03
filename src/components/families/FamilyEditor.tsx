@@ -567,7 +567,8 @@ const perkFields = (p: PerkDraft): PerkDraft => ({
 	title: p.title,
 	description: p.description,
 	hidden: p.hidden,
-	details: isBuilt(p.kind) ? p.details ?? blankDetails(p.kind) : {},
+	// Perks written before the builders existed start the builder fresh.
+	details: isBuilt(p.kind) ? { ...blankDetails(p.kind), ...p.details } : {},
 });
 
 type PerkRow = { key: string; draft: PerkDraft; saved?: Perk; removed?: boolean };
@@ -611,8 +612,10 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 			</div>
 			{draft.kind === 'trait' && (
 				<TraitPicker
-					value={draft.details.trait ?? ''}
-					onChange={(trait) => onChange({ ...draft, details: { trait }, title: !draft.title.trim() || draft.title === draft.details.trait ? trait : draft.title })}
+					value={draft.details}
+					onChange={(details) =>
+						onChange({ ...draft, details, title: !draft.title.trim() || draft.title === draft.details.trait ? details.trait ?? '' : draft.title })
+					}
 				/>
 			)}
 			{draft.kind === 'locked_power' && draft.details.ability && (

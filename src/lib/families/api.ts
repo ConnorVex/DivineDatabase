@@ -93,6 +93,8 @@ export interface StandingNote {
 export interface PerkDetails {
 	ability?: { fields: Fields; skills: Skill[] };
 	trait?: string;
+	/** Set when the family made its own trait instead of picking a listed one. */
+	customTrait?: { category: string; effect: string };
 }
 
 export interface Perk {

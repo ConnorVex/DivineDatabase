@@ -246,7 +246,7 @@ function SheetView({ c, combos, board, universes, perks, families }: { c: AdminC
 											{t.name}
 										</span>
 										<span class="trait-meta">
-											{info?.rarity} · {info?.category} · {info?.effect}
+											{info ? `${info.rarity} · ${info.category} · ${info.effect}` : 'custom'}
 											{t.family ? ' · family' : ''}
 										</span>
 										{t.family && t.perkId ? (
