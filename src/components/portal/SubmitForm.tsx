@@ -19,7 +19,7 @@ import {
 	type RollResult,
 	type Universe,
 } from '../../lib/portal/api.ts';
-import { loadFamilyChoices, type FamilyChoices, type MyTryout } from '../../lib/portal/families.ts';
+import { loadFamilyChoices, loadLinkablePerks, type FamilyChoices, type LinkablePerk, type MyTryout } from '../../lib/portal/families.ts';
 import { characterIssues, effectiveClaims } from '../../lib/portal/checks.ts';
 import { hasBlockingIssues, rules, type Issue } from '../../lib/portal/rules.ts';
 import type { Sheet } from '../../lib/portal/sheet.ts';
@@ -87,6 +87,7 @@ export default function SubmitForm() {
 	const [step, setStepState] = useState(() => location.hash.slice(1) || 'basics');
 	const [visited, setVisited] = useState<Set<string>>(() => new Set());
 	const [familyChoices, setFamilyChoices] = useState<FamilyChoices | null>(null);
+	const [familyPerks, setFamilyPerks] = useState<LinkablePerk[] | null>(null);
 	const [myRolls, setMyRolls] = useState<MyRolls | null>(null);
 	const [characterRolls, setCharacterRolls] = useState<Partial<Record<RollKind, RollResult>>>({});
 	const refreshRolls = (characterId?: string | null) => {
@@ -196,9 +197,24 @@ export default function SubmitForm() {
 		return () => clearTimeout(timer);
 	}, [draft, saveState, retry]);
 
+	// The ability and trait perks of every family this character picks or is in.
+	const linkFamilies = [...new Set([...(draft?.sheet.families ?? []), ...(familyChoices?.memberships.map((m) => m.family_id) ?? [])])].sort().join(',');
+	useEffect(() => {
+		if (!familyChoices) return;
+		let stale = false;
+		loadLinkablePerks(linkFamilies ? linkFamilies.split(',') : []).then(
+			(p) => !stale && setFamilyPerks(p),
+			() => !stale && setFamilyPerks([]),
+		);
+		return () => void (stale = true);
+	}, [linkFamilies, Boolean(familyChoices)]);
+
 	const issues: Issue[] = useMemo(
-		() => (draft ? characterIssues(draft, { board, held, combos, familyIds: familyChoices?.memberships.map((m) => m.family_id) ?? [] }) : []),
-		[draft, board, held, combos, familyChoices],
+		() =>
+			draft
+				? characterIssues(draft, { board, held, combos, familyIds: familyChoices?.memberships.map((m) => m.family_id) ?? [], familyPerks: familyPerks ?? undefined })
+				: [],
+		[draft, board, held, combos, familyChoices, familyPerks],
 	);
 
 	// The steps this character has, and moving between them (the step lives in the URL hash).
@@ -543,6 +559,8 @@ export default function SubmitForm() {
 									lockedTraits={new Set(draft.approvedSheet?.traits.map((t) => t.name) ?? [])}
 									readOnly={readOnly}
 									roller={roller}
+									familyTraits={familyPerks && familyPerks.filter((p) => p.kind === 'trait')}
+									familyName={(id) => familyChoices?.families.find((f) => f.id === id)?.name ?? 'A family'}
 								/>
 							</div>
 							<div class="pf-step" hidden={current !== 'combat'}>
@@ -606,6 +624,8 @@ export default function SubmitForm() {
 									readOnly={readOnly}
 									isEvolution={isEvolution}
 									roller={roller}
+									familyAbilities={familyPerks && familyPerks.filter((p) => p.kind === 'locked_power')}
+									familyName={(id) => familyChoices?.families.find((f) => f.id === id)?.name ?? 'A family'}
 								/>
 							</div>
 							<div class="pf-step" hidden={current !== 'storage'}>

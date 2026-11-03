@@ -1,5 +1,6 @@
 // The rule checks for a whole character, shared by the form and the evolution page.
 import type { CharacterDraft, ClaimRow, Combo } from './api.ts';
+import type { LinkablePerk } from './families.ts';
 import { checkSheet, type Issue } from './rules.ts';
 import { systemById } from './systems.ts';
 
@@ -10,6 +11,8 @@ export interface CheckData {
 	combos: Combo[];
 	/** Families the character is in, asking to join, or picked in the form. */
 	familyIds: string[];
+	/** Ability and trait perks of those families, for checking linked cards. */
+	familyPerks?: LinkablePerk[];
 }
 
 /** Canon picks only count for systems the character still has. */
@@ -32,6 +35,7 @@ export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[]
 		requestedClaims: effectiveClaims(draft, board),
 		comboSystemLimits: combos.map((c) => c.system_limits ?? {}),
 		families: [...draft.sheet.families, ...data.familyIds],
+		familyPerks: data.familyPerks && new Map(data.familyPerks.map((p) => [p.id, p])),
 	});
 	if (draft.kind === 'canon' && draft.canonUniverse && draft.name.trim()) {
 		const taken = board.find((r) => r.claim_type === 'character' && r.universe === draft.canonUniverse && r.name.toLowerCase() === draft.name.trim().toLowerCase());

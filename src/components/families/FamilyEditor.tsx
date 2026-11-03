@@ -30,6 +30,7 @@ import {
 	type RelationDraft,
 	type Standing,
 } from '../../lib/families/api.ts';
+import { AbilityBuilder, TraitPicker, blankDetails, detailProblems, isBuilt } from './PerkBuilders.tsx';
 import { FamilyForm, familyProblems } from './FamilyForm.tsx';
 import { messageOf } from './shared.tsx';
 
@@ -558,8 +559,16 @@ function RelationsTab({ b, families, onSaved }: { b: FamilyBundle; families: { i
 // ───────────────────────────── Perks ─────────────────────────────
 
 const PERK_STATUS = { pending: 'Waiting for an admin', approved: 'Approved', denied: 'Denied' } as const;
-const NEW_PERK: PerkDraft = { kind: 'trait', access: 'automatic', title: '', description: '', hidden: false };
-const perkFields = (p: PerkDraft): PerkDraft => ({ id: p.id, kind: p.kind, access: p.access, title: p.title, description: p.description, hidden: p.hidden });
+const NEW_PERK: PerkDraft = { kind: 'trait', access: 'automatic', title: '', description: '', hidden: false, details: blankDetails('trait') };
+const perkFields = (p: PerkDraft): PerkDraft => ({
+	id: p.id,
+	kind: p.kind,
+	access: p.access,
+	title: p.title,
+	description: p.description,
+	hidden: p.hidden,
+	details: isBuilt(p.kind) ? p.details ?? blankDetails(p.kind) : {},
+});
 
 type PerkRow = { key: string; draft: PerkDraft; saved?: Perk; removed?: boolean };
 
@@ -570,7 +579,10 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 				<label class="pf-label" for={`p-kind-${id}`}>
 					Kind
 				</label>
-				<select id={`p-kind-${id}`} value={draft.kind} onChange={(e) => onChange({ ...draft, kind: e.currentTarget.value as PerkKind })}>
+				<select id={`p-kind-${id}`} value={draft.kind} onChange={(e) => {
+						const kind = e.currentTarget.value as PerkKind;
+						onChange({ ...draft, kind, details: blankDetails(kind) });
+					}}>
 					{PERK_KINDS.map((k) => (
 						<option key={k.id} value={k.id}>
 							{k.label}
@@ -597,9 +609,18 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 				</label>
 				<input id={`p-title-${id}`} value={draft.title} maxLength={100} onInput={(e) => onChange({ ...draft, title: e.currentTarget.value })} />
 			</div>
+			{draft.kind === 'trait' && (
+				<TraitPicker
+					value={draft.details.trait ?? ''}
+					onChange={(trait) => onChange({ ...draft, details: { trait }, title: !draft.title.trim() || draft.title === draft.details.trait ? trait : draft.title })}
+				/>
+			)}
+			{draft.kind === 'locked_power' && draft.details.ability && (
+				<AbilityBuilder value={draft.details.ability} onChange={(ability) => onChange({ ...draft, details: { ability } })} />
+			)}
 			<div class="pf-field pf-wide">
 				<label class="pf-label" for={`p-desc-${id}`}>
-					What it gives
+					{draft.kind === 'locked_power' ? 'Description' : draft.kind === 'trait' ? 'Notes (optional)' : 'What it gives'}
 				</label>
 				<textarea
 					id={`p-desc-${id}`}
@@ -607,7 +628,13 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 					maxLength={8000}
 					value={draft.description}
 					onInput={(e) => onChange({ ...draft, description: e.currentTarget.value })}
-					placeholder="Effects, limits, cooldowns, and any rolls. **bold** and *italic* work."
+					placeholder={
+						draft.kind === 'locked_power'
+							? 'What the ability is and how it works in the family. **bold** and *italic* work.'
+							: draft.kind === 'trait'
+								? 'Anything about how the family passes this trait on.'
+								: 'Effects, limits, cooldowns, and any rolls. **bold** and *italic* work.'
+					}
 				/>
 			</div>
 			<label class="pf-check pf-wide">
@@ -630,6 +657,7 @@ function PerksTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
 	const summary = [added && `${added} new`, sending.length - added && `${sending.length - added} changed`, removed.length && `${removed.length} removed`].filter(Boolean).join(' · ');
 	const problems = [
 		...(sending.some((r) => !r.draft.title.trim()) ? ['Every perk needs a name.'] : []),
+		...sending.flatMap((r) => detailProblems(r.draft.kind, r.draft.details, r.draft.title)),
 		...(sending.length > 25 ? ['Send at most 25 perks at a time.'] : []),
 	];
 	return (

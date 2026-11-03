@@ -1,4 +1,5 @@
 // The shape of a character sheet as stored in characters.sheet (jsonb).
+import type { PerkAccess } from '../families/api.ts';
 import type { Fields } from './systems.ts';
 
 export type SkillType = 'passive' | 'standard' | 'ultimate';
@@ -10,6 +11,25 @@ export interface Skill {
 	mastery: string;
 }
 
+/** A card copied from a family's ability perk. The family's part stays locked; the player adds the rest. */
+export interface FamilyLink {
+	perkId: string;
+	familyId: string;
+	/** The perk's name when it was linked, shown if the perk is later removed. */
+	title: string;
+	/** Link proving the character got it, for perks that are rolled, earned or taught. */
+	proof: string;
+}
+
+/** What a player shows to prove they got a family perk that isn't simply given. */
+export const PROOF_LABEL: Record<PerkAccess, string | null> = {
+	automatic: null,
+	choice: null,
+	rolled: 'Roll link',
+	earned: 'Link to the RP where it was earned',
+	taught: 'Link to the RP where a member taught it',
+};
+
 export interface SystemEntry {
 	/** Stable id within the sheet, so priority can point at it. */
 	key: string;
@@ -19,12 +39,17 @@ export interface SystemEntry {
 	skills: Skill[];
 	/** Rolls for this system's rolled fields: field key → Discord message link. */
 	rollProofs: Record<string, string>;
+	familyLink?: FamilyLink;
 }
 
 export interface PickedTrait {
 	name: string;
 	/** Offered by a family: takes a single slot whatever its rarity. */
 	family?: boolean;
+	/** The family trait perk it's linked to (older sheets only have `family`). */
+	perkId?: string;
+	familyId?: string;
+	/** A roll link, or for a family trait the proof its perk asks for (if any). */
 	rollProof?: string;
 }
 
@@ -62,6 +87,21 @@ export interface Sheet {
 	/** Canon tryouts only. */
 	canon: { portrayal: string; sample: string };
 }
+
+/** JSON with object keys sorted, so the database's key order doesn't count as a change. */
+const stable = (v: unknown): string =>
+	Array.isArray(v)
+		? `[${v.map(stable).join(',')}]`
+		: v && typeof v === 'object'
+			? `{${Object.keys(v)
+					.sort()
+					.map((k) => `${JSON.stringify(k)}:${stable((v as Record<string, unknown>)[k])}`)
+					.join(',')}}`
+			: JSON.stringify(v ?? null);
+
+/** Whether a linked card still matches its family perk (the family may have changed it since). */
+export const sameAbility = (a: { fields: unknown; skills: unknown }, b: { fields: unknown; skills: unknown }) =>
+	stable(a.fields) === stable(b.fields) && stable(a.skills) === stable(b.skills);
 
 export const emptySheet = (): Sheet => ({
 	appearance: { image: '', description: '', extraImages: '' },

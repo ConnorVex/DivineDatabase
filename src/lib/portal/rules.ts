@@ -3,7 +3,8 @@
 import ranksData from '../../data/portal/ranks.json' with { type: 'json' };
 import rulesData from '../../data/portal/rules.json' with { type: 'json' };
 import traitsData from '../../data/portal/traits.json' with { type: 'json' };
-import type { Sheet } from './sheet.ts';
+import type { LinkablePerk } from './families.ts';
+import { PROOF_LABEL, sameAbility, type PickedTrait, type Sheet, type SystemEntry } from './sheet.ts';
 import { countsTowardLimit, systemById, visibleFields, type Field } from './systems.ts';
 
 export const ranks = ranksData.ranks;
@@ -38,6 +39,8 @@ export interface CheckContext {
 	requestedClaims?: string[];
 	/** Families the character is in or is asking to join (ids). */
 	families?: string[];
+	/** The family perks the player can link, by id. Without it, linked cards aren't checked against their perk. */
+	familyPerks?: Map<string, LinkablePerk>;
 }
 
 export const rankValue = (rank: string) => rankByName.get(rank)?.value;
@@ -201,7 +204,8 @@ export function checkSheet(sheet: Sheet, ctx: CheckContext): Issue[] {
 		if (!traitByName.has(picked.name)) add('error', 'Traits', `“${picked.name}” isn’t a known trait.`);
 		if (seen.has(picked.name)) add('error', 'Traits', `“${picked.name}” is picked twice.`);
 		seen.add(picked.name);
-		if (blank(picked.rollProof)) add('warning', 'Traits', `Add the roll link for ${picked.name}.`);
+		if (picked.family) checkFamilyTrait(picked, ctx, add);
+		else if (blank(picked.rollProof)) add('warning', 'Traits', `Add the roll link for ${picked.name}.`);
 	}
 
 	// ── Combat ──
@@ -257,7 +261,13 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 			add('error', 'Systems', `Unknown power system “${entry.system}”.`);
 			continue;
 		}
-		const where = def.label;
+		const link = entry.familyLink;
+		const where = link ? `${def.label} (${link.title})` : def.label;
+		if (link) {
+			// A linked card is the family's approved ability: check the link, not the build.
+			checkFamilyLink(entry, ctx, where, add);
+			continue;
+		}
 		const allowed = def.onlyWith?.(entry.fields);
 		if (allowed) {
 			for (const other of entries) {
@@ -298,6 +308,42 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 			if (skill.type === 'passive') add('permission', 'Systems', `${where}: custom passive “${skill.name || 'unnamed'}” needs permission.`);
 		}
 	}
+}
+
+function checkFamilyLink(entry: SystemEntry, ctx: CheckContext, where: string, add: (level: IssueLevel, section: string, message: string) => void) {
+	const link = entry.familyLink!;
+	if (!link.perkId) {
+		add('error', 'Systems', 'Abilities: pick which family ability to use, or make your own.');
+		return;
+	}
+	if (!(ctx.families ?? []).includes(link.familyId)) add('error', 'Families', `${where} is a family ability: pick that family in the Families step.`);
+	if (!ctx.familyPerks) return;
+	const perk = ctx.familyPerks.get(link.perkId);
+	if (!perk?.details.ability) {
+		add('error', 'Systems', `${where}: this family ability is no longer available. Make the card your own or pick another.`);
+		return;
+	}
+	if (!sameAbility(entry, perk.details.ability)) add('warning', 'Systems', `${where}: the family has changed this ability since you linked it. Update the card.`);
+	const proof = PROOF_LABEL[perk.access];
+	if (proof && blank(link.proof)) add('warning', 'Systems', `${where}: add the ${proof.charAt(0).toLowerCase() + proof.slice(1)}.`);
+}
+
+/** A family trait comes from one of the character's families' trait perks. */
+function checkFamilyTrait(picked: PickedTrait, ctx: CheckContext, add: (level: IssueLevel, section: string, message: string) => void) {
+	if (!picked.perkId) {
+		// Sheets from before family traits were linked: still allowed, but the reviewer should check it.
+		if (ctx.familyPerks) add('warning', 'Traits', `${picked.name} is a Family trait that isn’t linked to a family’s trait: re-add it from “Your families’ traits”.`);
+		return;
+	}
+	if (picked.familyId && !(ctx.families ?? []).includes(picked.familyId)) add('error', 'Families', `${picked.name} is a family trait: pick that family in the Families step.`);
+	if (!ctx.familyPerks) return;
+	const perk = ctx.familyPerks.get(picked.perkId);
+	if (!perk || perk.details.trait !== picked.name) {
+		add('error', 'Traits', `${picked.name}: this family trait is no longer offered. Remove it or pick another.`);
+		return;
+	}
+	const proof = PROOF_LABEL[perk.access];
+	if (proof && blank(picked.rollProof)) add('warning', 'Traits', `${picked.name}: add the ${proof.charAt(0).toLowerCase() + proof.slice(1)}.`);
 }
 
 function checkField(field: Field, value: unknown, where: string, add: (level: IssueLevel, section: string, message: string) => void, rollProof?: string) {

@@ -2620,3 +2620,125 @@
 .eqr-recipe h4 {
 	margin: 0 0 0.5rem;
 }
+
+/* ── Abilities card: make your own or use a family ability (SystemsSection.tsx) ── */
+.ab-source {
+	display: grid;
+	gap: 0.75rem;
+	padding-bottom: 0.75rem;
+	border-bottom: 1px solid var(--pf-line);
+}
+.ab-choice {
+	display: inline-flex;
+	justify-self: start;
+	max-width: 100%;
+	padding: 0.25rem;
+	gap: 0.25rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 999px;
+}
+.ab-choice button {
+	padding: 0.4rem 0.9rem;
+	border: 0;
+	border-radius: 999px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	font-size: var(--sl-text-sm);
+	cursor: pointer;
+}
+.ab-choice button.active {
+	background: var(--pf-accent);
+	color: var(--pf-ink);
+	font-weight: 600;
+}
+.ab-choice button:disabled:not(.active) {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* ── Family traits in the Traits step (TraitsSection.tsx) ── */
+.fam-tag {
+	font-size: var(--sl-text-xs);
+	font-weight: 600;
+	color: var(--pf-accent);
+}
+.fam-traits .trait-need {
+	color: var(--pf-accent);
+}
+.fam-traits button:disabled .trait-need {
+	color: inherit;
+}
+
+/* ── Family links in the review inbox (ReviewDashboard.tsx) ── */
+.rv-link {
+	flex-basis: 100%;
+	margin: 0.25rem 0 0;
+	font-size: var(--sl-text-xs);
+	color: var(--sl-color-gray-2);
+}
+.rv-link.bad {
+	color: var(--sl-color-orange-high);
+}
+
+/* ── Abilities refresh: tick boxes and pickable chips (fields.tsx CheckboxGroup, SystemsSection.tsx) ── */
+/* Tick boxes keep their own size; the text-field rule above would stretch them. */
+.pf-field .pf-check input {
+	width: auto;
+	flex: none;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+}
+/* Multi-choice fields on power system cards are chips you tap. */
+.system-card .pf-checks {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.4rem;
+}
+.system-card .pf-checks > legend {
+	float: left;
+	width: 100%;
+	margin-bottom: 0.4rem;
+}
+.system-card .pf-checks > .pf-help {
+	width: 100%;
+}
+.system-card .pf-check {
+	margin: 0;
+	padding: 0.35rem 0.8rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 999px;
+	cursor: pointer;
+	transition:
+		border-color 0.2s,
+		background-color 0.2s;
+}
+.system-card .pf-check:hover {
+	border-color: var(--pf-accent);
+}
+.system-card .pf-check:has(input:checked) {
+	border-color: var(--pf-accent);
+	background: color-mix(in srgb, var(--pf-accent) 18%, transparent);
+	font-weight: 600;
+}
+.system-card .pf-check:has(input:disabled) {
+	cursor: default;
+}
+.system-card .pf-check:has(input:disabled):not(:has(input:checked)) {
+	opacity: 0.5;
+}
+/* Skills read as their own small cards, with the effect full width. */
+.system-card .pf-list-row {
+	background: color-mix(in srgb, var(--pf-accent) 4%, var(--pf-field));
+	border-left: 3px solid var(--pf-accent);
+}
+.system-card .pf-list-row > .pf-field:has(textarea) {
+	grid-column: 1 / -1;
+}
+/* A linked family card: the locked parts sit back so the player's part stands out. */
+.system-card:has(.ab-source .active:nth-child(2)) {
+	border-color: var(--pf-accent);
+}

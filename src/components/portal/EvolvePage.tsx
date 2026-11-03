@@ -11,7 +11,7 @@ import {
 	type EvolutionRequest,
 } from '../../lib/portal/api.ts';
 import { characterIssues, type CheckData } from '../../lib/portal/checks.ts';
-import { loadFamilyChoices } from '../../lib/portal/families.ts';
+import { loadFamilyChoices, loadLinkablePerks } from '../../lib/portal/families.ts';
 import { hasBlockingIssues, rules } from '../../lib/portal/rules.ts';
 import { applyTheme, defaultTheme, themeForRole } from '../../lib/portal/theme.ts';
 import { logIn, watchPlayer, type Player } from '../../lib/supabase.ts';
@@ -78,7 +78,9 @@ export default function EvolvePage() {
 			const current = evolutions.find((r) => r.status === 'pending' || r.status === 'needs_correction') ?? null;
 			setOpen(current);
 			setWriteUp(readStored(id) ?? (current ? { summary: current.summary, earned: current.earned, links: current.links } : blank));
-			setChecks({ board, held, combos, familyIds: families?.memberships.map((m) => m.family_id) ?? [] });
+			const familyIds = families?.memberships.map((m) => m.family_id) ?? [];
+			const familyPerks = await loadLinkablePerks([...new Set([...character.sheet.families, ...familyIds])]).catch(() => undefined);
+			setChecks({ board, held, combos, familyIds, familyPerks });
 		})().catch((e) => setError(messageOf(e)));
 	}, [player?.id, id]);
 

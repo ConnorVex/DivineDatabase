@@ -31,7 +31,9 @@ import { ChangeList } from './ChangeList.tsx';
 import { ReviewFamily, ReviewRequest } from '../families/FamilyAdmin.tsx';
 import { EquipmentReview } from './EquipmentReview.tsx';
 import { loadCraftingItems, loadEquipmentQueue, type CraftingItem, type EquipmentQueueItem } from '../../lib/portal/equipment.ts';
-import { familyHref, loadFamilies, loadMyFamily, loadPerkQueue, type Family, type FamilyCard, type PerkRequest } from '../../lib/families/api.ts';
+import { PERK_ACCESS, familyHref, loadFamilies, loadMyFamily, loadPerkQueue, type Family, type FamilyCard, type PerkRequest } from '../../lib/families/api.ts';
+import { loadFamilyChoices, loadLinkablePerks, type LinkablePerk } from '../../lib/portal/families.ts';
+import { PROOF_LABEL, sameAbility } from '../../lib/portal/sheet.ts';
 import { checkSheet, power, ptp, rankInfo, recoil, rules, traits, traitSlots, type Issue } from '../../lib/portal/rules.ts';
 import { systemById, visibleFields } from '../../lib/portal/systems.ts';
 import { startPortalTheme, themeForRole } from '../../lib/portal/theme.ts';
@@ -124,7 +126,33 @@ function IssueList({ issues }: { issues: Issue[] }) {
 	);
 }
 
-function SheetView({ c, combos, board, universes }: { c: AdminCharacter; combos: Combo[]; board: ClaimRow[]; universes: Universe[] }) {
+/** "Linked: Brando Clan · Iron Will", with a warning when the link no longer matches the family's perk. */
+function FamilyLinkNote(props: { familyId?: string; title: string; perk?: LinkablePerk; changed?: boolean; proof?: string; families: FamilyCard[] }) {
+	const family = props.families.find((f) => f.id === props.familyId)?.name ?? 'a family';
+	const needs = props.perk && PROOF_LABEL[props.perk.access];
+	return (
+		<p class={`rv-link${!props.perk || props.changed ? ' bad' : ''}`}>
+			<strong>Linked:</strong> {family} · {props.perk?.title ?? props.title}
+			{props.perk && ` · ${PERK_ACCESS.find((a) => a.id === props.perk!.access)?.label}`}
+			{!props.perk && ' · no longer offered by the family'}
+			{props.changed && ' · changed by the family since it was linked'}
+			{needs &&
+				(props.proof ? (
+					<>
+						{' · '}
+						<a href={props.proof} target="_blank" rel="noreferrer noopener">
+							{needs.toLowerCase().startsWith('roll') ? 'roll' : 'proof'}
+						</a>
+					</>
+				) : (
+					` · no ${needs.charAt(0).toLowerCase() + needs.slice(1)}`
+				))}
+		</p>
+	);
+}
+
+function SheetView({ c, combos, board, universes, perks, families }: { c: AdminCharacter; combos: Combo[]; board: ClaimRow[]; universes: Universe[]; perks: LinkablePerk[]; families: FamilyCard[] }) {
+	const perkById = new Map(perks.map((p) => [p.id, p]));
 	const s = c.sheet;
 	const oc = c.kind === 'oc';
 	const budget = ptp(s);
@@ -221,7 +249,9 @@ function SheetView({ c, combos, board, universes }: { c: AdminCharacter; combos:
 											{info?.rarity} · {info?.category} · {info?.effect}
 											{t.family ? ' · family' : ''}
 										</span>
-										{t.rollProof && (
+										{t.family && t.perkId ? (
+											<FamilyLinkNote familyId={t.familyId} title={t.name} perk={perkById.get(t.perkId)} proof={t.rollProof} families={families} />
+										) : t.rollProof && (
 											<a href={t.rollProof} target="_blank" rel="noreferrer noopener" class="rv-proof">
 												roll
 											</a>
@@ -249,6 +279,19 @@ function SheetView({ c, combos, board, universes }: { c: AdminCharacter; combos:
 						const def = systemById.get(e.system);
 						return (
 							<Block key={e.key} title={`${def?.label ?? e.system}${s.systems.length > 1 && s.prioritySystem === e.key ? ' · priority' : ''}`}>
+								{e.familyLink && (
+									<FamilyLinkNote
+										familyId={e.familyLink.familyId}
+										title={e.familyLink.title}
+										perk={perkById.get(e.familyLink.perkId)}
+										changed={(() => {
+											const ability = perkById.get(e.familyLink.perkId)?.details.ability;
+											return Boolean(ability && !sameAbility(e, ability));
+										})()}
+										proof={e.familyLink.proof}
+										families={families}
+									/>
+								)}
 								<div class="rv-stats">
 									{def &&
 										visibleFields(def, e.fields).map((f) => {
@@ -332,6 +375,8 @@ function Detail(props: {
 	const [held, setHeld] = useState<Set<string>>(new Set());
 	const [notes, setNotes] = useState<ReviewNote[]>([]);
 	const [evolutions, setEvolutions] = useState<EvolutionRequest[]>([]);
+	const [perks, setPerks] = useState<LinkablePerk[] | null>(null);
+	const [memberOf, setMemberOf] = useState<string[]>([]);
 	const [note, setNote] = useState('');
 	const [confirm, setConfirm] = useState<'approved' | 'denied' | null>(null);
 	const [busy, setBusy] = useState(false);
@@ -345,6 +390,15 @@ function Detail(props: {
 		setConfirmDelete(false);
 		setError('');
 		setSlots(String(c.extra_trait_slots));
+		// The perks this character links, to check the links against what the families offer now.
+		setPerks(null);
+		loadFamilyChoices(c.id)
+			.then(async (fc) => {
+				const ids = fc.memberships.map((m) => m.family_id);
+				setMemberOf(ids);
+				setPerks(await loadLinkablePerks([...new Set([...c.sheet.families, ...ids])]));
+			})
+			.catch(() => setPerks([]));
 		Promise.all([discoverCombos(c.id), loadHeldClaims(c.id), loadReviewNotes([c.id]), c.approved_at ? loadEvolutions([c.id]).catch(() => []) : Promise.resolve([])]).then(
 			([k, h, n, e]) => {
 				setCombos(k);
@@ -371,9 +425,10 @@ function Detail(props: {
 				heldClaimIds: held,
 				requestedClaims: c.requested_claims,
 				comboSystemLimits: combos.map((k) => k.system_limits ?? {}),
-				families: c.sheet.families,
+				families: [...c.sheet.families, ...memberOf],
+				familyPerks: perks ? new Map(perks.map((p) => [p.id, p])) : undefined,
 			}),
-		[c, held, combos, props.board],
+		[c, held, combos, props.board, perks, memberOf],
 	);
 	const changes = useMemo(() => (c.approved_sheet ? sheetChanges(c.approved_sheet, c.sheet) : []), [c]);
 	const errors = issues.filter((i) => i.level === 'error').length;
@@ -494,7 +549,7 @@ function Detail(props: {
 				</Block>
 			)}
 
-			<SheetView c={c} combos={combos} board={props.board} universes={props.universes} />
+			<SheetView c={c} combos={combos} board={props.board} universes={props.universes} perks={perks ?? []} families={props.families} />
 
 			{props.admin && (
 				<Block title="Settings">

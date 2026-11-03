@@ -21,6 +21,7 @@ import {
 	type MyCharacter,
 	type TryoutDraft,
 } from '../../lib/families/api.ts';
+import { PerkBuilt, isBuilt } from './PerkBuilders.tsx';
 import { portalConfigured, watchPlayer, logIn, type Player } from '../../lib/supabase.ts';
 import FamilyEditor from './FamilyEditor.tsx';
 import { FactTiles, StatusBanner, messageOf, useFamilyTheme } from './shared.tsx';
@@ -489,7 +490,8 @@ function FamilyView({ b, player, onChanged }: { b: FamilyBundle; player: Player 
 										<span class="fm-chip">{PERK_ACCESS.find((x) => x.id === p.access)?.label}</span>
 									</span>
 								</summary>
-								{p.description ? <Prose text={p.description} /> : <p class="pf-empty">No details.</p>}
+								<PerkBuilt kind={p.kind} details={p.details} />
+								{p.description ? <Prose text={p.description} /> : !isBuilt(p.kind ?? 'other') && <p class="pf-empty">No details.</p>}
 							</details>
 						))}
 					</div>

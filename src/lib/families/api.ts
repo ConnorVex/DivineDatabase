@@ -1,5 +1,7 @@
 // Database calls for the Family System. Row-level security (supabase/migrations/…_families.sql)
 // decides what each visitor may read or change; these helpers just shape the rows.
+import type { Skill } from '../portal/sheet.ts';
+import type { Fields } from '../portal/systems.ts';
 import { supabase } from '../supabase.ts';
 
 export type FamilyStatus = 'pending' | 'approved' | 'needs_correction' | 'denied';
@@ -87,6 +89,12 @@ export interface StandingNote {
 	note: string;
 }
 
+/** What a built perk holds. A Family ability is an Abilities card; a Family trait names a trait. */
+export interface PerkDetails {
+	ability?: { fields: Fields; skills: Skill[] };
+	trait?: string;
+}
+
 export interface Perk {
 	id: string;
 	family_id: string;
@@ -96,6 +104,7 @@ export interface Perk {
 	description: string;
 	/** Members only: everyone else sees it as locked. */
 	hidden: boolean;
+	details: PerkDetails;
 	created_at?: string;
 	status?: 'pending' | 'approved' | 'denied';
 	review_note?: string;
@@ -105,7 +114,7 @@ export interface Perk {
 }
 
 /** A perk as the family page shows it. Locked hidden perks come without their details. */
-export type BoardPerk = Pick<Perk, 'id' | 'family_id' | 'hidden' | 'created_at' | 'title' | 'description'> & {
+export type BoardPerk = Pick<Perk, 'id' | 'family_id' | 'hidden' | 'created_at' | 'title' | 'description' | 'details'> & {
 	unlocked: boolean;
 	kind: PerkKind | null;
 	access: PerkAccess | null;
@@ -146,10 +155,10 @@ export const STANDINGS: { id: Standing; label: string; tone: string }[] = [
 
 export const PERK_KINDS: { id: PerkKind; label: string; hint: string }[] = [
 	{ id: 'starting_stats', label: 'Starting stats', hint: 'Higher starting stats or extra tier points' },
-	{ id: 'trait', label: 'Family trait', hint: 'A trait that runs in the family' },
+	{ id: 'trait', label: 'Family trait', hint: 'A trait that runs in the family. Members link it in their Traits, where it takes one slot' },
 	{ id: 'trait_slots', label: 'Trait slots', hint: 'Extra trait slots, or a different way to fill them' },
 	{ id: 'system_start', label: 'Power system start', hint: 'A head start in a power system, like Cursed Energy or an ability' },
-	{ id: 'locked_power', label: 'Family Locked power', hint: 'A technique or power only this family can hold' },
+	{ id: 'locked_power', label: 'Family ability', hint: 'An ability only this family holds, built like a character’s Abilities card so members can link it' },
 	{ id: 'technique', label: 'Secret technique', hint: 'Something the family has mastered, like a special transformation' },
 	{ id: 'fighting_style', label: 'Fighting style', hint: 'A style only taught inside the family' },
 	{ id: 'item', label: 'Items & vault', hint: 'Starting gear, or access to a shared vault' },
@@ -329,7 +338,7 @@ async function sync<T extends { id?: string }>(table: string, familyId: string, 
 export type DivisionDraft = Omit<Division, 'id' | 'family_id'> & { id?: string };
 export type RelationDraft = Omit<Relation, 'id' | 'family_id'> & { id?: string };
 export type MemberDraft = Pick<Member, 'name' | 'division_id' | 'title' | 'relationship' | 'image_url' | 'sort'> & { id?: string; character_id?: string | null };
-export type PerkDraft = Pick<Perk, 'kind' | 'access' | 'title' | 'description' | 'hidden'> & { id?: string };
+export type PerkDraft = Pick<Perk, 'kind' | 'access' | 'title' | 'description' | 'hidden' | 'details'> & { id?: string };
 
 export const saveDivisions = (familyId: string, before: Division[], rows: DivisionDraft[]) =>
 	sync('family_divisions', familyId, before, rows.map((r, i) => ({ ...r, sort: i + 1 })));

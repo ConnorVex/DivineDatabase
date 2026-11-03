@@ -2,8 +2,9 @@
 import { Fragment } from 'preact';
 import { useState } from 'preact/hooks';
 import type { ClaimRow, Universe } from '../../lib/portal/api.ts';
+import type { LinkablePerk } from '../../lib/portal/families.ts';
 import { minimumMoves, rules, systemLimit } from '../../lib/portal/rules.ts';
-import type { Sheet, Skill, SystemEntry } from '../../lib/portal/sheet.ts';
+import { PROOF_LABEL, sameAbility, type Sheet, type Skill, type SystemEntry } from '../../lib/portal/sheet.ts';
 import { countsTowardLimit, systemById, systems, visibleFields, type Field, type FieldValue, type Option } from '../../lib/portal/systems.ts';
 import { CheckboxGroup, NumberField, Section, SelectField, TextArea, TextField } from './fields.tsx';
 import { RollPanel, type Roller } from './RollPanel.tsx';
@@ -20,17 +21,20 @@ interface Props {
 	readOnly: boolean;
 	isEvolution: boolean;
 	roller: Roller;
+	/** Ability perks of the character's families (null while loading). */
+	familyAbilities: LinkablePerk[] | null;
+	familyName: (id: string) => string;
 }
 
 const newKey = () => Math.random().toString(36).slice(2, 10);
 
-function defaults(fields: Field[]) {
+export function defaults(fields: Field[]) {
 	const out: Record<string, FieldValue> = {};
 	for (const f of fields) if (f.default !== undefined) out[f.key] = f.default;
 	return out;
 }
 
-function FieldInput(props: {
+export function FieldInput(props: {
 	field: Field;
 	value: FieldValue | undefined;
 	onChange: (v: FieldValue) => void;
@@ -122,7 +126,7 @@ function describeMoves(limits: MoveLimits, showMax: boolean) {
 	return [part(limits.standard, limits.label ?? 'Standard skill'), part(limits.ultimate, 'Ultimate skill')].filter(Boolean).join(' and ');
 }
 
-function SkillsEditor({ skills, onUpdate, disabled, limits, isEvolution }: { skills: Skill[]; onUpdate: (fn: (prev: Skill[]) => Skill[]) => void; disabled: boolean; limits?: MoveLimits; isEvolution: boolean }) {
+export function SkillsEditor({ skills, onUpdate, disabled, limits, isEvolution }: { skills: Skill[]; onUpdate: (fn: (prev: Skill[]) => Skill[]) => void; disabled: boolean; limits?: MoveLimits; isEvolution: boolean }) {
 	// Edits apply to the newest skills, so quick changes to several fields don't overwrite each other.
 	const set = (i: number, patch: Partial<Skill>) => onUpdate((prev) => prev.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 	const needs = limits ? describeMoves(limits, !isEvolution) : '';
@@ -212,6 +216,82 @@ function ClaimPicker(props: { universe: string; label: string; board: ClaimRow[]
 	);
 }
 
+const copy = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
+
+/** The top of an Abilities card: make your own ability, or link one of your families' abilities. */
+function AbilitySource(props: {
+	entry: SystemEntry;
+	abilities: LinkablePerk[] | null;
+	familyName: (id: string) => string;
+	disabled: boolean;
+	onOwn: () => void;
+	onLink: (perk: LinkablePerk) => void;
+	onProof: (v: string) => void;
+}) {
+	const { entry, abilities } = props;
+	const link = entry.familyLink;
+	const perk = link && abilities?.find((p) => p.id === link.perkId);
+	if (!link && !abilities?.length) return null;
+	const proof = perk && PROOF_LABEL[perk.access];
+	const outdated = perk?.details.ability && !sameAbility(entry, perk.details.ability);
+	return (
+		<div class="pf-wide ab-source">
+			<div class="ab-choice" role="radiogroup" aria-label="Where this ability comes from">
+				<button type="button" role="radio" aria-checked={!link} class={!link ? 'active' : undefined} disabled={props.disabled} onClick={() => link && props.onOwn()}>
+					Make my own
+				</button>
+				<button
+					type="button"
+					role="radio"
+					aria-checked={Boolean(link)}
+					class={link ? 'active' : undefined}
+					disabled={props.disabled || !abilities?.length}
+					onClick={() => {
+						// With one family ability, link it straight away; otherwise the player picks below.
+						if (!link && abilities?.length) props.onLink(abilities.length === 1 ? abilities[0] : { ...abilities[0], id: '', title: '' });
+					}}
+				>
+					Use a family ability
+				</button>
+			</div>
+			{link && (
+				<>
+					<SelectField
+						label="Family ability"
+						required
+						value={link.perkId}
+						placeholder={abilities ? 'Pick one of your families’ abilities…' : 'Loading…'}
+						disabled={props.disabled}
+						options={(abilities ?? []).map((p) => ({ value: p.id, label: p.title, group: props.familyName(p.family_id) }))}
+						onChange={(id) => {
+							const next = abilities?.find((p) => p.id === id);
+							if (next) props.onLink(next);
+						}}
+						help="Abilities from the families picked in the Families step, or that this character is already in."
+					/>
+					{link.perkId && abilities && !perk && (
+						<p class="pf-wide roll-note bad">“{link.title}” isn’t available any more: the family removed it, or this character no longer picks that family.</p>
+					)}
+					{perk && (
+						<p class="pf-wide pf-help">
+							From <strong>{props.familyName(perk.family_id)}</strong>. Its class, power, range and skills are set by the family; describe how your character uses it below.
+						</p>
+					)}
+					{outdated && !props.disabled && (
+						<p class="pf-wide roll-note">
+							The family has changed this ability since you linked it.{' '}
+							<button type="button" class="pf-button" onClick={() => props.onLink(perk!)}>
+								Update the card
+							</button>
+						</p>
+					)}
+					{proof && <TextField label={proof} required value={link.proof} placeholder="https://discord.com/channels/…" disabled={props.disabled} onInput={props.onProof} />}
+				</>
+			)}
+		</div>
+	);
+}
+
 /** Asks on the page itself, since some browsers silently block confirm() pop-ups. */
 function RemoveButton({ label, confirmLabel, onConfirm }: { label: string; confirmLabel: string; onConfirm: () => void }) {
 	const [asking, setAsking] = useState(false);
@@ -266,12 +346,15 @@ export function SystemsSection(props: Props) {
 			{sheet.systems.map((entry) => {
 				const def = systemById.get(entry.system);
 				if (!def) return null;
-				const budget = def.budget && !props.isEvolution ? { total: def.budget.total(entry.fields), spent: def.budget.spent(entry.fields) } : null;
+				const linked = Boolean(entry.familyLink);
+				const locked = readOnly || linked;
+				const budget = def.budget && !props.isEvolution && !linked ? { total: def.budget.total(entry.fields), spent: def.budget.spent(entry.fields) } : null;
 				const universe = props.universes.find((u) => u.slug === def.universe);
 				return (
 					<article class="system-card pf-wide" key={entry.key}>
 						<header class="system-card-head">
 							<h3>{def.label}</h3>
+							{entry.familyLink && <span class="pf-badge ok">Family ability</span>}
 							{budget && budget.total > 0 && (
 								<span class={`pf-badge ${budget.spent > budget.total ? 'bad' : 'ok'}`}>
 									{def.budget!.label}: {budget.spent} / {budget.total}
@@ -296,6 +379,32 @@ export function SystemsSection(props: Props) {
 							</p>
 						))}
 						<div class="pf-grid">
+							{entry.system === 'abilities' && (
+								<AbilitySource
+									entry={entry}
+									abilities={props.familyAbilities}
+									familyName={props.familyName}
+									disabled={readOnly}
+									onOwn={() =>
+										setEntry(entry.key, (e) => {
+											delete e.familyLink;
+											e.fields = defaults(def.fields);
+											e.skills = [];
+										})
+									}
+									onLink={(perk) =>
+										setEntry(entry.key, (e) => {
+											const proof = e.familyLink?.proof ?? '';
+											if (perk.id && perk.details.ability) {
+												e.fields = copy(perk.details.ability.fields);
+												e.skills = copy(perk.details.ability.skills);
+											}
+											e.familyLink = { perkId: perk.id, familyId: perk.family_id, title: perk.title, proof };
+										})
+									}
+									onProof={(v) => setEntry(entry.key, (e) => void (e.familyLink && (e.familyLink.proof = v)))}
+								/>
+							)}
 							{def.fields.some((f) => f.rolled === 'cursed_energy') && (
 								<RollPanel
 									kind="cursed_energy"
@@ -337,7 +446,7 @@ export function SystemsSection(props: Props) {
 									<FieldInput
 										field={field}
 										value={entry.fields[field.key]}
-										disabled={readOnly}
+										disabled={locked}
 										blocked={def.limitedChoice?.key === field.key && limitedChoiceFull(entry) ? { value: def.limitedChoice.value, reason: 'max reached' } : undefined}
 										onChange={(v) => setEntry(entry.key, (e) => void (e.fields[field.key] = v))}
 										onUpdate={(fn) => setEntry(entry.key, (e) => void (e.fields[field.key] = fn(e.fields[field.key])))}
@@ -354,8 +463,8 @@ export function SystemsSection(props: Props) {
 								</Fragment>
 							))}
 							<TextArea
-								label="Description"
-								help="What it is and how it works, in your own words."
+								label={linked ? 'How your character uses it' : 'Description'}
+								help={linked ? 'Your character’s take on the family ability, in your own words.' : 'What it is and how it works, in your own words.'}
 								value={entry.description}
 								disabled={readOnly}
 								onInput={(v) => setEntry(entry.key, (e) => void (e.description = v))}
@@ -373,7 +482,7 @@ export function SystemsSection(props: Props) {
 							)}
 							<SkillsEditor
 								skills={entry.skills}
-								disabled={readOnly}
+								disabled={locked}
 								limits={def.startingMoves?.(entry.fields)}
 								isEvolution={props.isEvolution}
 								onUpdate={(fn) => setEntry(entry.key, (e) => void (e.skills = fn(e.skills)))}

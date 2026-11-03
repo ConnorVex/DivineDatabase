@@ -1,8 +1,10 @@
 // Potential, the trait picker with slot counting, and discovered trait combinations.
 import { useEffect, useMemo, useState } from 'preact/hooks';
+import { PERK_ACCESS } from '../../lib/families/api.ts';
 import type { Combo } from '../../lib/portal/api.ts';
+import type { LinkablePerk } from '../../lib/portal/families.ts';
 import { rules, traits, traitSlots } from '../../lib/portal/rules.ts';
-import type { PickedTrait, Sheet } from '../../lib/portal/sheet.ts';
+import { PROOF_LABEL, type PickedTrait, type Sheet } from '../../lib/portal/sheet.ts';
 import { Section } from './fields.tsx';
 import { RollPanel, type Roller } from './RollPanel.tsx';
 
@@ -118,9 +120,43 @@ interface Props {
 	lockedTraits: Set<string>;
 	readOnly: boolean;
 	roller: Roller;
+	/** Trait perks of the character's families (null while loading). */
+	familyTraits: LinkablePerk[] | null;
+	familyName: (id: string) => string;
 }
 
-export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits, readOnly, roller }: Props) {
+/** The traits the character's families offer. One can be taken as the Family trait, in a single slot. */
+function FamilyTraits(props: { perks: LinkablePerk[]; sheet: Sheet; left: number; familyName: (id: string) => string; onTake: (perk: LinkablePerk) => void }) {
+	const current = props.sheet.traits.find((t) => t.family);
+	return (
+		<div class="pf-wide fam-traits">
+			<h3 class="pf-subhead">Your families’ traits</h3>
+			<p class="pf-help">A Family trait fits in a single slot whatever its rarity. A character can have one.</p>
+			<ul class="trait-results">
+				{props.perks.map((p) => {
+					const name = p.details.trait!;
+					const linked = props.sheet.traits.some((t) => t.perkId === p.id);
+					const regular = props.sheet.traits.some((t) => t.name === name && !t.family);
+					const blocked = !linked && current ? `You already have ${current.name} as your Family trait.` : !linked && !regular && props.left < 1 ? 'No free slot left.' : '';
+					return (
+						<li key={p.id}>
+							<button type="button" disabled={linked || Boolean(blocked)} onClick={() => props.onTake(p)}>
+								<TraitChip name={name} />
+								<span class="trait-meta">
+									{props.familyName(p.family_id)} · {PERK_ACCESS.find((a) => a.id === p.access)?.label}
+									{p.title !== name && ` · ${p.title}`}
+								</span>
+								<span class="trait-need">{linked ? 'Your Family trait' : blocked || (regular ? 'Make it your Family trait' : 'Add as Family trait')}</span>
+							</button>
+						</li>
+					);
+				})}
+			</ul>
+		</div>
+	);
+}
+
+export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits, readOnly, roller, familyTraits, familyName }: Props) {
 	const [query, setQuery] = useState('');
 	const [open, setOpen] = useState<Combo | null>(null);
 	const picked = sheet.traits.map((t) => t.name);
@@ -139,7 +175,6 @@ export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits,
 	const setTrait = (i: number, patch: Partial<PickedTrait>) => update((s) => Object.assign(s.traits[i], patch));
 	const left = slots.total - slots.used;
 	const slotsOf = (name: string) => rarityLabel.get(traitByName.get(name)?.rarity ?? '')?.slots ?? 1;
-	const familyTaken = sheet.traits.some((t) => t.family);
 
 	return (
 		<Section
@@ -187,6 +222,9 @@ export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits,
 						const info = traitByName.get(t.name);
 						const rarity = rarityLabel.get(info?.rarity ?? '');
 						const locked = lockedTraits.has(t.name) && Boolean(info?.sticky);
+						const perk = t.perkId ? familyTraits?.find((p) => p.id === t.perkId) : undefined;
+						// Regular traits need a roll link; a family trait only when its perk asks for proof.
+						const proofLabel = !t.family ? 'Roll link (Discord)' : perk ? PROOF_LABEL[perk.access] : t.perkId ? null : 'Roll link (Discord)';
 						return (
 							<li key={t.name} class="trait-row">
 								<div class="trait-row-main">
@@ -194,36 +232,32 @@ export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits,
 									<span class="trait-meta">
 										{rarity?.label ?? 'Unknown'} · {info?.category} · {info?.effect} · {t.family ? 1 : rarity?.slots ?? '?'} slot{(t.family ? 1 : rarity?.slots) === 1 ? '' : 's'}
 									</span>
+									{t.family && <span class="fam-tag">Family trait{t.familyId ? ` · ${familyName(t.familyId)}` : ''}</span>}
 									{comboOf.has(t.name) && <span class="combo-tag">✨ Combined into {comboOf.get(t.name)}</span>}
 								</div>
 								<div class="trait-row-controls">
-									<input
-										type="url"
-										class="trait-proof"
-										aria-label={`Roll link for ${t.name}`}
-										placeholder="Roll link (Discord)"
-										value={t.rollProof ?? ''}
-										disabled={readOnly}
-										onInput={(e) => setTrait(i, { rollProof: e.currentTarget.value })}
-									/>
-									{(() => {
-										const cantUntick = t.family && slotsOf(t.name) - 1 > left;
-										const cantTick = !t.family && familyTaken;
-										return (
-											<label
-												class="pf-check"
-												title={cantUntick ? 'Not enough free slots to make this a regular trait.' : cantTick ? 'Only one trait can be a Family trait.' : undefined}
-											>
-												<input
-													type="checkbox"
-													checked={Boolean(t.family)}
-													disabled={readOnly || cantUntick || cantTick}
-													onChange={(e) => setTrait(i, { family: e.currentTarget.checked })}
-												/>
-												Family trait
-											</label>
-										);
-									})()}
+									{proofLabel && (
+										<input
+											type="url"
+											class="trait-proof"
+											aria-label={`${proofLabel} for ${t.name}`}
+											placeholder={proofLabel}
+											value={t.rollProof ?? ''}
+											disabled={readOnly}
+											onInput={(e) => setTrait(i, { rollProof: e.currentTarget.value })}
+										/>
+									)}
+									{t.family && (
+										<button
+											type="button"
+											class="pf-button subtle"
+											disabled={readOnly || slotsOf(t.name) - 1 > left}
+											title={slotsOf(t.name) - 1 > left ? 'Not enough free slots to make this a regular trait.' : undefined}
+											onClick={() => setTrait(i, { family: false, perkId: undefined, familyId: undefined })}
+										>
+											Make regular
+										</button>
+									)}
 									<button
 										type="button"
 										class="pf-button subtle"
@@ -239,6 +273,23 @@ export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits,
 					})}
 				</ul>
 			</div>
+
+			{!readOnly && familyTraits && familyTraits.length > 0 && (
+				<FamilyTraits
+					perks={familyTraits}
+					sheet={sheet}
+					left={left}
+					familyName={familyName}
+					onTake={(p) =>
+						update((s) => {
+							const link = { family: true, perkId: p.id, familyId: p.family_id };
+							const existing = s.traits.find((t) => t.name === p.details.trait);
+							if (existing) Object.assign(existing, link);
+							else s.traits.push({ name: p.details.trait!, ...link });
+						})
+					}
+				/>
+			)}
 
 			{combos.length > 0 && (
 				<div class="pf-wide">

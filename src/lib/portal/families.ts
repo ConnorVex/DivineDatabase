@@ -1,5 +1,6 @@
 // Family data the character form needs: which families a character can join, the player's
 // tryouts, and the character's current memberships. Row-level security limits every read.
+import type { PerkAccess, PerkDetails, PerkKind } from '../families/api.ts';
 import { supabase } from '../supabase.ts';
 
 const db = () => {
@@ -55,6 +56,32 @@ export async function loadFamilyChoices(characterId: string | null): Promise<Fam
 		tryouts: (tryouts.data ?? []) as MyTryout[],
 		memberships: (memberships.data ?? []) as CharacterMembership[],
 	};
+}
+
+/** A family perk a character can link: a Family ability or a Family trait. */
+export interface LinkablePerk {
+	id: string;
+	family_id: string;
+	kind: PerkKind;
+	access: PerkAccess;
+	title: string;
+	description: string;
+	details: PerkDetails;
+}
+
+/** The approved, readable ability and trait perks of these families. Members-only perks come
+ * back only when the player can see them (they're a member, the owner or an admin). */
+export async function loadLinkablePerks(familyIds: string[]): Promise<LinkablePerk[]> {
+	if (!familyIds.length) return [];
+	const { data, error } = await db()
+		.from('family_perk_board')
+		.select('id, family_id, kind, access, title, description, details')
+		.in('family_id', familyIds)
+		.in('kind', ['locked_power', 'trait'])
+		.eq('unlocked', true)
+		.order('created_at');
+	if (error) throw new Error(error.message);
+	return ((data ?? []) as LinkablePerk[]).filter((p) => (p.kind === 'trait' ? p.details?.trait : p.details?.ability));
 }
 
 /** Whether the player may pick this family, and why not. */

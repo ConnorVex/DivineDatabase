@@ -16,6 +16,7 @@ import {
 	type PerkRequest,
 	type PlayerRow,
 } from '../../lib/families/api.ts';
+import { PerkBuilt, isBuilt } from './PerkBuilders.tsx';
 import { portalConfigured, watchPlayer, type Player } from '../../lib/supabase.ts';
 import { LoginCard, STATUS_TEXT, messageOf, useFamilyTheme } from './shared.tsx';
 
@@ -122,7 +123,12 @@ export function ReviewRequest({ r, onDone }: { r: PerkRequest; onDone: () => voi
 								<strong>Members only</strong> · Approving also hides this perk from everyone outside the family.
 							</p>
 						)}
-						{p.description ? <div class="fm-prose" dangerouslySetInnerHTML={{ __html: richText(p.description) }} /> : <p class="pf-empty">No description.</p>}
+						<PerkBuilt kind={p.kind} details={p.details} />
+						{p.description ? (
+							<div class="fm-prose" dangerouslySetInnerHTML={{ __html: richText(p.description) }} />
+						) : (
+							!isBuilt(p.kind) && <p class="pf-empty">No description.</p>
+						)}
 						<div class="fm-review-choice" role="group" aria-label={`Decision for ${p.title}`}>
 							{(['approved', 'denied'] as const).map((c) => (
 								<button
