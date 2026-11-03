@@ -356,3 +356,11 @@ test('trait bonuses to system points, and JJK with only Cursed Energy Utilizatio
 	s.systems[1].fields.start = 'Cursed Technique';
 	assert.ok(messages(checkSheet(s, ocCtx)).some((m) => m.includes('Extension Technique')));
 });
+
+test('staff-granted bonus PTP raises the starting budget', () => {
+	const s = { ...goodSheet(), role: 'student', stats: { ...goodSheet().stats, strength: '2D', speed: '2D', defense: '2C', stamina: '6F', intelligence: 'Average', phase: 0 }, traits: [{ name: 'Endurance Star' }] };
+	assert.deepEqual([ptp(s).spent, ptp(s).available], [25, 10]);
+	assert.equal(ptp(s, 15).available, 25);
+	assert.ok(!checkSheet(s, { kind: 'oc', name: 'X', bonusPtp: 15 }).some((i) => i.message.includes('PTP')));
+	assert.ok(checkSheet(s, { kind: 'oc', name: 'X' }).some((i) => i.message.includes('15 granted') === false && i.message.includes('PTP')));
+});

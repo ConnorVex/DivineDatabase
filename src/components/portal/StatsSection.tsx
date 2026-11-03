@@ -98,11 +98,23 @@ function Radar({ axes }: { axes: { short: string; label: string; fill: number; t
 	);
 }
 
-export function StatsSection({ sheet, update, readOnly, isEvolution }: { sheet: Sheet; update: (fn: (s: Sheet) => void) => void; readOnly: boolean; isEvolution: boolean }) {
+export function StatsSection({
+	sheet,
+	update,
+	readOnly,
+	isEvolution,
+	bonusPtp = 0,
+}: {
+	sheet: Sheet;
+	update: (fn: (s: Sheet) => void) => void;
+	readOnly: boolean;
+	isEvolution: boolean;
+	bonusPtp?: number;
+}) {
 	const s = sheet.stats;
 	const p = power(sheet);
 	const r = recoil(sheet);
-	const budget = ptp(sheet);
+	const budget = ptp(sheet, bonusPtp);
 	const top = phaseTopValue(s.phase);
 	const overBudget = !isEvolution && budget.roleKnown && budget.spent > budget.available;
 	const intelIndex = Math.max(0, INTEL.findIndex((i) => i.value === s.intelligence));
@@ -172,9 +184,10 @@ export function StatsSection({ sheet, update, readOnly, isEvolution }: { sheet: 
 							<span class="hud-tile-sub">
 								{!budget.roleKnown
 									? 'Pick a role first'
-									: budget.noPtp
-										? 'No starting PTP (trait or system)'
-										: `${budget.start} role + ${budget.bonus} systems ${budget.traitBonus < 0 ? '−' : '+'} ${Math.abs(budget.traitBonus)} traits`}
+									: (budget.noPtp
+											? 'No starting PTP (trait or system)'
+											: `${budget.start} role + ${budget.bonus} systems ${budget.traitBonus < 0 ? '−' : '+'} ${Math.abs(budget.traitBonus)} traits`) +
+										(budget.granted ? ` + ${budget.granted} from staff` : '')}
 							</span>
 						</div>
 					</div>

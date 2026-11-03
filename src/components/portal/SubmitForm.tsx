@@ -548,7 +548,7 @@ export default function SubmitForm() {
 					{oc && (
 						<>
 							<div class="pf-step" hidden={current !== 'stats'}>
-								<StatsSection sheet={s} update={updateSheet} readOnly={readOnly} isEvolution={isEvolution} />
+								<StatsSection sheet={s} update={updateSheet} readOnly={readOnly} isEvolution={isEvolution} bonusPtp={draft.bonusPtp} />
 							</div>
 							<div class="pf-step" hidden={current !== 'traits'}>
 								<TraitsSection

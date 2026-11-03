@@ -17,6 +17,7 @@ import {
 	reviewEvolution,
 	setCharacterHidden,
 	setExtraTraitSlots,
+	setBonusPtp,
 	type AdminCharacter,
 	type ClaimRow,
 	type Combo,
@@ -176,7 +177,7 @@ function SheetView({ c, combos, board, universes, perks, families }: { c: AdminC
 	const perkById = new Map(perks.map((p) => [p.id, p]));
 	const s = c.sheet;
 	const oc = c.kind === 'oc';
-	const budget = ptp(s);
+	const budget = ptp(s, c.bonus_ptp);
 	const r = recoil(s);
 	const slots = traitSlots(s, c.extra_trait_slots);
 	const claims = board.filter((b) => c.requested_claims.includes(b.id));
@@ -243,7 +244,7 @@ function SheetView({ c, combos, board, universes, perks, families }: { c: AdminC
 							<Row label="Phase" value={rules.stats.phases.find((p) => p.phase === s.stats.phase)?.label} />
 							<Row label="Power" value={power(s) ?? '—'} />
 							<Row label="Recoil" value={r ? `Lv ${r.level} (${r.high} ${r.gap} above ${r.low})` : 'None'} />
-							<Row label="Starting PTP" value={`${budget.spent} spent of ${budget.available}`} />
+							<Row label="Starting PTP" value={`${budget.spent} spent of ${budget.available}${budget.granted ? ` (${budget.granted} from staff)` : ''}`} />
 							<Row label="Physical meter" value={s.stats.physicalMeter} />
 						</div>
 					</Block>
@@ -400,6 +401,7 @@ function Detail(props: {
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState('');
 	const [slots, setSlots] = useState(String(c.extra_trait_slots));
+	const [bonus, setBonus] = useState(String(c.bonus_ptp));
 	const [confirmDelete, setConfirmDelete] = useState(false);
 
 	useEffect(() => {
@@ -408,6 +410,7 @@ function Detail(props: {
 		setConfirmDelete(false);
 		setError('');
 		setSlots(String(c.extra_trait_slots));
+		setBonus(String(c.bonus_ptp));
 		// The perks this character links, to check the links against what the families offer now.
 		setPerks(null);
 		loadFamilyChoices(c.id)
@@ -439,6 +442,7 @@ function Detail(props: {
 				canonUniverse: c.canon_universe,
 				isEvolution,
 				extraTraitSlots: c.extra_trait_slots,
+				bonusPtp: c.bonus_ptp,
 				claims: new Map(props.board.map((r) => [r.id, { name: r.name, usedSlots: r.used_slots, maxUsers: r.max_users, category: r.category }])),
 				heldClaimIds: held,
 				requestedClaims: c.requested_claims,
@@ -612,6 +616,22 @@ function Detail(props: {
 								/>
 							</div>
 						)}
+						{c.kind === 'oc' && (
+							<div class="pf-field rv-slots">
+								<label class="pf-label" for="rv-bonus-ptp">
+									Bonus PTP
+								</label>
+								<input
+									id="rv-bonus-ptp"
+									type="number"
+									min={0}
+									max={200}
+									value={bonus}
+									onInput={(e) => setBonus(e.currentTarget.value)}
+									onBlur={() => Number(bonus) !== c.bonus_ptp && change(() => setBonusPtp(c.id, Math.max(0, Math.min(200, Math.round(Number(bonus)) || 0))))}
+								/>
+							</div>
+						)}
 					</div>
 					<div class="rv-danger">
 						{confirmDelete ? (
@@ -750,6 +770,7 @@ function CharacterQueue(props: {
 								canonUniverse: c.canon_universe,
 								isEvolution: Boolean(c.approved_at),
 								extraTraitSlots: c.extra_trait_slots,
+								bonusPtp: c.bonus_ptp,
 								families: c.sheet.families,
 							}).filter((i) => i.level === 'error').length;
 							return (

@@ -30,6 +30,8 @@ export interface CheckContext {
 	/** Editing an already-approved character: starting budgets no longer apply. */
 	isEvolution?: boolean;
 	extraTraitSlots?: number;
+	/** Extra starting PTP staff granted. */
+	bonusPtp?: number;
 	/** Claim board rows for the picked claims: id → usage. */
 	claims?: Map<string, { name: string; usedSlots: number; maxUsers: number | null; category?: string }>;
 	/** Power-set limits from the character's discovered trait combinations. */
@@ -128,7 +130,8 @@ export function traitSlots(sheet: Sheet, extraSlots = 0) {
 /** PTP spent on stats, Intelligence and Phase hops, and the starting PTP available:
  * the role's starting PTP plus bonuses from systems and traits. PTP earned in RP isn't
  * part of a new character's budget. */
-export function ptp(sheet: Sheet) {
+/** `bonusPtp`: extra starting PTP staff granted this character. */
+export function ptp(sheet: Sheet, bonusPtp = 0) {
 	const entries = sheet.systems.map((e) => ({ e, def: systemById.get(e.system) }));
 	const ghoul = entries.map(({ e, def }) => def?.baseStats?.(e.fields)).find(Boolean) ?? null;
 	const role = rules.roles.find((r) => r.id === sheet.role);
@@ -138,7 +141,8 @@ export function ptp(sheet: Sheet) {
 	const start = noPtp ? 0 : role?.startingPtp ?? 0;
 	const bonus = noPtp ? 0 : entries.reduce((sum, { e, def }) => sum + (def?.ptpBonus?.(e.fields) ?? 0), 0);
 	const traitBonus = noPtp ? 0 : traitRules.reduce((sum, t) => sum + (t.ptp ?? 0), 0);
-	const available = Math.max(0, start + bonus + traitBonus);
+	const granted = Math.max(0, bonusPtp);
+	const available = Math.max(0, start + bonus + traitBonus) + granted;
 
 	let spent = 0;
 	for (const stat of ['strength', 'speed', 'defense', 'stamina'] as const) {
@@ -150,7 +154,7 @@ export function ptp(sheet: Sheet) {
 	const intelBase = traitRules.find((t) => t.baseIntelligence)?.baseIntelligence ?? 'Average';
 	spent += intelPtp(sheet.stats.intelligence) - intelPtp(intelBase);
 	spent += rules.stats.phases.filter((p) => p.phase <= sheet.stats.phase).reduce((sum, p) => sum + p.hopCost, 0);
-	return { spent, available, start, bonus, traitBonus, noPtp, roleKnown: Boolean(role) };
+	return { spent, available, start, bonus, traitBonus, granted, noPtp, roleKnown: Boolean(role) };
 }
 
 /** How many of one power system a character may have: Abilities and Quirks are unlimited,
@@ -224,11 +228,12 @@ export function checkSheet(sheet: Sheet, ctx: CheckContext): Issue[] {
 	if (intel && 'permission' in intel && intel.permission) add('permission', 'Stats', `${intel.value} Intelligence needs permission.`);
 
 	if (!ctx.isEvolution) {
-		const budget = ptp(sheet);
+		const budget = ptp(sheet, ctx.bonusPtp);
 		if (budget.roleKnown && budget.spent > budget.available) {
+			const granted = budget.granted ? `${budget.granted} granted by staff` : '';
 			const parts = budget.noPtp
-				? 'none, because of a trait or system that blocks starting PTP'
-				: `${budget.start} from your role, ${budget.bonus} from systems, ${budget.traitBonus} from traits`;
+				? granted || 'none, because of a trait or system that blocks starting PTP'
+				: `${budget.start} from your role, ${budget.bonus} from systems, ${budget.traitBonus} from traits${granted && `, ${granted}`}`;
 			add('error', 'Stats', `You’re spending ${budget.spent} PTP, but you start with ${budget.available} (${parts}).`);
 		}
 	}

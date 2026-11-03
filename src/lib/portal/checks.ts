@@ -30,6 +30,7 @@ export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[]
 		canonUniverse: draft.canonUniverse,
 		isEvolution: Boolean(draft.approvedAt),
 		extraTraitSlots: draft.extraTraitSlots,
+		bonusPtp: draft.bonusPtp,
 		claims,
 		heldClaimIds: held,
 		requestedClaims: effectiveClaims(draft, board),

@@ -15,6 +15,7 @@ export interface CharacterDraft {
 	approvedAt: string | null;
 	approvedSheet: Sheet | null;
 	extraTraitSlots: number;
+	bonusPtp: number;
 }
 
 export interface Universe {
@@ -62,6 +63,7 @@ export const newDraft = (): CharacterDraft => ({
 	approvedAt: null,
 	approvedSheet: null,
 	extraTraitSlots: 0,
+	bonusPtp: 0,
 });
 
 export async function loadCharacter(id: string): Promise<CharacterDraft> {
@@ -79,6 +81,7 @@ export async function loadCharacter(id: string): Promise<CharacterDraft> {
 		approvedAt: data.approved_at,
 		approvedSheet: data.approved_sheet ? normalizeSheet(data.approved_sheet) : null,
 		extraTraitSlots: data.extra_trait_slots ?? 0,
+		bonusPtp: data.bonus_ptp ?? 0,
 	};
 }
 
@@ -382,6 +385,7 @@ export interface AdminCharacter {
 	status: Status;
 	hidden: boolean;
 	extra_trait_slots: number;
+	bonus_ptp: number;
 	requested_claims: string[];
 	sheet: Sheet;
 	approved_sheet: Sheet | null;
@@ -397,7 +401,7 @@ export async function loadAllCharacters(): Promise<AdminCharacter[]> {
 	const { data, error } = await db()
 		.from('characters')
 		.select(
-			'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at',
+			'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, bonus_ptp, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at',
 		)
 		.order('submitted_at', { ascending: true, nullsFirst: false });
 	fail(error);
@@ -420,6 +424,11 @@ export async function setCharacterHidden(id: string, hidden: boolean) {
 
 export async function setExtraTraitSlots(id: string, slots: number) {
 	const { error } = await db().from('characters').update({ extra_trait_slots: slots }).eq('id', id);
+	fail(error);
+}
+
+export async function setBonusPtp(id: string, points: number) {
+	const { error } = await db().from('characters').update({ bonus_ptp: points }).eq('id', id);
 	fail(error);
 }
 
