@@ -687,7 +687,7 @@ function perkSubline(d: PerkDraft) {
 	return [kind, what, access].filter(Boolean).join(' · ');
 }
 
-function PerksTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
+function PerksTab({ b, isAdmin, onSaved }: { b: FamilyBundle; isAdmin: boolean; onSaved: () => void }) {
 	const initial = useMemo<PerkRow[]>(() => b.allPerks.map((p) => ({ key: p.id, draft: perkFields(p), saved: p })), [b.allPerks]);
 	const [rows, setRows] = useState(initial);
 	const [note, setNote] = useState('');
@@ -779,7 +779,10 @@ function PerksTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
 				<button type="button" class="pf-button" onClick={() => setRows([...rows, { key: `new-${Date.now()}`, draft: { ...NEW_PERK } }])}>
 					+ Add a perk
 				</button>
-				{sending.length > 0 && (
+				{isAdmin && (
+					<p class="pf-help">You’re an admin, so your changes are approved as soon as you save them.</p>
+				)}
+				{sending.length > 0 && !isAdmin && (
 					<div class="pf-field fm-perk-note">
 						<label class="pf-label" for="perk-note">
 							Note to the admins
@@ -791,7 +794,7 @@ function PerksTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
 			<SaveBar
 				dirty={sending.length > 0 || removed.length > 0}
 				problems={problems}
-				label={sending.length ? `Send ${sending.length} for review` : 'Save'}
+				label={sending.length && !isAdmin ? `Send ${sending.length} for review` : 'Save'}
 				status={summary}
 				onSave={async () => {
 					await sendPerks(
@@ -809,7 +812,7 @@ function PerksTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
 
 // ───────────────────────────── Editor ─────────────────────────────
 
-export default function FamilyEditor({ b, families, onSaved }: { b: FamilyBundle; families: { id: string; name: string }[]; onSaved: () => void }) {
+export default function FamilyEditor({ b, families, isAdmin, onSaved }: { b: FamilyBundle; families: { id: string; name: string }[]; isAdmin: boolean; onSaved: () => void }) {
 	const [tab, setTab] = useState<Tab>('page');
 	const requests = b.members.filter((m) => m.status === 'requested').length;
 	const tryouts = b.tryouts.filter((t) => t.status === 'pending').length;
@@ -839,7 +842,7 @@ export default function FamilyEditor({ b, families, onSaved }: { b: FamilyBundle
 			{tab === 'roster' && <RosterTab key={JSON.stringify(b.members)} b={b} onSaved={onSaved} />}
 			{tab === 'tryouts' && <TryoutsTab b={b} onSaved={onSaved} />}
 			{tab === 'relations' && <RelationsTab key={JSON.stringify([b.relations, b.notes])} b={b} families={families} onSaved={onSaved} />}
-			{tab === 'perks' && <PerksTab key={JSON.stringify(b.allPerks)} b={b} onSaved={onSaved} />}
+			{tab === 'perks' && <PerksTab key={JSON.stringify(b.allPerks)} b={b} isAdmin={isAdmin} onSaved={onSaved} />}
 		</>
 	);
 }

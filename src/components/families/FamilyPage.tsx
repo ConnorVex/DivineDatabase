@@ -591,7 +591,7 @@ export default function FamilyPage() {
 			{manage && <StatusBanner status={bundle.family.status} note={bundle.family.review_note} />}
 			{manage && !editing && pendingPerks > 0 && <p class="pf-help">{pendingPerks} perk{pendingPerks === 1 ? '' : 's'} waiting for an admin.</p>}
 			{editing && manage ? (
-				<FamilyEditor b={bundle} families={families} onSaved={load} />
+				<FamilyEditor b={bundle} families={families} isAdmin={Boolean(player?.isAdmin)} onSaved={load} />
 			) : (
 				<FamilyView b={bundle} player={player ?? null} onChanged={load} />
 			)}
