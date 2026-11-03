@@ -694,6 +694,8 @@ function PerksTab({ b, isAdmin, onSaved }: { b: FamilyBundle; isAdmin: boolean; 
 	const initial = useMemo<PerkRow[]>(() => b.allPerks.map((p) => ({ key: p.id, draft: perkFields(p), saved: p })), [b.allPerks]);
 	const [rows, setRows] = useState(initial);
 	const [note, setNote] = useState('');
+	const [skipReview, setSkipReview] = useState(true);
+	const approveNow = isAdmin && skipReview;
 	const set = (key: string, patch: Partial<PerkRow>) => setRows(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 	const changed = (r: PerkRow) => !r.saved || JSON.stringify(r.draft) !== JSON.stringify(perkFields(r.saved));
 	const sending = rows.filter((r) => !r.removed && changed(r));
@@ -783,9 +785,12 @@ function PerksTab({ b, isAdmin, onSaved }: { b: FamilyBundle; isAdmin: boolean; 
 					+ Add a perk
 				</button>
 				{isAdmin && (
-					<p class="pf-help">You’re an admin, so your changes are approved as soon as you save them.</p>
+					<label class="pf-check fm-perk-note">
+						<input type="checkbox" checked={skipReview} onChange={(e) => setSkipReview(e.currentTarget.checked)} />
+						Approve straight away (admin): untick to send these perks for review instead
+					</label>
 				)}
-				{sending.length > 0 && !isAdmin && (
+				{sending.length > 0 && !approveNow && (
 					<div class="pf-field fm-perk-note">
 						<label class="pf-label" for="perk-note">
 							Note to the admins
@@ -797,7 +802,7 @@ function PerksTab({ b, isAdmin, onSaved }: { b: FamilyBundle; isAdmin: boolean; 
 			<SaveBar
 				dirty={sending.length > 0 || removed.length > 0}
 				problems={problems}
-				label={sending.length && !isAdmin ? `Send ${sending.length} for review` : 'Save'}
+				label={sending.length && !approveNow ? `Send ${sending.length} for review` : 'Save'}
 				status={summary}
 				onSave={async () => {
 					await sendPerks(
@@ -805,6 +810,7 @@ function PerksTab({ b, isAdmin, onSaved }: { b: FamilyBundle; isAdmin: boolean; 
 						sending.map((r) => r.draft),
 						removed.map((r) => r.saved!.id),
 						note,
+						approveNow,
 					);
 					onSaved();
 				}}

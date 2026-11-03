@@ -368,10 +368,11 @@ export async function saveStandingNotes(familyId: string, notes: Partial<Record<
 }
 
 /** Removes `removed` perks, then sends every new or changed perk to the admins as one request. */
-export async function sendPerks(familyId: string, perks: PerkDraft[], removed: string[], note: string) {
+/** `skipReview` only counts for admins: their perks are approved as they're saved. */
+export async function sendPerks(familyId: string, perks: PerkDraft[], removed: string[], note: string, skipReview = false) {
 	if (removed.length) fail((await db().from('family_perks').delete().in('id', removed)).error);
 	if (perks.length)
-		fail((await db().rpc('submit_perk_request', { p_family: familyId, p_note: note, p_perks: perks.map((p) => ({ ...p, title: p.title.trim() })) })).error);
+		fail((await db().rpc('submit_perk_request', { p_family: familyId, p_note: note, p_perks: perks.map((p) => ({ ...p, title: p.title.trim() })), p_skip_review: skipReview })).error);
 }
 
 // ───────────────────────────── Joining ─────────────────────────────
