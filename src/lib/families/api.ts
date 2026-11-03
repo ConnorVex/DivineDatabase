@@ -89,9 +89,10 @@ export interface StandingNote {
 	note: string;
 }
 
-/** What a built perk holds. A Family ability is an Abilities card; a Family trait names a trait. */
+/** What a built perk holds. A Family ability is a power-system card; a Family trait names a trait. */
 export interface PerkDetails {
-	ability?: { fields: Fields; skills: Skill[] };
+	/** `system` is a power system id; perks from before it existed are Abilities cards. */
+	ability?: { system?: string; fields: Fields; skills: Skill[] };
 	trait?: string;
 	/** Set when the family made its own trait instead of picking a listed one. */
 	customTrait?: { category: string; effect: string };
@@ -159,8 +160,7 @@ export const PERK_KINDS: { id: PerkKind; label: string; hint: string }[] = [
 	{ id: 'starting_stats', label: 'Starting stats', hint: 'Higher starting stats or extra tier points' },
 	{ id: 'trait', label: 'Family trait', hint: 'A trait that runs in the family. Members link it in their Traits, where it takes one slot' },
 	{ id: 'trait_slots', label: 'Trait slots', hint: 'Extra trait slots, or a different way to fill them' },
-	{ id: 'system_start', label: 'Power system start', hint: 'A head start in a power system, like Cursed Energy or an ability' },
-	{ id: 'locked_power', label: 'Family ability', hint: 'An ability only this family holds, built like a character’s Abilities card so members can link it' },
+	{ id: 'locked_power', label: 'Family ability', hint: 'A power-system card (Abilities, Jujutsu Kaisen, JoJo…) with the family’s own starting stats, which members link on their character' },
 	{ id: 'technique', label: 'Secret technique', hint: 'Something the family has mastered, like a special transformation' },
 	{ id: 'fighting_style', label: 'Fighting style', hint: 'A style only taught inside the family' },
 	{ id: 'item', label: 'Items & vault', hint: 'Starting gear, or access to a shared vault' },

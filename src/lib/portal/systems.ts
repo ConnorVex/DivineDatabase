@@ -421,6 +421,17 @@ export const systemById = new Map(systems.map((s) => [s.id, s]));
 export const visibleFields = (def: SystemDef, f: Fields) =>
 	def.fields.filter((field) => !field.showIf || field.showIf.in.includes(String(f[field.showIf.key] ?? '')));
 
+/** Which system a family ability's card is for; perks from before other systems were allowed are Abilities. */
+export const abilitySystem = (a: { system?: string }) => a.system ?? 'abilities';
+
+/** Rolled fields a family ability leaves empty, so each member rolls them on their own card. */
+export function openRolledKeys(def: SystemDef | undefined, familyFields: Fields): string[] {
+	const rolled = def?.fields.filter((f) => f.rolled) ?? [];
+	const set = (v: FieldValue | undefined) => v !== undefined && v !== '' && v !== 0;
+	if (!rolled.length || rolled.some((f) => set(familyFields[f.key]))) return [];
+	return [...rolled.map((f) => f.key), 'ceLevel'];
+}
+
 /** Whether a card counts toward its system's one-per-character limit. */
 export const countsTowardLimit = (def: SystemDef | undefined, f: Fields) =>
 	!def?.limitedChoice || f[def.limitedChoice.key] === def.limitedChoice.value;

@@ -33,7 +33,7 @@ import { EquipmentReview } from './EquipmentReview.tsx';
 import { loadCraftingItems, loadEquipmentQueue, type CraftingItem, type EquipmentQueueItem } from '../../lib/portal/equipment.ts';
 import { PERK_ACCESS, familyHref, loadFamilies, loadMyFamily, loadPerkQueue, type Family, type FamilyCard, type PerkRequest } from '../../lib/families/api.ts';
 import { loadFamilyChoices, loadLinkablePerks, type LinkablePerk } from '../../lib/portal/families.ts';
-import { PROOF_LABEL, sameAbility } from '../../lib/portal/sheet.ts';
+import { PROOF_LABEL, familyCardChanged } from '../../lib/portal/sheet.ts';
 import { checkSheet, power, ptp, rankInfo, recoil, rules, traits, traitSlots, type Issue } from '../../lib/portal/rules.ts';
 import { systemById, visibleFields } from '../../lib/portal/systems.ts';
 import { startPortalTheme, themeForRole } from '../../lib/portal/theme.ts';
@@ -286,7 +286,7 @@ function SheetView({ c, combos, board, universes, perks, families }: { c: AdminC
 										perk={perkById.get(e.familyLink.perkId)}
 										changed={(() => {
 											const ability = perkById.get(e.familyLink.perkId)?.details.ability;
-											return Boolean(ability && !sameAbility(e, ability));
+											return Boolean(ability && familyCardChanged(e, ability));
 										})()}
 										proof={e.familyLink.proof}
 										families={families}

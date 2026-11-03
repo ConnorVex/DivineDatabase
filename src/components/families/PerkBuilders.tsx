@@ -1,26 +1,29 @@
-// The two perks members can link on their character: a Family ability, built with the same
-// Abilities card as the character form, and a Family trait, picked from the trait list or made
-// by the family itself (a custom trait).
-// Also the read-only summary shown on the family page and in the admin review.
+// The two perks members can link on their character: a Family ability, a power-system card
+// (Abilities, Jujutsu Kaisen, JoJo…) built with the same card as the character form, with the
+// family's own starting stats; and a Family trait, picked from the trait list or made by the
+// family itself (a custom trait). Also the read-only summary shown on the family page and in
+// the admin review.
 import { Fragment } from 'preact';
 import type { PerkDetails, PerkKind } from '../../lib/families/api.ts';
 import { rules, traits } from '../../lib/portal/rules.ts';
-import type { Skill } from '../../lib/portal/sheet.ts';
-import { systemById, visibleFields, type FieldValue, type Fields } from '../../lib/portal/systems.ts';
+import { abilitySystem, systemById, systems, visibleFields, type FieldValue } from '../../lib/portal/systems.ts';
 import { SelectField, TextField } from '../portal/fields.tsx';
 import { FieldInput, SkillsEditor, defaults } from '../portal/SystemsSection.tsx';
 
-const abilities = systemById.get('abilities')!;
+type Ability = NonNullable<PerkDetails['ability']>;
 const rarities = rules.traitSlots.rarities;
 const traitByName = new Map(traits.map((t) => [t.name, t]));
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const blank = (v: unknown) => v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
 
 /** Perk kinds that are built instead of only described. */
 export const isBuilt = (kind: PerkKind) => kind === 'locked_power' || kind === 'trait';
 
+const blankAbility = (system: string): Ability => ({ system, fields: defaults(systemById.get(system)!.fields), skills: [] });
+
 /** Starting details for a kind; switching kinds starts the builder fresh. */
 export function blankDetails(kind: PerkKind): PerkDetails {
-	if (kind === 'locked_power') return { ability: { fields: defaults(abilities.fields), skills: [] } };
+	if (kind === 'locked_power') return { ability: blankAbility('abilities') };
 	if (kind === 'trait') return { trait: '' };
 	return {};
 }
@@ -38,47 +41,63 @@ export function detailProblems(kind: PerkKind, details: PerkDetails, title: stri
 	}
 	if (kind === 'locked_power') {
 		const a = details.ability;
+		const def = a && systemById.get(abilitySystem(a));
+		if (!a || !def) return [`${name}: pick a power system.`];
 		const out: string[] = [];
-		if (!a || !Array.isArray(a.fields.classes) || !a.fields.classes.length) out.push(`${name}: pick at least one ability class.`);
-		if (a?.skills.some((s) => !s.name.trim())) out.push(`${name}: every skill needs a name.`);
+		// Rolled fields may be left for each member to roll.
+		for (const f of visibleFields(def, a.fields)) if (f.required && !f.rolled && blank(a.fields[f.key])) out.push(`${name}: fill in ${f.label}.`);
+		if (a.skills.some((s) => !s.name.trim())) out.push(`${name}: every skill needs a name.`);
 		return out;
 	}
 	return [];
 }
 
-function budgetOf(fields: Fields) {
-	return { total: abilities.budget!.total(fields), spent: abilities.budget!.spent(fields) };
-}
-
-export function AbilityBuilder({ value, onChange }: { value: { fields: Fields; skills: Skill[] }; onChange: (v: { fields: Fields; skills: Skill[] }) => void }) {
-	const budget = budgetOf(value.fields);
+export function AbilityBuilder({ value, onChange }: { value: Ability; onChange: (v: Ability) => void }) {
+	const system = abilitySystem(value);
+	const def = systemById.get(system)!;
+	const budget = def.budget ? { total: def.budget.total(value.fields), spent: def.budget.spent(value.fields) } : null;
 	const setField = (key: string, v: FieldValue) => onChange({ ...value, fields: { ...value.fields, [key]: v } });
 	return (
 		<div class="pf-wide system-card perk-ability">
 			<header class="system-card-head">
-				<h3>Abilities card</h3>
-				<span class={`pf-badge ${budget.spent > budget.total ? 'bad' : 'ok'}`}>
-					{abilities.budget!.label}: {budget.spent} / {budget.total}
-				</span>
+				<h3>{def.label} card</h3>
+				{budget && budget.total > 0 && (
+					<span class={`pf-badge ${budget.spent > budget.total ? 'bad' : 'ok'}`}>
+						{def.budget!.label}: {budget.spent} / {budget.total}
+					</span>
+				)}
 			</header>
 			<p class="pf-help">
-				Built the same way as a character’s Abilities. Members who link it get this card on their sheet; the admins judge anything over the usual limits.
+				Built the same way as a character’s card, but these are the family’s own starting stats instead of the usual defaults. Members who link it get this card on their sheet; the admins judge anything over the usual limits.
 			</p>
-			{abilities.notes?.map((n) => (
-				<p class="pf-help" key={n}>
-					ℹ {n}
-				</p>
-			))}
 			<div class="pf-grid">
-				{visibleFields(abilities, value.fields).map((field) => (
+				<SelectField
+					label="Power system"
+					required
+					value={system}
+					onChange={(v) => v !== system && onChange(blankAbility(v))}
+					options={systems.map((s) => ({ value: s.id, label: s.label }))}
+					help="Changing the system starts the card fresh."
+				/>
+				{def.notes?.map((n) => (
+					<p class="pf-help pf-wide" key={n}>
+						ℹ {n}
+					</p>
+				))}
+				{visibleFields(def, value.fields).map((field) => (
 					<Fragment key={field.key}>
-						<FieldInput field={field} value={value.fields[field.key]} disabled={false} onChange={(v) => setField(field.key, v)} />
+						<FieldInput
+							field={field.rolled ? { ...field, required: false, help: 'Leave empty to have each member roll it.' } : field}
+							value={value.fields[field.key]}
+							disabled={false}
+							onChange={(v) => setField(field.key, v)}
+						/>
 					</Fragment>
 				))}
 				<SkillsEditor
 					skills={value.skills}
 					disabled={false}
-					limits={abilities.startingMoves?.(value.fields)}
+					limits={def.startingMoves?.(value.fields)}
 					isEvolution={false}
 					onUpdate={(fn) => onChange({ ...value, skills: fn(value.skills) })}
 				/>
@@ -129,6 +148,9 @@ export function TraitPicker({ value, onChange }: { value: PerkDetails; onChange:
 
 const SKILL_TYPE = { passive: 'Passive', standard: 'Standard', ultimate: 'Ultimate' };
 
+const showValue = (v: FieldValue | undefined) =>
+	Array.isArray(v) ? v.map((x) => (typeof x === 'string' ? x : Object.values(x).filter(Boolean).join(' '))).join(', ') : String(v);
+
 /** Read-only view of what a built perk gives. Renders nothing for the other kinds. */
 export function PerkBuilt({ kind, details }: { kind: PerkKind | null; details: PerkDetails | undefined }) {
 	if (kind === 'trait' && details?.trait) {
@@ -143,35 +165,32 @@ export function PerkBuilt({ kind, details }: { kind: PerkKind | null; details: P
 		);
 	}
 	const a = kind === 'locked_power' ? details?.ability : undefined;
-	if (!a) return null;
-	const f = a.fields;
-	const budget = budgetOf(f);
-	const classes = Array.isArray(f.classes) ? (f.classes as string[]).join(', ') : '';
+	const def = a && systemById.get(abilitySystem(a));
+	if (!a || !def) return null;
+	const budget = def.budget ? { total: def.budget.total(a.fields), spent: def.budget.spent(a.fields) } : null;
 	return (
 		<div class="perk-built">
 			<dl class="perk-stats">
 				<div>
-					<dt>Class</dt>
-					<dd>{classes || '—'}</dd>
+					<dt>System</dt>
+					<dd>{def.label}</dd>
 				</div>
-				<div>
-					<dt>Power</dt>
-					<dd>{String(f.power ?? '—')}</dd>
-				</div>
-				<div>
-					<dt>Range</dt>
-					<dd>{String(f.range ?? '—')}</dd>
-				</div>
-				<div>
-					<dt>AUP</dt>
-					<dd>{Number(f.upgradePoints) || 0}</dd>
-				</div>
-				<div>
-					<dt>Tier points</dt>
-					<dd class={budget.spent > budget.total ? 'over' : undefined}>
-						{budget.spent} / {budget.total}
-					</dd>
-				</div>
+				{visibleFields(def, a.fields)
+					.filter((f) => f.type !== 'textarea' && !blank(a.fields[f.key]))
+					.map((f) => (
+						<div key={f.key}>
+							<dt>{f.label}</dt>
+							<dd>{showValue(a.fields[f.key])}</dd>
+						</div>
+					))}
+				{budget && budget.total > 0 && (
+					<div>
+						<dt>{def.budget!.label}</dt>
+						<dd class={budget.spent > budget.total ? 'over' : undefined}>
+							{budget.spent} / {budget.total}
+						</dd>
+					</div>
+				)}
 			</dl>
 			{a.skills.length > 0 && (
 				<ul class="perk-skills">

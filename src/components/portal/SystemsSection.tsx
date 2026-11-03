@@ -4,8 +4,8 @@ import { useState } from 'preact/hooks';
 import type { ClaimRow, Universe } from '../../lib/portal/api.ts';
 import type { LinkablePerk } from '../../lib/portal/families.ts';
 import { minimumMoves, rules, systemLimit } from '../../lib/portal/rules.ts';
-import { PROOF_LABEL, sameAbility, type Sheet, type Skill, type SystemEntry } from '../../lib/portal/sheet.ts';
-import { countsTowardLimit, systemById, systems, visibleFields, type Field, type FieldValue, type Option } from '../../lib/portal/systems.ts';
+import { PROOF_LABEL, familyCardChanged, type Sheet, type Skill, type SystemEntry } from '../../lib/portal/sheet.ts';
+import { abilitySystem, countsTowardLimit, openRolledKeys, systemById, systems, visibleFields, type Field, type FieldValue, type Option } from '../../lib/portal/systems.ts';
 import { CheckboxGroup, NumberField, Section, SelectField, TextArea, TextField } from './fields.tsx';
 import { RollPanel, type Roller } from './RollPanel.tsx';
 
@@ -218,7 +218,7 @@ function ClaimPicker(props: { universe: string; label: string; board: ClaimRow[]
 
 const copy = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 
-/** The top of an Abilities card: make your own ability, or link one of your families' abilities. */
+/** The top of a power-system card: make your own, or link one of your families' abilities for this system. */
 function AbilitySource(props: {
 	entry: SystemEntry;
 	abilities: LinkablePerk[] | null;
@@ -233,7 +233,7 @@ function AbilitySource(props: {
 	const perk = link && abilities?.find((p) => p.id === link.perkId);
 	if (!link && !abilities?.length) return null;
 	const proof = perk && PROOF_LABEL[perk.access];
-	const outdated = perk?.details.ability && !sameAbility(entry, perk.details.ability);
+	const outdated = perk?.details.ability && familyCardChanged(entry, perk.details.ability);
 	return (
 		<div class="pf-wide ab-source">
 			<div class="ab-choice" role="radiogroup" aria-label="Where this ability comes from">
@@ -274,7 +274,7 @@ function AbilitySource(props: {
 					)}
 					{perk && (
 						<p class="pf-wide pf-help">
-							From <strong>{props.familyName(perk.family_id)}</strong>. Its class, power, range and skills are set by the family; describe how your character uses it below.
+							From <strong>{props.familyName(perk.family_id)}</strong>. Its stats and skills are set by the family; describe how your character uses it below.
 						</p>
 					)}
 					{outdated && !props.disabled && (
@@ -348,6 +348,9 @@ export function SystemsSection(props: Props) {
 				if (!def) return null;
 				const linked = Boolean(entry.familyLink);
 				const locked = readOnly || linked;
+				const linkedPerk = entry.familyLink && props.familyAbilities?.find((p) => p.id === entry.familyLink!.perkId);
+				// A family ability that sets the rolled stats itself leaves nothing to roll.
+				const rollOpen = !linkedPerk?.details.ability || openRolledKeys(def, linkedPerk.details.ability.fields).length > 0;
 				const budget = def.budget && !props.isEvolution && !linked ? { total: def.budget.total(entry.fields), spent: def.budget.spent(entry.fields) } : null;
 				const universe = props.universes.find((u) => u.slug === def.universe);
 				return (
@@ -379,33 +382,33 @@ export function SystemsSection(props: Props) {
 							</p>
 						))}
 						<div class="pf-grid">
-							{entry.system === 'abilities' && (
-								<AbilitySource
-									entry={entry}
-									abilities={props.familyAbilities}
-									familyName={props.familyName}
-									disabled={readOnly}
-									onOwn={() =>
-										setEntry(entry.key, (e) => {
-											delete e.familyLink;
-											e.fields = defaults(def.fields);
-											e.skills = [];
-										})
-									}
-									onLink={(perk) =>
-										setEntry(entry.key, (e) => {
-											const proof = e.familyLink?.proof ?? '';
-											if (perk.id && perk.details.ability) {
-												e.fields = copy(perk.details.ability.fields);
-												e.skills = copy(perk.details.ability.skills);
-											}
-											e.familyLink = { perkId: perk.id, familyId: perk.family_id, title: perk.title, proof };
-										})
-									}
-									onProof={(v) => setEntry(entry.key, (e) => void (e.familyLink && (e.familyLink.proof = v)))}
-								/>
-							)}
-							{def.fields.some((f) => f.rolled === 'cursed_energy') && (
+							<AbilitySource
+								entry={entry}
+								abilities={props.familyAbilities && props.familyAbilities.filter((p) => p.details.ability && abilitySystem(p.details.ability) === entry.system)}
+								familyName={props.familyName}
+								disabled={readOnly}
+								onOwn={() =>
+									setEntry(entry.key, (e) => {
+										delete e.familyLink;
+										e.fields = defaults(def.fields);
+										e.skills = [];
+									})
+								}
+								onLink={(perk) =>
+									setEntry(entry.key, (e) => {
+										const proof = e.familyLink?.proof ?? '';
+										if (perk.id && perk.details.ability) {
+											// Rolls the family leaves to each member stay as the member rolled them.
+											const kept = openRolledKeys(def, perk.details.ability.fields).filter((k) => k in e.fields);
+											e.fields = { ...copy(perk.details.ability.fields), ...Object.fromEntries(kept.map((k) => [k, e.fields[k]])) };
+											e.skills = copy(perk.details.ability.skills);
+										}
+										e.familyLink = { perkId: perk.id, familyId: perk.family_id, title: perk.title, proof };
+									})
+								}
+								onProof={(v) => setEntry(entry.key, (e) => void (e.familyLink && (e.familyLink.proof = v)))}
+							/>
+							{def.fields.some((f) => f.rolled === 'cursed_energy') && rollOpen && (
 								<RollPanel
 									kind="cursed_energy"
 									record={props.roller.characterRolls.cursed_energy}

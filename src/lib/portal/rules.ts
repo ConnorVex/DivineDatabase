@@ -4,8 +4,8 @@ import ranksData from '../../data/portal/ranks.json' with { type: 'json' };
 import rulesData from '../../data/portal/rules.json' with { type: 'json' };
 import traitsData from '../../data/portal/traits.json' with { type: 'json' };
 import type { LinkablePerk } from './families.ts';
-import { PROOF_LABEL, sameAbility, type PickedTrait, type Sheet, type SystemEntry } from './sheet.ts';
-import { countsTowardLimit, systemById, visibleFields, type Field } from './systems.ts';
+import { PROOF_LABEL, familyCardChanged, type PickedTrait, type Sheet, type SystemEntry } from './sheet.ts';
+import { abilitySystem, countsTowardLimit, systemById, visibleFields, type Field } from './systems.ts';
 
 export const ranks = ranksData.ranks;
 export const rules = rulesData;
@@ -314,17 +314,17 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 function checkFamilyLink(entry: SystemEntry, ctx: CheckContext, where: string, add: (level: IssueLevel, section: string, message: string) => void) {
 	const link = entry.familyLink!;
 	if (!link.perkId) {
-		add('error', 'Systems', 'Abilities: pick which family ability to use, or make your own.');
+		add('error', 'Systems', `${where}: pick which family ability to use, or make the card your own.`);
 		return;
 	}
 	if (!(ctx.families ?? []).includes(link.familyId)) add('error', 'Families', `${where} is a family ability: pick that family in the Families step.`);
 	if (!ctx.familyPerks) return;
 	const perk = ctx.familyPerks.get(link.perkId);
-	if (!perk?.details.ability) {
+	if (!perk?.details.ability || abilitySystem(perk.details.ability) !== entry.system) {
 		add('error', 'Systems', `${where}: this family ability is no longer available. Make the card your own or pick another.`);
 		return;
 	}
-	if (!sameAbility(entry, perk.details.ability)) add('warning', 'Systems', `${where}: the family has changed this ability since you linked it. Update the card.`);
+	if (familyCardChanged(entry, perk.details.ability)) add('warning', 'Systems', `${where}: the family has changed this ability since you linked it. Update the card.`);
 	const proof = PROOF_LABEL[perk.access];
 	if (proof && blank(link.proof)) add('warning', 'Systems', `${where}: add the ${proof.charAt(0).toLowerCase() + proof.slice(1)}.`);
 }

@@ -1,6 +1,6 @@
 // The shape of a character sheet as stored in characters.sheet (jsonb).
 import type { PerkAccess } from '../families/api.ts';
-import type { Fields } from './systems.ts';
+import { openRolledKeys, systemById, type Fields } from './systems.ts';
 
 export type SkillType = 'passive' | 'standard' | 'ultimate';
 
@@ -100,8 +100,14 @@ const stable = (v: unknown): string =>
 			: JSON.stringify(v ?? null);
 
 /** Whether a linked card still matches its family perk (the family may have changed it since). */
-export const sameAbility = (a: { fields: unknown; skills: unknown }, b: { fields: unknown; skills: unknown }) =>
-	stable(a.fields) === stable(b.fields) && stable(a.skills) === stable(b.skills);
+export const sameAbility = (a: { fields: Fields; skills: unknown }, b: { fields: Fields; skills: unknown }, ignore: string[] = []) => {
+	const strip = (f: Fields) => Object.fromEntries(Object.entries(f).filter(([k]) => !ignore.includes(k)));
+	return stable(strip(a.fields)) === stable(strip(b.fields)) && stable(a.skills) === stable(b.skills);
+};
+
+/** Whether the family changed a linked card since it was linked. Rolls the family left to each member don't count. */
+export const familyCardChanged = (entry: SystemEntry, ability: { fields: Fields; skills: unknown }) =>
+	!sameAbility(entry, ability, openRolledKeys(systemById.get(entry.system), ability.fields));
 
 export const emptySheet = (): Sheet => ({
 	appearance: { image: '', description: '', extraImages: '' },
