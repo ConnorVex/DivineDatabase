@@ -619,6 +619,7 @@ export default function SubmitForm() {
 									roller={roller}
 									familyAbilities={familyPerks && familyPerks.filter((p) => p.kind === 'locked_power')}
 									familyName={(id) => familyChoices?.families.find((f) => f.id === id)?.name ?? 'A family'}
+									trackedCards={draft.approvedSheet ? new Set(draft.approvedSheet.systems.map((e) => e.key)) : undefined}
 								/>
 							</div>
 							<div class="pf-step" hidden={current !== 'storage'}>

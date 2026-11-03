@@ -5,6 +5,7 @@ import type { ClaimRow, Universe } from '../../lib/portal/api.ts';
 import type { LinkablePerk } from '../../lib/portal/families.ts';
 import { minimumMoves, rules, systemBudget, systemLimit } from '../../lib/portal/rules.ts';
 import { PROOF_LABEL, familyCardChanged, type Sheet, type Skill, type SystemEntry } from '../../lib/portal/sheet.ts';
+import { isTrackedField, TRACKED_HELP } from '../../lib/portal/points.ts';
 import { abilitySystem, countsTowardLimit, familyScope, groupedFields, memberKeys, systemById, systems, visibleFields, type Field, type FieldValue, type Option } from '../../lib/portal/systems.ts';
 import { CheckboxGroup, NumberField, Section, SelectField, TextArea, TextField } from './fields.tsx';
 import { RollPanel, type Roller } from './RollPanel.tsx';
@@ -24,6 +25,8 @@ interface Props {
 	/** Ability perks of the character's families (null while loading). */
 	familyAbilities: LinkablePerk[] | null;
 	familyName: (id: string) => string;
+	/** Cards on the approved sheet: their upgrade point fields come from the wallets. */
+	trackedCards?: Set<string>;
 }
 
 const newKey = () => Math.random().toString(36).slice(2, 10);
@@ -353,7 +356,8 @@ export function SystemsSection(props: Props) {
 				const linkedAbility = entry.familyLink && props.familyAbilities?.find((p) => p.id === entry.familyLink!.perkId)?.details.ability;
 				// On a linked card the member only fills in what the family leaves to them.
 				const own = linkedAbility ? memberKeys(def, linkedAbility) : [];
-				const fieldLocked = (key: string) => readOnly || (linked && !own.includes(key));
+				const tracked = (key: string) => Boolean(props.trackedCards?.has(entry.key)) && isTrackedField(entry.system, key);
+				const fieldLocked = (key: string) => readOnly || (linked && !own.includes(key)) || tracked(key);
 				const skillsLocked = readOnly || (linked && (!linkedAbility || familyScope(def, linkedAbility).skills));
 				const rollOpen = !linked || own.some((k) => def.fields.find((f) => f.key === k)?.rolled);
 				const budget = !props.isEvolution && !linked ? systemBudget(sheet, entry) : null;
@@ -461,7 +465,7 @@ export function SystemsSection(props: Props) {
 											{fields.map((field) => (
 											<Fragment key={field.key}>
 												<FieldInput
-													field={field}
+													field={tracked(field.key) ? { ...field, help: TRACKED_HELP } : field}
 													value={entry.fields[field.key]}
 													disabled={fieldLocked(field.key)}
 													blocked={def.limitedChoice?.key === field.key && limitedChoiceFull(entry) ? { value: def.limitedChoice.value, reason: 'max reached' } : undefined}

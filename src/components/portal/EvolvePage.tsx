@@ -18,6 +18,7 @@ import { logIn, watchPlayer, type Player } from '../../lib/supabase.ts';
 import { ChangeList, changeCount } from './ChangeList.tsx';
 import { TextArea } from './fields.tsx';
 import { EvolutionLog } from './EvolutionLog.tsx';
+import { PointsPanel } from './PointsPanel.tsx';
 
 const portal = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const messageOf = (e: unknown) => (e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e));
@@ -192,6 +193,19 @@ export default function EvolvePage() {
 				<div class="pf-status status-pending">
 					<strong>In review</strong> · You can still change the sheet and the write-up; press Update evolution to send the changes.
 				</div>
+			)}
+
+			{c.id && c.approvedSheet && (
+				<section class="pf-section">
+					<header class="pf-section-head">
+						<h2>Upgrade points</h2>
+					</header>
+					<p class="pf-intro">
+						Earn points with <code>/training log</code> in Discord: pick the systems you used, and staff approval adds each one’s points here. Convert them below, and
+						spend them in an evolution.
+					</p>
+					<PointsPanel characterId={c.id} sheet={c.approvedSheet} />
+				</section>
 			)}
 
 			<section class="pf-section ev-step">

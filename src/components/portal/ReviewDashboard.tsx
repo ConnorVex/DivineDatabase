@@ -28,6 +28,7 @@ import {
 	type Universe,
 } from '../../lib/portal/api.ts';
 import { sheetChanges } from '../../lib/portal/diff.ts';
+import { PointsPanel } from './PointsPanel.tsx';
 import { ChangeList } from './ChangeList.tsx';
 import { ReviewFamily, ReviewRequest } from '../families/FamilyAdmin.tsx';
 import { EquipmentReview } from './EquipmentReview.tsx';
@@ -592,6 +593,12 @@ function Detail(props: {
 			)}
 
 			<SheetView c={c} combos={combos} board={props.board} universes={props.universes} perks={perks ?? []} families={props.families} />
+
+			{c.approved_sheet && (
+				<Block title="Upgrade points">
+					<PointsPanel characterId={c.id} sheet={c.approved_sheet} admin={props.admin} />
+				</Block>
+			)}
 
 			{props.admin && (
 				<Block title="Settings">

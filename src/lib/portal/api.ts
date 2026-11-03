@@ -1,5 +1,6 @@
 // Database calls used by the portal pages. Row-level security decides what each one may see.
 import { supabase } from '../supabase.ts';
+import type { Balance, Conversion, Currency, LedgerRow } from './points.ts';
 import { normalizeSheet, type Sheet } from './sheet.ts';
 
 export type Status = 'draft' | 'pending' | 'approved' | 'needs_correction' | 'denied';
@@ -476,5 +477,44 @@ export async function submitEvolution(characterId: string, summary: string, earn
 /** Approve (changes + log entry), send back, or deny (back to the last approved version). */
 export async function reviewEvolution(requestId: string, outcome: Exclude<EvolutionStatus, 'pending'>, note: string) {
 	const { error } = await db().rpc('review_evolution', { p_request: requestId, p_outcome: outcome, p_note: note });
+	fail(error);
+}
+
+export interface CharacterPoints {
+	currencies: Currency[];
+	conversions: Conversion[];
+	balances: Balance[];
+	ledger: LedgerRow[];
+}
+
+/** A character's upgrade point wallets and their recent history (owner or admin). */
+export async function loadPoints(characterId: string): Promise<CharacterPoints> {
+	const [currencies, conversions, balances, ledger] = await Promise.all([
+		db().from('point_currencies').select('*').order('sort'),
+		db().from('point_conversions').select('*').order('id'),
+		db().from('character_points').select('card_key, currency, balance').eq('character_id', characterId),
+		db()
+			.from('point_ledger')
+			.select('id, card_key, currency, change, balance_after, source, reason, created_at')
+			.eq('character_id', characterId)
+			.order('created_at', { ascending: false })
+			.limit(30),
+	]);
+	for (const r of [currencies, conversions, balances, ledger]) fail(r.error);
+	return {
+		currencies: (currencies.data ?? []) as Currency[],
+		conversions: (conversions.data ?? []) as Conversion[],
+		balances: (balances.data ?? []) as Balance[],
+		ledger: (ledger.data ?? []) as LedgerRow[],
+	};
+}
+
+export async function convertPoints(characterId: string, card: string, conversion: number, times: number) {
+	const { error } = await db().rpc('convert_points', { p_character: characterId, p_card: card, p_conversion: conversion, p_times: times });
+	fail(error);
+}
+
+export async function adjustPoints(characterId: string, card: string, currency: string, change: number, reason: string) {
+	const { error } = await db().rpc('adjust_points', { p_character: characterId, p_card: card, p_currency: currency, p_change: change, p_reason: reason });
 	fail(error);
 }
