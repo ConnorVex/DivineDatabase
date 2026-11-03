@@ -1,12 +1,14 @@
 // Upgrade point wallets for an approved character: balances per system card, conversions
-// (e.g. 5 JJUUP → 2 CEUP), recent history, and for admins a way to add or take points.
+// (e.g. 5 JJUUP → 2 CEUP), the skill trees they unlock, recent history, and for admins a way to
+// add or take points.
 import { useEffect, useState } from 'preact/hooks';
-import { adjustPoints, convertPoints, loadPoints, type CharacterPoints } from '../../lib/portal/api.ts';
-import { cardCurrencies, cardLabel } from '../../lib/portal/points.ts';
+import { adjustPoints, convertPoints, loadPoints, removeSkillUnlock, unlockSkill, type CharacterPoints } from '../../lib/portal/api.ts';
+import { applies, cardCurrencies, cardLabel } from '../../lib/portal/points.ts';
 import type { Sheet } from '../../lib/portal/sheet.ts';
+import { SkillTreeView } from './SkillTreeView.tsx';
 
 const messageOf = (e: unknown) => (e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e));
-const SOURCE = { training: '🏋️ Training', convert: '🔁 Converted', staff: '🛡️ Staff', sheet: '📄 Starting' } as const;
+const SOURCE = { training: '🏋️ Training', convert: '🔁 Converted', staff: '🛡️ Staff', sheet: '📄 Starting', unlock: '🌳 Unlocked', refund: '↩️ Refunded' } as const;
 
 export function PointsPanel({ characterId, sheet, admin = false, initial }: { characterId: string; sheet: Sheet; admin?: boolean; initial?: CharacterPoints }) {
 	const [data, setData] = useState<CharacterPoints | null>(initial ?? null);
@@ -22,14 +24,16 @@ export function PointsPanel({ characterId, sheet, admin = false, initial }: { ch
 		);
 	useEffect(() => void (initial || reload()), [characterId]);
 
-	async function run(fn: () => Promise<unknown>) {
+	async function run(fn: () => Promise<unknown>): Promise<boolean> {
 		setBusy(true);
 		setError('');
 		try {
 			await fn();
 			await reload();
+			return true;
 		} catch (e) {
 			setError(messageOf(e));
+			return false;
 		} finally {
 			setBusy(false);
 		}
@@ -39,6 +43,10 @@ export function PointsPanel({ characterId, sheet, admin = false, initial }: { ch
 	const cards = cardCurrencies(sheet, data.currencies);
 	if (!cards.length) return <p class="pf-help">None of this character’s systems use upgrade points.</p>;
 	const balance = (card: string, code: string) => data.balances.find((b) => b.card_key === card && b.currency === code)?.balance ?? 0;
+	const tracked = new Set(data.currencies.map((c) => c.code));
+	const treeCards = sheet.systems.flatMap((entry) =>
+		data.trees.filter((t) => t.system === entry.system && applies(t, entry)).map((tree) => ({ entry, tree })),
+	);
 	const targets = cards.flatMap(({ entry, currencies }) => currencies.map((c) => ({ value: `${entry.key}|${c.code}`, label: `${cardLabel(sheet, entry)} · ${c.code}` })));
 
 	return (
@@ -86,6 +94,36 @@ export function PointsPanel({ characterId, sheet, admin = false, initial }: { ch
 					);
 				})}
 			</div>
+
+			{treeCards.length > 0 && (
+				<div class="pts-trees">
+					<h3 class="pf-subhead">Skill trees</h3>
+					<p class="pf-help">Tap a skill to see what it needs. Unlocking spends the card’s points and adds a line to the evolution log.</p>
+					{treeCards.map(({ entry, tree }) => {
+						const unlocks = data.unlocks.filter((u) => u.card_key === entry.key && u.tree_id === tree.id);
+						return (
+							<details class="pts-tree" key={`${entry.key}:${tree.id}`}>
+								<summary>
+									{tree.label}
+									{treeCards.filter((t) => t.tree.id === tree.id).length > 1 && <> · {cardLabel(sheet, entry)}</>}
+									<span class="pts-tree-count">{unlocks.length} unlocked</span>
+								</summary>
+								<SkillTreeView
+									tree={tree}
+									nodes={data.nodes.filter((n) => n.tree_id === tree.id)}
+									unlocks={unlocks}
+									balance={(code) => balance(entry.key, code)}
+									tracked={(code) => tracked.has(code)}
+									admin={admin}
+									busy={busy}
+									onUnlock={(node, free) => run(() => unlockSkill(characterId, entry.key, tree.id, node, free))}
+									onRemove={(node, refund) => run(() => removeSkillUnlock(characterId, entry.key, tree.id, node, refund))}
+								/>
+							</details>
+						);
+					})}
+				</div>
+			)}
 
 			{admin && (
 				<form

@@ -1,6 +1,6 @@
 // Database calls used by the portal pages. Row-level security decides what each one may see.
 import { supabase } from '../supabase.ts';
-import type { Balance, Conversion, Currency, LedgerRow } from './points.ts';
+import type { Balance, Conversion, Currency, LedgerRow, SkillNode, SkillTree, Unlock } from './points.ts';
 import { normalizeSheet, type Sheet } from './sheet.ts';
 
 export type Status = 'draft' | 'pending' | 'approved' | 'needs_correction' | 'denied';
@@ -485,11 +485,14 @@ export interface CharacterPoints {
 	conversions: Conversion[];
 	balances: Balance[];
 	ledger: LedgerRow[];
+	trees: SkillTree[];
+	nodes: SkillNode[];
+	unlocks: Unlock[];
 }
 
 /** A character's upgrade point wallets and their recent history (owner or admin). */
 export async function loadPoints(characterId: string): Promise<CharacterPoints> {
-	const [currencies, conversions, balances, ledger] = await Promise.all([
+	const [currencies, conversions, balances, ledger, trees, nodes, unlocks] = await Promise.all([
 		db().from('point_currencies').select('*').order('sort'),
 		db().from('point_conversions').select('*').order('id'),
 		db().from('character_points').select('card_key, currency, balance').eq('character_id', characterId),
@@ -499,13 +502,19 @@ export async function loadPoints(characterId: string): Promise<CharacterPoints> 
 			.eq('character_id', characterId)
 			.order('created_at', { ascending: false })
 			.limit(30),
+		db().from('skill_trees').select('*').order('sort'),
+		db().from('skill_tree_nodes').select('*').order('sort'),
+		db().from('character_unlocks').select('card_key, tree_id, node_id, cost_amount, cost_currency, created_at').eq('character_id', characterId),
 	]);
-	for (const r of [currencies, conversions, balances, ledger]) fail(r.error);
+	for (const r of [currencies, conversions, balances, ledger, trees, nodes, unlocks]) fail(r.error);
 	return {
 		currencies: (currencies.data ?? []) as Currency[],
 		conversions: (conversions.data ?? []) as Conversion[],
 		balances: (balances.data ?? []) as Balance[],
 		ledger: (ledger.data ?? []) as LedgerRow[],
+		trees: (trees.data ?? []) as SkillTree[],
+		nodes: (nodes.data ?? []) as SkillNode[],
+		unlocks: (unlocks.data ?? []) as Unlock[],
 	};
 }
 
@@ -516,5 +525,15 @@ export async function convertPoints(characterId: string, card: string, conversio
 
 export async function adjustPoints(characterId: string, card: string, currency: string, change: number, reason: string) {
 	const { error } = await db().rpc('adjust_points', { p_character: characterId, p_card: card, p_currency: currency, p_change: change, p_reason: reason });
+	fail(error);
+}
+
+export async function unlockSkill(characterId: string, card: string, tree: string, node: string, free = false) {
+	const { error } = await db().rpc('unlock_skill', { p_character: characterId, p_card: card, p_tree: tree, p_node: node, p_free: free });
+	fail(error);
+}
+
+export async function removeSkillUnlock(characterId: string, card: string, tree: string, node: string, refund: boolean) {
+	const { error } = await db().rpc('remove_skill_unlock', { p_character: characterId, p_card: card, p_tree: tree, p_node: node, p_refund: refund });
 	fail(error);
 }

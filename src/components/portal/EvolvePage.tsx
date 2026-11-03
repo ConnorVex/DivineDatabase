@@ -198,11 +198,11 @@ export default function EvolvePage() {
 			{c.id && c.approvedSheet && (
 				<section class="pf-section">
 					<header class="pf-section-head">
-						<h2>Upgrade points</h2>
+						<h2>Upgrade points and skill trees</h2>
 					</header>
 					<p class="pf-intro">
 						Earn points with <code>/training log</code> in Discord: pick the systems you used, and staff approval adds each one’s points here. Convert them below, and
-						spend them in an evolution.
+						spend them on your skill trees.
 					</p>
 					<PointsPanel characterId={c.id} sheet={c.approvedSheet} />
 				</section>

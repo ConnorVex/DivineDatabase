@@ -2882,3 +2882,141 @@
 	color: var(--sl-color-red);
 	font-weight: 600;
 }
+
+/* Skill trees */
+.pts-trees > * {
+	margin: 0;
+}
+.pts-trees {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+.pts-tree {
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.6rem;
+	background: var(--sl-color-black);
+}
+.pts-tree > summary {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.6rem 0.8rem;
+	font-weight: 600;
+	cursor: pointer;
+}
+.pts-tree-count {
+	margin-left: auto;
+	color: var(--sl-color-gray-3);
+	font-size: var(--sl-text-xs);
+	font-weight: 500;
+}
+.st {
+	padding: 0 0.6rem 0.7rem;
+}
+.st-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+	max-height: min(32rem, 55vh);
+	overflow-y: auto;
+	padding: 0.2rem;
+}
+.st-branch {
+	--st-branch: var(--sl-color-accent);
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	margin: 0;
+	padding: 0.5rem 0.5rem 0.5rem 0.7rem;
+	border-left: 3px solid var(--st-branch);
+	border-radius: 0.4rem;
+	background: color-mix(in srgb, var(--st-branch) 7%, transparent);
+}
+.st-branch-name {
+	margin: 0;
+	color: var(--st-branch);
+	font-size: var(--sl-text-xs);
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+.st-row {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-start;
+	gap: 0.4rem;
+	margin: 0;
+}
+.st-node {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	min-width: 6.5rem;
+	max-width: 10rem;
+	margin: 0;
+	padding: 0.35rem 0.55rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.5rem;
+	background: var(--sl-color-gray-6);
+	color: var(--sl-color-gray-2);
+	font: inherit;
+	line-height: 1.2;
+	cursor: pointer;
+}
+.st-node .st-label {
+	font-size: var(--sl-text-xs);
+	font-weight: 600;
+	text-align: center;
+}
+.st-node .st-cost {
+	font-size: 0.68rem;
+	color: var(--sl-color-gray-3);
+}
+.st-node.owned {
+	border-color: var(--st-branch);
+	background: color-mix(in srgb, var(--st-branch) 30%, var(--sl-color-gray-6));
+	color: var(--sl-color-white);
+}
+.st-node.owned .st-cost {
+	color: var(--sl-color-white);
+}
+.st-node.open {
+	border-style: dashed;
+	border-color: var(--st-branch);
+	color: var(--sl-color-white);
+}
+.st-node.open.poor {
+	border-color: var(--sl-color-gray-4);
+}
+.st-node.locked {
+	opacity: 0.5;
+}
+.st-node.picked {
+	outline: 2px solid var(--sl-color-white);
+	outline-offset: 1px;
+}
+.st-detail {
+	margin-top: 0.6rem;
+	padding: 0.6rem 0.7rem;
+	border-radius: 0.5rem;
+	background: var(--sl-color-gray-6);
+}
+.st-detail p {
+	margin: 0 0 0.4rem;
+}
+.st-have {
+	color: var(--sl-color-green);
+}
+.st-need {
+	color: var(--sl-color-red);
+}
+.st-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+.st-actions > * {
+	margin: 0;
+}
