@@ -2,6 +2,7 @@
 // (which are then sent as an evolution from the evolution page, EvolvePage.tsx).
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import {
+	heavenlyGrantFor,
 	discoverCombos,
 	loadCharacter,
 	loadClaimBoard,
@@ -22,15 +23,20 @@ import {
 import { loadFamilyChoices, loadLinkablePerks, type FamilyChoices, type LinkablePerk, type MyTryout } from '../../lib/portal/families.ts';
 import { characterIssues, effectiveClaims } from '../../lib/portal/checks.ts';
 import { hasBlockingIssues, rules, type Issue } from '../../lib/portal/rules.ts';
+import { applyHeavenly, heavenlyEffect, isHeavenly } from '../../lib/portal/heavenly.ts';
 import type { Sheet } from '../../lib/portal/sheet.ts';
+import { systemById } from '../../lib/portal/systems.ts';
 import { applyTheme, defaultTheme, startPortalTheme, themeForRole } from '../../lib/portal/theme.ts';
 import { logIn, watchPlayer, type Player } from '../../lib/supabase.ts';
 import { FamiliesSection } from './FamiliesSection.tsx';
 import { Section, SelectField, TextArea, TextField } from './fields.tsx';
 import { StatsSection } from './StatsSection.tsx';
-import { SystemsSection } from './SystemsSection.tsx';
+import { defaults, SystemsSection } from './SystemsSection.tsx';
 import type { Roller } from './RollPanel.tsx';
 import { ComboReveal, TraitsSection } from './TraitsSection.tsx';
+import { PinBoxes } from './PinnedNotes.tsx';
+import { CharacterArticle, CharacterInfobox } from './CharacterArticle.tsx';
+import { pinLabel, type PinnedNote } from '../../lib/portal/pins.ts';
 
 const STATUS_TEXT: Record<string, { label: string; text: string }> = {
 	draft: { label: 'Draft', text: 'Saved, but not sent for review yet.' },
@@ -68,6 +74,19 @@ const STEP_OF: Record<string, string> = {
 	Families: 'families',
 };
 
+/** True while a media query matches (e.g. a wide screen). */
+function useMedia(query: string) {
+	const [match, setMatch] = useState(() => typeof matchMedia !== 'undefined' && matchMedia(query).matches);
+	useEffect(() => {
+		const m = matchMedia(query);
+		const on = () => setMatch(m.matches);
+		on();
+		m.addEventListener('change', on);
+		return () => m.removeEventListener('change', on);
+	}, [query]);
+	return match;
+}
+
 const messageOf = (e: unknown) => (e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e));
 const traitKey = (s: Sheet) => s.traits.map((t) => `${t.name}${t.family ? '*' : ''}`).sort().join('|');
 
@@ -84,6 +103,7 @@ export default function SubmitForm() {
 	const [saveState, setSaveState] = useState<SaveState>('idle');
 	const [saveError, setSaveError] = useState('');
 	const [submitted, setSubmitted] = useState(false);
+	const wide = useMedia('(min-width: 80rem)');
 	const [step, setStepState] = useState(() => location.hash.slice(1) || 'basics');
 	const [visited, setVisited] = useState<Set<string>>(() => new Set());
 	const [familyChoices, setFamilyChoices] = useState<FamilyChoices | null>(null);
@@ -103,6 +123,8 @@ export default function SubmitForm() {
 	const savedId = useRef<string | null>(null);
 	// Bumped when changes arrived during a save, so another autosave is scheduled.
 	const [retry, setRetry] = useState(0);
+	/** The Heavenly Restriction this account may use here (undefined until known, or if it can't be checked). */
+	const [heavenlyGrant, setHeavenlyGrant] = useState<string | null | undefined>(undefined);
 	latest.current = draft;
 
 	useEffect(() => watchPlayer((p, error) => (error ? setLoadError(messageOf(error)) : setPlayer(p))), []);
@@ -122,6 +144,7 @@ export default function SubmitForm() {
 				setHeld(h);
 				setDraft(c);
 				refreshRolls(c.id);
+				heavenlyGrantFor(player.id, c.id).then(setHeavenlyGrant, () => setHeavenlyGrant(undefined));
 				loadFamilyChoices(c.id).then(setFamilyChoices, () => setFamilyChoices({ families: [], tryouts: [], memberships: [] }));
 				if (c.id) {
 					// A saved character has been through the form before: show every step's state.
@@ -136,6 +159,11 @@ export default function SubmitForm() {
 
 	const readOnly = draft?.status === 'denied';
 	const isEvolution = Boolean(draft?.approvedAt);
+	/** A granted Heavenly Restriction applies to a new OC. */
+	const grantedHeavenly = !isEvolution && draft?.kind === 'oc' && isHeavenly(heavenlyGrant) ? heavenlyGrant : null;
+	/** Starting limits apply to a new character, unless staff marked it as already progressed. */
+	const startRules = !isEvolution && !draft?.progressed;
+	const staffSet = (path: string) => Boolean(draft?.staffOverrides[path]);
 
 	/** Applies a change to the draft and schedules an autosave. */
 	const change = (fn: (d: CharacterDraft) => void) => {
@@ -209,12 +237,20 @@ export default function SubmitForm() {
 		return () => void (stale = true);
 	}, [linkFamilies, Boolean(familyChoices)]);
 
+	// Keep a granted Heavenly Restriction's card fields and stats on the sheet.
+	useEffect(() => {
+		if (!grantedHeavenly || !draft || readOnly) return;
+		const jjkDefaults = () => defaults(systemById.get('jujutsu-kaisen')!.fields) as Record<string, string | number | string[]>;
+		const newKey = () => Math.random().toString(36).slice(2, 10);
+		if (applyHeavenly(structuredClone(draft.sheet), grantedHeavenly, newKey, jjkDefaults, staffSet)) updateSheet((x) => void applyHeavenly(x, grantedHeavenly, newKey, jjkDefaults, staffSet));
+	}, [grantedHeavenly, draft?.sheet]);
+
 	const issues: Issue[] = useMemo(
 		() =>
 			draft
-				? characterIssues(draft, { board, held, combos, familyIds: familyChoices?.memberships.map((m) => m.family_id) ?? [], familyPerks: familyPerks ?? undefined })
+				? characterIssues(draft, { board, held, combos, familyIds: familyChoices?.memberships.map((m) => m.family_id) ?? [], familyPerks: familyPerks ?? undefined, heavenlyGrant })
 				: [],
-		[draft, board, held, combos, familyChoices, familyPerks],
+		[draft, board, held, combos, familyChoices, familyPerks, heavenlyGrant],
 	);
 
 	// The steps this character has, and moving between them (the step lives in the URL hash).
@@ -362,6 +398,21 @@ export default function SubmitForm() {
 			if (!d.sheet.lore.backstory.trim()) d.sheet.lore.backstory = t.backstory;
 			if (!d.sheet.families.includes(t.family_id)) d.sheet.families.push(t.family_id);
 		});
+	const pins: PinnedNote[] = draft.pinnedNotes;
+	const universeName = universes.find((u) => u.slug === draft.canonUniverse)?.name ?? draft.canonUniverse;
+	const articleProps = {
+		name: draft.name,
+		kind: draft.kind,
+		universeName,
+		sheet: s,
+		bonusPtp: draft.bonusPtp,
+		extraTraitSlots: draft.extraTraitSlots,
+		staffOverrides: draft.staffOverrides,
+		progressed: draft.progressed,
+	};
+	/** A step's pinned notes; card notes show in their card instead. */
+	const stepPins = (id: string) => <PinBoxes notes={pins.filter((n) => n.step === id && !(id === 'systems' && n.target))} sheet={s} />;
+	const pinCount = (id: string) => pins.filter((n) => n.step === id).length;
 	const familyNames = s.families.map((id) => familyChoices?.families.find((f) => f.id === id)?.name).filter(Boolean);
 
 	return (
@@ -369,6 +420,33 @@ export default function SubmitForm() {
 			{status && (
 				<div class={`pf-status status-${draft.status}`}>
 					<strong>{status.label}</strong> · {status.text}
+				</div>
+			)}
+
+			{pins.length > 0 && (
+				<div class="pf-status pin-banner" role="note">
+					<strong>📌 Staff pinned {pins.length === 1 ? 'a note' : `${pins.length} notes`} to fix</strong> · Each one shows as a red box in its step.
+					<ul>
+						{pins.map((n) => (
+							<li key={n.id}>
+								<button type="button" class="pf-issue-jump" onClick={() => setStep(n.step)}>
+									<span class="pf-issue-section">{pinLabel(n, s)}</span> {n.text}
+								</button>
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
+
+			{grantedHeavenly && (
+				<div class="pf-status hr-banner" role="note">
+					<strong>⛩ Heavenly Restriction: {grantedHeavenly}</strong> · Your account has been granted this Heavenly Restriction, and this character will use it. It locks you
+					out of every power system but Jujutsu Kaisen and Cyberpunk. If this is a mistake, contact the admins before sending.
+					<ul>
+						{heavenlyEffect(grantedHeavenly, s.systems.find((e) => e.system === 'jujutsu-kaisen')?.fields)!.perks.map((p) => (
+							<li key={p}>{p}</li>
+						))}
+					</ul>
 				</div>
 			)}
 
@@ -395,6 +473,11 @@ export default function SubmitForm() {
 											{mark === 'error' ? '!' : mark === 'warn' ? '•' : mark === 'done' ? '✓' : n + 1}
 										</span>
 										<span>{label(st.id)}</span>
+										{pinCount(st.id) > 0 && (
+											<span class="pin-count" title={`${pinCount(st.id)} pinned note${pinCount(st.id) === 1 ? '' : 's'}`}>
+												📌{pinCount(st.id)}
+											</span>
+										)}
 										{mark === 'error' && <span class="sr-only"> (needs fixing)</span>}
 									</a>
 								</li>
@@ -408,6 +491,7 @@ export default function SubmitForm() {
 						Step {index + 1} of {steps.length}
 					</p>
 					<div class="pf-step" hidden={current !== 'basics'}>
+						{stepPins('basics')}
 						<Section id="basics" title="Basics">
 							{!draft.id && (
 								<SelectField
@@ -474,6 +558,7 @@ export default function SubmitForm() {
 						</Section>
 					</div>
 					<div class="pf-step" hidden={current !== 'appearance'}>
+						{stepPins('appearance')}
 						<Section id="appearance" title="Appearance">
 							<TextField
 								label="Main picture (link)"
@@ -506,6 +591,7 @@ export default function SubmitForm() {
 						</Section>
 					</div>
 					<div class="pf-step" hidden={current !== 'lore'}>
+						{stepPins('lore')}
 						{oc ? (
 							<Section id="lore" title="Lore">
 								<TextArea label="Backstory" required rows={8} value={s.lore.backstory} disabled={readOnly} onInput={(v) => updateSheet((x) => void (x.lore.backstory = v))} />
@@ -548,9 +634,11 @@ export default function SubmitForm() {
 					{oc && (
 						<>
 							<div class="pf-step" hidden={current !== 'stats'}>
-								<StatsSection sheet={s} update={updateSheet} readOnly={readOnly} isEvolution={isEvolution} bonusPtp={draft.bonusPtp} />
+								{stepPins('stats')}
+								<StatsSection sheet={s} update={updateSheet} readOnly={readOnly} isEvolution={!startRules} bonusPtp={draft.bonusPtp} staffOverrides={draft.staffOverrides} />
 							</div>
 							<div class="pf-step" hidden={current !== 'traits'}>
+								{stepPins('traits')}
 								<TraitsSection
 									sheet={s}
 									update={updateSheet}
@@ -564,6 +652,7 @@ export default function SubmitForm() {
 								/>
 							</div>
 							<div class="pf-step" hidden={current !== 'combat'}>
+								{stepPins('combat')}
 								<Section id="combat" title="Combat">
 									<TextArea
 										label="Combat info"
@@ -605,6 +694,7 @@ export default function SubmitForm() {
 								</Section>
 							</div>
 							<div class="pf-step" hidden={current !== 'systems'}>
+								{stepPins('systems')}
 								<SystemsSection
 									sheet={s}
 									update={updateSheet}
@@ -615,14 +705,18 @@ export default function SubmitForm() {
 									heldClaims={held}
 									comboSystemLimits={combos.map((c) => c.system_limits ?? {})}
 									readOnly={readOnly}
-									isEvolution={isEvolution}
+									isEvolution={!startRules}
 									roller={roller}
 									familyAbilities={familyPerks && familyPerks.filter((p) => p.kind === 'locked_power')}
 									familyName={(id) => familyChoices?.families.find((f) => f.id === id)?.name ?? 'A family'}
+									pins={draft.pinnedNotes}
 									trackedCards={draft.approvedSheet ? new Set(draft.approvedSheet.systems.map((e) => e.key)) : undefined}
+									heavenlyGrant={heavenlyGrant}
+									staffOverrides={draft.staffOverrides}
 								/>
 							</div>
 							<div class="pf-step" hidden={current !== 'storage'}>
+								{stepPins('storage')}
 								<Section id="storage" title="Storage">
 									<TextArea
 										label="Storage"
@@ -637,6 +731,7 @@ export default function SubmitForm() {
 					)}
 
 					<div class="pf-step" hidden={current !== 'families'}>
+						{stepPins('families')}
 						<FamiliesSection
 							choices={familyChoices}
 							picked={s.families}
@@ -653,18 +748,7 @@ export default function SubmitForm() {
 							<header class="pf-section-head">
 								<h2 id="pf-review-title">Review & send</h2>
 							</header>
-							<div class="pf-summary">
-								{/^https:\/\//.test(s.appearance.image) && <img src={s.appearance.image} alt="" />}
-								<div>
-									<p class="pf-summary-name">{draft.name || 'Unnamed character'}</p>
-									<p class="pf-help">
-										{oc
-											? `Original character${s.role ? ` · ${rules.roles.find((r) => r.id === s.role)?.label ?? s.role}` : ''}${s.potential.grade ? ` · ${rules.potentials.find((p) => p.id === s.potential.grade)?.label ?? s.potential.grade} Potential` : ''}`
-											: `Canon tryout${draft.canonUniverse ? ` · ${universes.find((u) => u.slug === draft.canonUniverse)?.name ?? draft.canonUniverse}` : ''}`}
-									</p>
-									{familyNames.length > 0 && <p class="pf-help">Joining {familyNames.join(', ')}: the family’s owner or an admin reviews it.</p>}
-								</div>
-							</div>
+							{familyNames.length > 0 && <p class="pf-help">Joining {familyNames.join(', ')}: the family’s owner or an admin reviews it.</p>}
 							{issues.length === 0 ? (
 								<p class="pf-ok">✅ Everything checks out. You’re ready to send.</p>
 							) : (
@@ -690,9 +774,34 @@ export default function SubmitForm() {
 									)}
 								</>
 							)}
+							<h3 class="pf-subhead pf-review-page">Your page</h3>
+							<p class="pf-help">This is how your character’s page looks to reviewers, and on the database once approved.</p>
+							<CharacterArticle
+								{...articleProps}
+								combos={combos}
+								claims={board.filter((b) => effectiveClaims(draft, board).includes(b.id))}
+								perks={familyPerks ?? []}
+								pins={pins}
+							/>
 						</section>
 					</div>
 				</div>
+
+				{current !== 'review' &&
+					(wide ? (
+						<aside class="pf-live" aria-label="Live preview">
+							<p class="pf-live-head">Live preview</p>
+							<CharacterInfobox {...articleProps} />
+						</aside>
+					) : (
+						<details class="pf-live">
+							<summary>
+								<span>👁 Preview</span>
+								<span class="pf-live-name">{draft.name || 'Unnamed'}</span>
+							</summary>
+							<CharacterInfobox {...articleProps} />
+						</details>
+					))}
 			</div>
 
 			<div class="pf-actions" role="region" aria-label="Save and send">

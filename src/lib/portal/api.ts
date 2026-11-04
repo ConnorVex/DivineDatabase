@@ -2,6 +2,8 @@
 import { supabase } from '../supabase.ts';
 import type { Balance, Conversion, Currency, LedgerRow, SkillNode, SkillTree, Unlock } from './points.ts';
 import { normalizeSheet, type Sheet } from './sheet.ts';
+import { normalizePins, type PinnedNote } from './pins.ts';
+import type { StaffOverrides } from './rules.ts';
 
 export type Status = 'draft' | 'pending' | 'approved' | 'needs_correction' | 'denied';
 
@@ -17,6 +19,12 @@ export interface CharacterDraft {
 	approvedSheet: Sheet | null;
 	extraTraitSlots: number;
 	bonusPtp: number;
+	/** Values staff set (players can't change them). */
+	staffOverrides: StaffOverrides;
+	/** Staff marked it as already progressed: no starting limits. */
+	progressed: boolean;
+	/** Notes reviewers pinned to parts of the form. */
+	pinnedNotes: PinnedNote[];
 }
 
 export interface Universe {
@@ -65,6 +73,9 @@ export const newDraft = (): CharacterDraft => ({
 	approvedSheet: null,
 	extraTraitSlots: 0,
 	bonusPtp: 0,
+	staffOverrides: {},
+	progressed: false,
+	pinnedNotes: [],
 });
 
 export async function loadCharacter(id: string): Promise<CharacterDraft> {
@@ -83,6 +94,9 @@ export async function loadCharacter(id: string): Promise<CharacterDraft> {
 		approvedSheet: data.approved_sheet ? normalizeSheet(data.approved_sheet) : null,
 		extraTraitSlots: data.extra_trait_slots ?? 0,
 		bonusPtp: data.bonus_ptp ?? 0,
+		staffOverrides: data.staff_overrides ?? {},
+		progressed: data.progressed ?? false,
+		pinnedNotes: normalizePins(data.pinned_notes),
 	};
 }
 
@@ -387,6 +401,9 @@ export interface AdminCharacter {
 	hidden: boolean;
 	extra_trait_slots: number;
 	bonus_ptp: number;
+	staff_overrides: StaffOverrides;
+	progressed: boolean;
+	pinned_notes: PinnedNote[];
 	requested_claims: string[];
 	sheet: Sheet;
 	approved_sheet: Sheet | null;
@@ -402,13 +419,14 @@ export async function loadAllCharacters(): Promise<AdminCharacter[]> {
 	const { data, error } = await db()
 		.from('characters')
 		.select(
-			'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, bonus_ptp, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at',
+			'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, bonus_ptp, staff_overrides, progressed, pinned_notes, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at',
 		)
 		.order('submitted_at', { ascending: true, nullsFirst: false });
 	fail(error);
 	return (data ?? []).map((c) => ({
 		...c,
 		sheet: normalizeSheet(c.sheet),
+		pinned_notes: normalizePins(c.pinned_notes),
 		approved_sheet: c.approved_sheet ? normalizeSheet(c.approved_sheet) : null,
 	})) as AdminCharacter[];
 }
@@ -425,6 +443,22 @@ export async function setCharacterHidden(id: string, hidden: boolean) {
 
 export async function setExtraTraitSlots(id: string, slots: number) {
 	const { error } = await db().from('characters').update({ extra_trait_slots: slots }).eq('id', id);
+	fail(error);
+}
+
+/** Staff edit: saves the sheet with the values staff set (admins only). */
+export async function staffEditCharacter(id: string, sheet: Sheet, overrides: StaffOverrides) {
+	const { error } = await db().from('characters').update({ sheet, staff_overrides: overrides }).eq('id', id);
+	fail(error);
+}
+
+export async function setPinnedNotes(id: string, notes: PinnedNote[]) {
+	const { error } = await db().rpc('set_pinned_notes', { p_character: id, p_notes: notes });
+	fail(error);
+}
+
+export async function setProgressed(id: string, progressed: boolean) {
+	const { error } = await db().from('characters').update({ progressed }).eq('id', id);
 	fail(error);
 }
 
@@ -540,5 +574,41 @@ export async function removeSkillUnlock(characterId: string, card: string, tree:
 
 export async function convertCustomPoints(characterId: string, card: string, times: number) {
 	const { error } = await db().rpc('convert_custom_points', { p_character: characterId, p_card: card, p_times: times });
+	fail(error);
+}
+
+// ───────────────────────────── Heavenly Restrictions ─────────────────────────────
+
+/** The Heavenly Restriction a character may use: the one it used, else the owner's unused grant. */
+export async function heavenlyGrantFor(ownerId: string, characterId: string | null): Promise<string | null> {
+	const { data, error } = await db().from('heavenly_grants').select('restriction, character_id').eq('profile_id', ownerId);
+	fail(error);
+	const rows = (data ?? []) as { restriction: string; character_id: string | null }[];
+	return (characterId && rows.find((r) => r.character_id === characterId)?.restriction) || rows.find((r) => !r.character_id)?.restriction || null;
+}
+
+export interface HeavenlyGrantRow {
+	id: number;
+	restriction: string;
+	twin_name: string | null;
+	character_name: string | null;
+	used_at: string | null;
+	note: string;
+	granted_at: string;
+}
+
+export async function heavenlyGrantsOf(profileId: string): Promise<HeavenlyGrantRow[]> {
+	const { data, error } = await db().rpc('heavenly_grants_of', { p_profile: profileId });
+	fail(error);
+	return (data ?? []) as HeavenlyGrantRow[];
+}
+
+export async function grantHeavenly(profileId: string, restriction: string, twinId: string | null, note: string) {
+	const { error } = await db().rpc('grant_heavenly', { p_profile: profileId, p_restriction: restriction, p_twin: twinId, p_note: note });
+	fail(error);
+}
+
+export async function revokeHeavenly(grantId: number) {
+	const { error } = await db().rpc('revoke_heavenly', { p_grant: grantId });
 	fail(error);
 }

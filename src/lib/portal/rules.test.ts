@@ -1,7 +1,7 @@
 // Run with: node --test src/lib/portal/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkSheet, power, ptp, recoil, systemLimit, traitSlots, type Issue } from './rules.ts';
+import { cardPath, checkSheet, power, ptp, recoil, systemLimit, traitSlots, type Issue } from './rules.ts';
 import { emptySheet, normalizeSheet, type Sheet } from './sheet.ts';
 
 const ocCtx = { kind: 'oc' as const, name: 'Kaito' };
@@ -390,4 +390,96 @@ test('custom skill trees: problems block sending, new custom rates need permissi
 	const errors = checkSheet(sheet, { kind: 'oc', name: 'X' }).filter((i) => i.level === 'error').map((i) => i.message);
 	assert.ok(errors.some((m) => m.includes('name the custom skill tree')));
 	assert.ok(errors.some((m) => m.includes('circle')));
+});
+
+test('JJK starting stats: past them needs a stat override with a reason', () => {
+	const s = goodSheet();
+	s.systems = [
+		{
+			key: 'j',
+			system: 'jujutsu-kaisen',
+			fields: { start: 'Cursed Technique', ceClass: 'Rare', ceAmount: 500, ceOutput: 'High', ctRange: 'Close', ctPower: 'Grade 2', ceControl: 3 },
+			description: '',
+			skills: [],
+			rollProofs: {},
+		},
+	];
+	s.prioritySystem = 'j';
+	const msgs = (level: string) => checkSheet(s, ocCtx).filter((i) => i.level === level && i.message.includes('Jujutsu')).map((i) => i.message);
+	assert.equal(msgs('error').filter((m) => m.includes('stat override')).length, 3);
+	assert.ok(!msgs('error').some((m) => m.includes('Cursed Technique Range')), 'Close range is a starting choice');
+	s.systems[0].statOverride = { reason: '' };
+	assert.ok(msgs('error').some((m) => m.includes('explain why')));
+	s.systems[0].statOverride = { reason: 'Staff OK in ticket 12' };
+	assert.ok(!msgs('error').some((m) => m.includes('override')));
+	assert.ok(msgs('permission').some((m) => m.includes('Cursed Energy Output High') && m.includes('ticket 12')));
+	// Evolutions aren't held to the starting stats.
+	s.systems[0].statOverride = null;
+	assert.ok(!checkSheet(s, { ...ocCtx, isEvolution: true }).some((i) => i.message.includes('stat override')));
+});
+
+const jjk = (fields: Record<string, unknown>) => ({ key: 'j', system: 'jujutsu-kaisen', fields: { start: 'Cursed Technique', ceClass: 'Rare', ceAmount: 500, ...fields }, description: '', skills: [], rollProofs: {} }) as Sheet['systems'][number];
+
+test('Heavenly Restriction: needs a grant, only JJK and Cyberpunk', () => {
+	const s = goodSheet();
+	s.systems = [jjk({ heavenlyRestriction: 'Cursed Energy' }), { key: 'a', system: 'abilities', fields: {}, description: '', skills: [], rollProofs: {} }];
+	s.prioritySystem = 'j';
+	s.stats = { ...s.stats, phase: 2, strength: '13F', speed: '13F', defense: '13F', stamina: '13F', intelligence: 'Gifted' };
+	const errors = (grant: string | null) => messages(checkSheet(s, { ...ocCtx, heavenlyGrant: grant }), 'error').filter((m) => m.includes('Heavenly'));
+	assert.ok(errors(null).some((m) => m.includes('isn’t granted')));
+	assert.ok(errors('Physical').some((m) => m.includes('you were granted Physical')));
+	assert.ok(errors('Cursed Energy').some((m) => m.includes('Remove Abilities')));
+	s.systems = [s.systems[0], { key: 'c', system: 'cyberpunk', fields: {}, description: '', skills: [], rollProofs: {} }];
+	assert.deepEqual(errors('Cursed Energy').filter((m) => !m.includes('Cursed Energy Utilization')), []);
+});
+
+test('Cursed Energy Restriction: fixed 13F and Gifted, no bonus PTP, free hops to Phase 2, no CE or CT fields', () => {
+	const s = goodSheet();
+	s.systems = [jjk({ heavenlyRestriction: 'Cursed Energy', start: 'Cursed Energy Utilization only' })];
+	s.prioritySystem = 'j';
+	s.stats = { ...s.stats, phase: 2, strength: '13F', speed: '13F', defense: '13F', stamina: '13F', intelligence: 'Gifted' };
+	const base = ptp(s);
+	assert.equal(base.spent, 0);
+	assert.equal(base.bonus, 0);
+	const all = checkSheet(s, { ...ocCtx, heavenlyGrant: 'Cursed Energy' });
+	assert.ok(!all.some((i) => i.level === 'error' && i.message.includes('Heavenly')), 'the fixed stats pass');
+	s.stats.strength = '13E';
+	s.stats.intelligence = 'Genius';
+	const locked = messages(checkSheet(s, { ...ocCtx, heavenlyGrant: 'Cursed Energy' }), 'error');
+	assert.ok(locked.some((m) => m.includes('Strength is set to 13F')));
+	assert.ok(locked.some((m) => m.includes('Intelligence is set to Gifted')));
+	assert.ok(!all.some((i) => i.message.includes('roll your Cursed Energy')), 'no CE to roll');
+	assert.ok(!all.some((i) => i.message.includes('Extension Technique')), 'no CT moves needed');
+});
+
+test('Physical Restriction locks stats at 1G (Power −1); Equilibrium follows the CE class', () => {
+	const s = goodSheet();
+	s.systems = [jjk({ heavenlyRestriction: 'Physical', ceClass: 'Heavenly', ceAmount: 12000, ceControl: 5, ctRange: 'Heavenly' })];
+	s.prioritySystem = 'j';
+	s.stats = { ...s.stats, phase: 0, strength: '1G', speed: '1G', defense: '1G', stamina: '1G' };
+	assert.equal(power(s), -1);
+	const errs = () => messages(checkSheet(s, { ...ocCtx, heavenlyGrant: 'Physical' }), 'error');
+	assert.ok(!errs().some((m) => m.includes('Heavenly') || m.includes('stat override')), errs().join('\n'));
+	s.stats.speed = '1A';
+	assert.ok(errs().some((m) => m.includes('Speed is set to 1G')));
+
+	s.systems = [jjk({ heavenlyRestriction: 'Equilibrium', ceClass: 'Legendary' })];
+	s.stats = { ...s.stats, phase: 1 };
+	assert.ok(errs().some((m) => m.includes('Phase 2')));
+});
+
+test('staff overrides: staff-set stats cost no PTP and skip starting limits; progressed skips them all', () => {
+	const s = goodSheet();
+	s.stats = { ...s.stats, phase: 2, strength: '12A', speed: '12A' };
+	const errs = (extra: object) => messages(checkSheet(s, { ...ocCtx, ...extra }), 'error').concat(messages(checkSheet(s, { ...ocCtx, ...extra }), 'warning'));
+	assert.ok(errs({}).some((m) => m.includes('PTP')), 'too many PTP without staff');
+	const staff = { 'stats.strength': { by: 'Admin' }, 'stats.speed': { by: 'Admin' }, 'stats.phase': { by: 'Admin' } };
+	assert.equal(ptp(s, 0, staff).spent, ptp(goodSheet(), 0).spent - 10, 'only Defense and Stamina still cost PTP');
+	assert.ok(!errs({ staffOverrides: staff }).some((m) => m.includes('PTP') || m.includes('Phase')), errs({ staffOverrides: staff }).join('\n'));
+
+	s.systems = [{ key: 'j', system: 'jujutsu-kaisen', fields: { start: 'Cursed Technique', ceClass: 'Rare', ceAmount: 500, ceOutput: 'High' }, description: '', skills: [], rollProofs: {} }];
+	s.prioritySystem = 'j';
+	assert.ok(errs({ staffOverrides: staff }).some((m) => m.includes('stat override')));
+	assert.ok(!errs({ staffOverrides: { ...staff, [cardPath('j', 'ceOutput')]: {} } }).some((m) => m.includes('stat override')));
+	assert.ok(!errs({ progressed: true }).some((m) => m.includes('PTP') || m.includes('stat override')));
 });

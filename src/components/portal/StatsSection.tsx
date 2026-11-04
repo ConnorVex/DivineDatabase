@@ -1,6 +1,7 @@
 // S.T.S stats as a control panel: stat rows with bars, Calculated Power, Recoil, PTP and a radar.
 import { useId, useState } from 'preact/hooks';
-import { power, ptp, rankInfo, ranks, recoil, rules, statStart } from '../../lib/portal/rules.ts';
+import { power, ptp, rankInfo, ranks, recoil, rules, statStart, type StaffOverrides } from '../../lib/portal/rules.ts';
+import { heavenlyOf, sheetHeavenly } from '../../lib/portal/heavenly.ts';
 import type { Sheet } from '../../lib/portal/sheet.ts';
 import { NumberField, Section, SelectField } from './fields.tsx';
 
@@ -104,21 +105,29 @@ export function StatsSection({
 	readOnly,
 	isEvolution,
 	bonusPtp = 0,
+	staffOverrides = {},
 }: {
 	sheet: Sheet;
 	update: (fn: (s: Sheet) => void) => void;
 	readOnly: boolean;
 	isEvolution: boolean;
 	bonusPtp?: number;
+	/** Values staff set: locked here, and they don't cost PTP. */
+	staffOverrides?: StaffOverrides;
 }) {
+	const staff = (key: string) => Boolean(staffOverrides[`stats.${key}`]);
 	const s = sheet.stats;
 	const p = power(sheet);
 	const r = recoil(sheet);
-	const budget = ptp(sheet, bonusPtp);
+	const budget = ptp(sheet, bonusPtp, staffOverrides);
 	const top = phaseTopValue(s.phase);
 	const overBudget = !isEvolution && budget.roleKnown && budget.spent > budget.available;
 	const intelIndex = Math.max(0, INTEL.findIndex((i) => i.value === s.intelligence));
 	const phase = rules.stats.phases.find((x) => x.phase === s.phase);
+	// A Heavenly Restriction can set the physical stats and the phase.
+	const heavenly = isEvolution ? null : sheetHeavenly(sheet);
+	const statsLocked = Boolean(heavenly?.lockStats && heavenly.baseRank);
+	const statOptions = statsLocked && !rankOptions.some((o) => o.value === heavenly!.baseRank) ? [{ value: heavenly!.baseRank!, label: `${heavenly!.baseRank} · Heavenly` }, ...rankOptions] : rankOptions;
 
 	const axes = [
 		...STATS.map((stat) => {
@@ -142,10 +151,18 @@ export function StatsSection({
 								key={stat.key}
 								label={stat.label}
 								value={s[stat.key]}
-								options={rankOptions}
-								fill={info ? info.value / top : 0}
-								detail={info ? `${stat.describe(info)}${above ? ' · ⚠ above your Phase' : ''}` : 'Pick a rank'}
-								disabled={readOnly}
+								options={statOptions}
+								fill={info ? Math.max(0, info.value) / top : 0}
+								detail={
+									staff(stat.key)
+										? 'Set by staff'
+										: statsLocked
+										? `Set by the ${heavenlyOf(sheet)} Heavenly Restriction`
+										: info
+											? `${stat.describe(info)}${above ? ' · ⚠ above your Phase' : ''}`
+											: 'Pick a rank'
+								}
+								disabled={readOnly || statsLocked || staff(stat.key)}
 								onChange={(v) => update((x) => void (x.stats[stat.key] = v))}
 							/>
 						);
@@ -158,7 +175,7 @@ export function StatsSection({
 							label: `${i.value} (${i.ptp > 0 ? `−${i.ptp}` : i.ptp < 0 ? `+${-i.ptp}` : '0'} PTP)${'permission' in i && i.permission ? ' 🔑' : ''}`,
 						}))}
 						fill={intelIndex / (INTEL.length - 1)}
-						disabled={readOnly}
+						disabled={readOnly || Boolean(heavenly?.lockIntelligence) || staff('intelligence')}
 						onChange={(v) => update((x) => void (x.stats.intelligence = v))}
 					/>
 				</div>
@@ -199,7 +216,8 @@ export function StatsSection({
 				label="Phase"
 				required
 				value={String(s.phase)}
-				disabled={readOnly}
+				disabled={readOnly || Boolean(heavenly?.lockPhase) || staff('phase')}
+				help={heavenly?.phase !== undefined ? `Your Heavenly Restriction puts you in Phase ${heavenly.phase}${heavenly.lockPhase ? '' : '; hops up to it are free'}.` : undefined}
 				onChange={(v) => update((x) => void (x.stats.phase = Number(v) || 0))}
 				options={rules.stats.phases.map((ph) => ({ value: String(ph.phase), label: `${ph.label} (Tiers ${ph.minTier}–${ph.maxTier})` }))}
 			/>
@@ -207,7 +225,7 @@ export function StatsSection({
 				label="Physical meter"
 				min={0}
 				value={s.physicalMeter}
-				disabled={readOnly}
+				disabled={readOnly || staff('physicalMeter')}
 				onInput={(v) => update((x) => void (x.stats.physicalMeter = v))}
 				help="Physical Points toward your next 15 PTP."
 			/>

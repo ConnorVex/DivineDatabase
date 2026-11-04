@@ -6,6 +6,10 @@ import {
 	adminSetRoll,
 	adminVoidRoll,
 	cancelOverride,
+	grantHeavenly,
+	heavenlyGrantsOf,
+	revokeHeavenly,
+	type HeavenlyGrantRow,
 	createOverrideFor,
 	listPlayers,
 	loadPlayerRolls,
@@ -16,6 +20,7 @@ import {
 	type RollKind,
 	type RollRow,
 } from '../../lib/portal/api.ts';
+import { HEAVENLY } from '../../lib/portal/heavenly.ts';
 import { rules } from '../../lib/portal/rules.ts';
 import { startPortalTheme } from '../../lib/portal/theme.ts';
 import { logIn, watchPlayer, type Player } from '../../lib/supabase.ts';
@@ -146,7 +151,103 @@ function RollLine(props: {
 	);
 }
 
-function PlayerDetail({ player }: { player: PlayerSummary }) {
+/** Grant a Heavenly Restriction to the account; the next character approved with it uses it up. */
+function HeavenlyPanel({ player, players }: { player: PlayerSummary; players: PlayerSummary[] }) {
+	const [grants, setGrants] = useState<HeavenlyGrantRow[] | null>(null);
+	const [error, setError] = useState('');
+	const [busy, setBusy] = useState(false);
+	const [kind, setKind] = useState('');
+	const [twin, setTwin] = useState('');
+	const [note, setNote] = useState('');
+	const isTwin = kind === 'Cursed Twin' || kind === 'Physical Twin';
+	const reload = () => heavenlyGrantsOf(player.id).then(setGrants, (e) => setError(messageOf(e)));
+	useEffect(() => {
+		setGrants(null);
+		setError('');
+		setKind('');
+		setTwin('');
+		reload();
+	}, [player.id]);
+	async function act(fn: () => Promise<unknown>) {
+		setBusy(true);
+		setError('');
+		try {
+			await fn();
+			await reload();
+		} catch (e) {
+			setError(messageOf(e));
+		} finally {
+			setBusy(false);
+		}
+	}
+	const open = grants?.find((g) => !g.used_at);
+	return (
+		<div class="hud-panel">
+			<h3 class="hud-panel-title">Heavenly Restriction</h3>
+			{error && <p class="portal-error">{error}</p>}
+			{!grants ? (
+				<p class="portal-status">Loading…</p>
+			) : (
+				<>
+					{grants.length === 0 && <p class="pf-empty">None granted.</p>}
+					{grants.map((g) => (
+						<div class="ov-code" key={g.id}>
+							<strong>⛩ {g.restriction}</strong>
+							<span class="pf-help">
+								{g.twin_name ? `twin: ${g.twin_name} · ` : ''}
+								{g.used_at ? `used by ${g.character_name ?? 'a deleted character'}` : 'unused: their next character gets it'} · granted {when(g.granted_at)}
+								{g.note ? ` · ${g.note}` : ''}
+							</span>
+							<button type="button" class="pf-button subtle" disabled={busy} onClick={() => act(() => revokeHeavenly(g.id))}>
+								Revoke
+							</button>
+						</div>
+					))}
+					{!open && (
+						<div class="pf-grid">
+							<SelectField
+								label="Grant"
+								value={kind}
+								placeholder="Pick a restriction…"
+								options={HEAVENLY.map((h) => ({ value: h }))}
+								onChange={setKind}
+								help={isTwin ? 'Twins are granted to two players at once; the other player gets the other twin.' : undefined}
+							/>
+							{isTwin && (
+								<SelectField
+									label="The other twin"
+									required
+									value={twin}
+									placeholder="Pick a player…"
+									options={players.filter((p) => p.id !== player.id).map((p) => ({ value: p.id, label: p.display_name }))}
+									onChange={setTwin}
+								/>
+							)}
+							<TextField label="Note (optional)" value={note} onInput={setNote} placeholder="e.g. Tryout won in #events" />
+							<button
+								type="button"
+								class="pf-button primary"
+								disabled={busy || !kind || (isTwin && !twin)}
+								onClick={() =>
+									act(async () => {
+										await grantHeavenly(player.id, kind, isTwin ? twin : null, note);
+										setKind('');
+										setTwin('');
+										setNote('');
+									})
+								}
+							>
+								Grant {kind || 'restriction'}
+							</button>
+						</div>
+					)}
+				</>
+			)}
+		</div>
+	);
+}
+
+function PlayerDetail({ player, players }: { player: PlayerSummary; players: PlayerSummary[] }) {
 	const [info, setInfo] = useState<PlayerRollInfo | null>(null);
 	const [error, setError] = useState('');
 	const [busy, setBusy] = useState(false);
@@ -265,6 +366,8 @@ function PlayerDetail({ player }: { player: PlayerSummary }) {
 						)}
 					</div>
 
+					<HeavenlyPanel player={player} players={players} />
+
 					<div class="hud-panel">
 						<h3 class="hud-panel-title">History</h3>
 						{info.events.length === 0 ? (
@@ -340,7 +443,7 @@ export default function OverridePanel() {
 							{shown.length === 0 && <li class="pf-empty">No players found. Players appear here after they log in once.</li>}
 						</ul>
 					</div>
-					{selected ? <PlayerDetail player={selected} /> : <p class="pf-empty ov-pick">Pick a player to see their rolls.</p>}
+					{selected ? <PlayerDetail player={selected} players={players} /> : <p class="pf-empty ov-pick">Pick a player to see their rolls.</p>}
 				</div>
 			</Section>
 		</div>

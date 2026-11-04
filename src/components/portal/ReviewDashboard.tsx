@@ -5,6 +5,8 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
 	adminDeleteCharacter,
+	setProgressed,
+	heavenlyGrantFor,
 	discoverCombos,
 	listPlayers,
 	loadAllCharacters,
@@ -12,6 +14,7 @@ import {
 	loadEvolutions,
 	loadHeldClaims,
 	loadReviewNotes,
+	setPinnedNotes,
 	loadUniverses,
 	reviewCharacter,
 	reviewEvolution,
@@ -28,21 +31,20 @@ import {
 	type Universe,
 } from '../../lib/portal/api.ts';
 import { sheetChanges } from '../../lib/portal/diff.ts';
-import { CUSTOM, customTreeNodes, treeCurrencyLabel } from '../../lib/portal/customTree.ts';
-import { SkillTreeView } from './SkillTreeView.tsx';
+import { StaffEditor } from './StaffEditor.tsx';
+import { CharacterArticle } from './CharacterArticle.tsx';
+import { PinnedNotesEditor, type PinRequest } from './PinnedNotes.tsx';
+import { STEP_OF_SECTION, type PinnedNote } from '../../lib/portal/pins.ts';
 import { PointsPanel } from './PointsPanel.tsx';
 import { ChangeList } from './ChangeList.tsx';
 import { ReviewFamily, ReviewRequest } from '../families/FamilyAdmin.tsx';
 import { EquipmentReview } from './EquipmentReview.tsx';
 import { loadCraftingItems, loadEquipmentQueue, type CraftingItem, type EquipmentQueueItem } from '../../lib/portal/equipment.ts';
-import { PERK_ACCESS, familyHref, loadFamilies, loadMyFamily, loadPerkQueue, type Family, type FamilyCard, type PerkRequest } from '../../lib/families/api.ts';
+import { familyHref, loadFamilies, loadMyFamily, loadPerkQueue, type Family, type FamilyCard, type PerkRequest } from '../../lib/families/api.ts';
 import { loadFamilyChoices, loadLinkablePerks, type LinkablePerk } from '../../lib/portal/families.ts';
-import { PROOF_LABEL, familyCardChanged } from '../../lib/portal/sheet.ts';
-import { checkSheet, power, ptp, rankInfo, recoil, rules, traits, traitSlots, type Issue } from '../../lib/portal/rules.ts';
-import { systemById, visibleFields } from '../../lib/portal/systems.ts';
+import { checkSheet, type Issue } from '../../lib/portal/rules.ts';
 import { startPortalTheme, themeForRole } from '../../lib/portal/theme.ts';
 import { logIn, watchPlayer, type Player } from '../../lib/supabase.ts';
-import { richText } from './TraitsSection.tsx';
 
 const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const messageOf = (e: unknown) => (e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e));
@@ -52,7 +54,6 @@ const ago = (iso: string | null) => {
 	const h = (Date.now() - new Date(iso).getTime()) / 36e5;
 	return h < 1 ? 'just now' : h < 48 ? `${Math.floor(h)}h ago` : `${Math.floor(h / 24)} days ago`;
 };
-const traitByName = new Map(traits.map((t) => [t.name, t]));
 
 const TABS: { id: string; label: string; match: (c: AdminCharacter) => boolean }[] = [
 	{ id: 'pending', label: 'In review', match: (c) => c.status === 'pending' },
@@ -98,12 +99,22 @@ const Row = ({ label, value }: { label: string; value: ComponentChildren }) =>
 		</div>
 	);
 
-const Text = ({ value }: { value: string }) => (value?.trim() ? <p class="rv-text">{value}</p> : <p class="pf-empty">Empty.</p>);
 
 type PermissionDecision = 'approved' | 'denied';
 
 /** Issues by level. With `onDecide`, each “needs permission” item gets Approve / Deny buttons. */
-function IssueList({ issues, decisions, onDecide }: { issues: Issue[]; decisions?: Record<string, PermissionDecision>; onDecide?: (message: string, d: PermissionDecision | null) => void }) {
+function IssueList({
+	issues,
+	decisions,
+	onDecide,
+	onPin,
+}: {
+	issues: Issue[];
+	decisions?: Record<string, PermissionDecision>;
+	onDecide?: (message: string, d: PermissionDecision | null) => void;
+	/** Pin this check as a note on its part of the form. */
+	onPin?: (issue: Issue) => void;
+}) {
 	if (issues.length === 0) return <p class="pf-ok">✅ No problems found.</p>;
 	const groups = [
 		['error', '⛔ Breaks the rules'],
@@ -125,6 +136,11 @@ function IssueList({ issues, decisions, onDecide }: { issues: Issue[]; decisions
 								return (
 									<li key={n} class={d ? `rv-perm ${d}` : undefined}>
 										<span class="pf-issue-section">{i.section}</span> {i.message}
+										{onPin && STEP_OF_SECTION[i.section] && (
+											<button type="button" class="pin-add" title="Pin this as a note for the player" aria-label="Pin this as a note for the player" onClick={() => onPin(i)}>
+												📌
+											</button>
+										)}
 										{level === 'permission' && onDecide && (
 											<span class="rv-perm-buttons">
 												{(['approved', 'denied'] as const).map((choice) => (
@@ -151,264 +167,6 @@ function IssueList({ issues, decisions, onDecide }: { issues: Issue[]; decisions
 	);
 }
 
-/** "Linked: Brando Clan · Iron Will", with a warning when the link no longer matches the family's perk. */
-function FamilyLinkNote(props: { familyId?: string; title: string; perk?: LinkablePerk; changed?: boolean; proof?: string; families: FamilyCard[] }) {
-	const family = props.families.find((f) => f.id === props.familyId)?.name ?? 'a family';
-	const needs = props.perk && PROOF_LABEL[props.perk.access];
-	return (
-		<p class={`rv-link${!props.perk || props.changed ? ' bad' : ''}`}>
-			<strong>Linked:</strong> {family} · {props.perk?.title ?? props.title}
-			{props.perk && ` · ${PERK_ACCESS.find((a) => a.id === props.perk!.access)?.label}`}
-			{!props.perk && ' · no longer offered by the family'}
-			{props.changed && ' · changed by the family since it was linked'}
-			{needs &&
-				(props.proof ? (
-					<>
-						{' · '}
-						<a href={props.proof} target="_blank" rel="noreferrer noopener">
-							{needs.toLowerCase().startsWith('roll') ? 'roll' : 'proof'}
-						</a>
-					</>
-				) : (
-					` · no ${needs.charAt(0).toLowerCase() + needs.slice(1)}`
-				))}
-		</p>
-	);
-}
-
-function SheetView({ c, combos, board, universes, perks, families }: { c: AdminCharacter; combos: Combo[]; board: ClaimRow[]; universes: Universe[]; perks: LinkablePerk[]; families: FamilyCard[] }) {
-	const perkById = new Map(perks.map((p) => [p.id, p]));
-	const s = c.sheet;
-	const oc = c.kind === 'oc';
-	const budget = ptp(s, c.bonus_ptp);
-	const r = recoil(s);
-	const slots = traitSlots(s, c.extra_trait_slots);
-	const claims = board.filter((b) => c.requested_claims.includes(b.id));
-	return (
-		<div class="rv-sheet">
-			<Block title="Basics">
-				<Row label="Type" value={oc ? 'Original character' : `Canon tryout · ${universes.find((u) => u.slug === c.canon_universe)?.name ?? c.canon_universe}`} />
-				{oc && <Row label="Role" value={rules.roles.find((x) => x.id === s.role)?.label ?? '—'} />}
-				<Row label="Race" value={s.race} />
-				<Row label="Age" value={s.age} />
-				<Row label="Pronouns" value={s.pronouns} />
-			</Block>
-
-			<Block title="Appearance">
-				{/^https:\/\//.test(s.appearance.image) && <img class="pf-preview" src={s.appearance.image} alt={`Picture of ${c.name}`} />}
-				{oc && <Text value={s.appearance.description} />}
-				{s.appearance.extraImages.trim() && (
-					<ul class="rv-links">
-						{s.appearance.extraImages
-							.split('\n')
-							.filter((l) => /^https?:\/\//.test(l.trim()))
-							.map((l) => (
-								<li key={l}>
-									<a href={l.trim()} target="_blank" rel="noreferrer noopener">
-										{l.trim()}
-									</a>
-								</li>
-							))}
-					</ul>
-				)}
-			</Block>
-
-			{oc ? (
-				<Block title="Lore">
-					{(['backstory', 'personality', 'likes', 'dislikes', 'relations'] as const).map((k) => (
-						<div key={k} class="rv-field">
-							<span class="pf-label">{k}</span>
-							<Text value={s.lore[k]} />
-						</div>
-					))}
-				</Block>
-			) : (
-				<Block title="Tryout">
-					<div class="rv-field">
-						<span class="pf-label">How they’ll portray them</span>
-						<Text value={s.canon.portrayal} />
-					</div>
-					<div class="rv-field">
-						<span class="pf-label">Roleplay sample</span>
-						<Text value={s.canon.sample} />
-					</div>
-				</Block>
-			)}
-
-			{oc && (
-				<>
-					<Block title="S.T.S stats">
-						<div class="rv-stats">
-							{(['strength', 'speed', 'defense', 'stamina'] as const).map((k) => {
-								const info = rankInfo(s.stats[k]);
-								return <Row key={k} label={k} value={info ? `${info.rank} (${info.value})` : '—'} />;
-							})}
-							<Row label="Intelligence" value={s.stats.intelligence} />
-							<Row label="Phase" value={rules.stats.phases.find((p) => p.phase === s.stats.phase)?.label} />
-							<Row label="Power" value={power(s) ?? '—'} />
-							<Row label="Recoil" value={r ? `Lv ${r.level} (${r.high} ${r.gap} above ${r.low})` : 'None'} />
-							<Row label="Starting PTP" value={`${budget.spent} spent of ${budget.available}${budget.granted ? ` (${budget.granted} from staff)` : ''}`} />
-							<Row label="Physical meter" value={s.stats.physicalMeter} />
-						</div>
-					</Block>
-
-					<Block title={`Potential & traits · ${slots.used}/${slots.total} slots`}>
-						<Row
-							label="Potential"
-							value={
-								s.potential.grade
-									? `${rules.potentials.find((p) => p.id === s.potential.grade)?.label ?? s.potential.grade}${s.potential.roll ? ` (rolled ${s.potential.roll})` : ' (set by admin)'}`
-									: 'Not rolled'
-							}
-						/>
-						<ul class="rv-traits">
-							{s.traits.map((t) => {
-								const info = traitByName.get(t.name);
-								return (
-									<li key={t.name}>
-										<span class={`trait-chip small rarity-${info?.rarity ?? 'unknown'}`}>
-											{info?.sticky && '📌 '}
-											{t.name}
-										</span>
-										<span class="trait-meta">
-											{info ? `${info.rarity} · ${info.category} · ${info.effect}` : 'custom'}
-											{t.family ? ' · family' : ''}
-										</span>
-										{t.family && t.perkId ? (
-											<FamilyLinkNote familyId={t.familyId} title={t.name} perk={perkById.get(t.perkId)} proof={t.rollProof} families={families} />
-										) : null}
-									</li>
-								);
-							})}
-						</ul>
-						{combos.map((k) => (
-							<details key={k.name} class="rv-combo">
-								<summary>✨ {k.name}</summary>
-								<div dangerouslySetInnerHTML={richText(k.perks)} />
-							</details>
-						))}
-					</Block>
-
-					<Block title="Combat">
-						<Text value={s.combat.info} />
-						{s.combat.styles.map((st, i) => (
-							<Row key={i} label="Fighting style" value={st.name} />
-						))}
-					</Block>
-
-					{s.systems.map((e) => {
-						const def = systemById.get(e.system);
-						return (
-							<Block key={e.key} title={`${def?.label ?? e.system}${s.systems.length > 1 && s.prioritySystem === e.key ? ' · priority' : ''}`}>
-								{e.familyLink && (
-									<FamilyLinkNote
-										familyId={e.familyLink.familyId}
-										title={e.familyLink.title}
-										perk={perkById.get(e.familyLink.perkId)}
-										changed={(() => {
-											const ability = perkById.get(e.familyLink.perkId)?.details.ability;
-											return Boolean(ability && familyCardChanged(e, ability));
-										})()}
-										proof={e.familyLink.proof}
-										families={families}
-									/>
-								)}
-								<div class="rv-stats">
-									{def &&
-										visibleFields(def, e.fields).map((f) => {
-											const v = e.fields[f.key];
-											const text = Array.isArray(v)
-												? f.type === 'list'
-													? `${v.length} ${f.label.toLowerCase()}`
-													: (v as string[]).join(', ')
-												: v;
-											return <Row key={f.key} label={f.label} value={text === undefined ? '' : String(text)} />;
-										})}
-									{e.fields.ceLevel && <Row label="CE level" value={String(e.fields.ceLevel)} />}
-								</div>
-								{def?.fields
-									.filter((f) => f.type === 'list')
-									.map((f) =>
-										((e.fields[f.key] as Record<string, string>[]) ?? []).map((row, i) => (
-											<p key={`${f.key}${i}`} class="rv-text">
-												<strong>
-													{f.label} #{i + 1}:
-												</strong>{' '}
-												{(f.columns ?? []).map((col) => `${col.label}: ${row[col.key] || '—'}`).join(' · ')}
-											</p>
-										)),
-									)}
-								{e.description && <Text value={e.description} />}
-								{e.skills.length > 0 && (
-									<ul class="rv-skills">
-										{e.skills.map((sk, i) => (
-											<li key={i}>
-												<strong>{sk.name || 'Unnamed'}</strong> <span class="trait-meta">{sk.type}</span>
-												{sk.mastery && <span class="trait-meta"> · {sk.mastery}</span>}
-												{sk.effect && <p>{sk.effect}</p>}
-											</li>
-										))}
-									</ul>
-								)}
-								{e.customTree && (
-									<details class="pts-tree rv-custom-tree">
-										<summary>
-											Custom tree: {e.customTree.name || 'Unnamed'}
-											<span class="pts-tree-count">
-												{e.customTree.nodes.length} skills · costs {treeCurrencyLabel(e.customTree)}
-											</span>
-										</summary>
-										{e.customTree.currency === CUSTOM && (
-											<p class="pf-help rv-custom-rates">
-												{e.customTree.custom.name} ({e.customTree.custom.code}): +{e.customTree.custom.gain} per session
-												{e.customTree.custom.convertFrom && ` · ${e.customTree.custom.convertFromAmount} ${e.customTree.custom.convertFrom} → ${e.customTree.custom.convertToAmount} ${e.customTree.custom.code}`}
-											</p>
-										)}
-										<SkillTreeView
-											tree={{ id: 'custom', system: e.system, label: e.customTree.name, show_if: null, sort: 0 }}
-											nodes={customTreeNodes(e.customTree)}
-											currencyName={() => treeCurrencyLabel(e.customTree!)}
-											unlocks={[]}
-											balance={() => 0}
-											tracked={() => true}
-											admin={false}
-											busy={false}
-											preview
-											onUnlock={async () => false}
-											onRemove={async () => false}
-										/>
-									</details>
-								)}
-								{claims
-									.filter((b) => b.universe === def?.universe)
-									.map((b) => (
-										<Row key={b.id} label="Canon claim" value={`${b.name} (${b.category || 'canon'} · ${b.max_users === null ? 'no limit' : `${b.used_slots}/${b.max_users}`})`} />
-									))}
-							</Block>
-						);
-					})}
-
-					{(s.storage.trim() || s.evolutions.length > 0) && (
-						<Block title="Storage & evolution log">
-							{s.storage.trim() && <Text value={s.storage} />}
-							{s.evolutions.map((ev, i) => (
-								<p key={i} class="rv-text">
-									<strong>{ev.date || 'Undated'}:</strong> {ev.summary} {ev.earned && `(${ev.earned})`}{' '}
-									{ev.link && (
-										<a href={ev.link} target="_blank" rel="noreferrer noopener">
-											RP link
-										</a>
-									)}
-								</p>
-							))}
-						</Block>
-					)}
-				</>
-			)}
-		</div>
-	);
-}
-
 function Detail(props: {
 	c: AdminCharacter;
 	owner?: PlayerSummary;
@@ -426,6 +184,7 @@ function Detail(props: {
 	const [notes, setNotes] = useState<ReviewNote[]>([]);
 	const [evolutions, setEvolutions] = useState<EvolutionRequest[]>([]);
 	const [perks, setPerks] = useState<LinkablePerk[] | null>(null);
+	const [heavenlyGrant, setHeavenlyGrant] = useState<string | null | undefined>(undefined);
 	const [memberOf, setMemberOf] = useState<string[]>([]);
 	const [note, setNote] = useState('');
 	const [permissions, setPermissions] = useState<Record<string, PermissionDecision>>({});
@@ -435,8 +194,12 @@ function Detail(props: {
 	const [slots, setSlots] = useState(String(c.extra_trait_slots));
 	const [bonus, setBonus] = useState(String(c.bonus_ptp));
 	const [confirmDelete, setConfirmDelete] = useState(false);
+	const [pins, setPins] = useState<PinnedNote[]>(c.pinned_notes);
+	const [pinRequest, setPinRequest] = useState<PinRequest | null>(null);
 
+	useEffect(() => setPins(c.pinned_notes), [c.id, c.updated_at]);
 	useEffect(() => {
+		setPinRequest(null);
 		setNote('');
 		setConfirm(null);
 		setConfirmDelete(false);
@@ -452,6 +215,9 @@ function Detail(props: {
 				setPerks(await loadLinkablePerks([...new Set([...c.sheet.families, ...ids])]));
 			})
 			.catch(() => setPerks([]));
+		// The Heavenly Restriction this character may use (left unknown if it can't be loaded).
+		setHeavenlyGrant(undefined);
+		heavenlyGrantFor(c.owner_id, c.id).then(setHeavenlyGrant, () => setHeavenlyGrant(undefined));
 		Promise.all([discoverCombos(c.id), loadHeldClaims(c.id), loadReviewNotes([c.id]), c.approved_at ? loadEvolutions([c.id]).catch(() => []) : Promise.resolve([])]).then(
 			([k, h, n, e]) => {
 				setCombos(k);
@@ -482,8 +248,11 @@ function Detail(props: {
 				comboSystemLimits: combos.map((k) => k.system_limits ?? {}),
 				families: [...c.sheet.families, ...memberOf],
 				familyPerks: perks ? new Map(perks.map((p) => [p.id, p])) : undefined,
+				heavenlyGrant,
+				staffOverrides: c.staff_overrides,
+				progressed: c.progressed,
 			}),
-		[c, held, combos, props.board, perks, memberOf],
+		[c, held, combos, props.board, perks, memberOf, heavenlyGrant],
 	);
 	const changes = useMemo(() => (c.approved_sheet ? sheetChanges(c.approved_sheet, c.sheet) : []), [c]);
 	const errors = issues.filter((i) => i.level === 'error').length;
@@ -491,6 +260,9 @@ function Detail(props: {
 	const decidable = props.admin
 		? c.status === 'pending' || c.status === 'needs_correction' || c.status === 'denied' || c.status === 'draft'
 		: c.status === 'pending' || c.status === 'needs_correction';
+	const canPin = decidable && c.status !== 'approved' && c.status !== 'denied';
+	const askPin = (step: string, target?: string, text?: string) => setPinRequest({ step, target, text, nonce: Date.now() });
+	const unpin = canPin ? (id: string) => setPinnedNotes(c.id, pins.filter((n) => n.id !== id)).then(() => setPins((p) => p.filter((n) => n.id !== id)), (e) => setError(messageOf(e))) : undefined;
 	const picked = c.sheet.families.map((id) => props.families.find((f) => f.id === id)).filter((f): f is FamilyCard => Boolean(f));
 
 	// Permission decisions go into the review note, so the player sees them in Discord and their history.
@@ -567,190 +339,233 @@ function Detail(props: {
 			</header>
 			{error && <p class="portal-error">{error}</p>}
 
-			<Block title="Checks">
-				<IssueList
-					issues={issues}
-					decisions={decidable ? permissions : undefined}
-					onDecide={decidable ? (message, d) => setPermissions((p) => {
-						const next = { ...p };
-						if (d) next[message] = d;
-						else delete next[message];
-						return next;
-					}) : undefined}
-				/>
-			</Block>
-
-			{picked.length > 0 && (
-				<Block title="Families">
-					<p class="pf-help">
-						{isEvolution
-							? 'Picked when the character was first sent.'
-							: 'Approving adds the character to these families. Families whose owner didn’t approve it get a join request instead.'}
-					</p>
-					<ul class="rv-families">
-						{picked.map((f) => (
-							<li key={f.id} style={{ '--fam': f.colour }}>
-								<a href={familyHref(f.slug)}>{f.name}</a>
-								<span class="pf-help">{f.ownerName ? `owner: ${f.ownerName}` : 'no owner yet'}</span>
-							</li>
-						))}
-					</ul>
-				</Block>
-			)}
-
-			{openEvolution && (
-				<Block title="Evolution submission">
-					<p class="pf-help">Sent {when(openEvolution.submitted_at)}. Approving adds this to the character’s evolution log.</p>
-					<Row label="What evolved" value={openEvolution.summary} />
-					{openEvolution.earned && <Row label="How it was earned" value={openEvolution.earned} />}
-					{openEvolution.links && (
-						<p class="rv-text">
-							{openEvolution.links
-								.split(/\s+/)
-								.filter((l) => /^https:\/\//.test(l))
-								.map((l, i) => (
-									<a key={l} href={l} target="_blank" rel="noreferrer noopener">
-										{i === 0 ? 'Proof ↗' : ` · proof ${i + 1} ↗`}
-									</a>
-								))}
-						</p>
-					)}
-				</Block>
-			)}
-
-			{isEvolution && c.status !== 'approved' && (
-				<Block title={`What changed since approval (${changes.length})`}>
-					<ChangeList before={c.approved_sheet!} after={c.sheet} />
-				</Block>
-			)}
-
-			<SheetView c={c} combos={combos} board={props.board} universes={props.universes} perks={perks ?? []} families={props.families} />
-
-			{c.approved_sheet && (
-				<Block title="Upgrade points">
-					<PointsPanel characterId={c.id} sheet={c.approved_sheet} admin={props.admin} />
-				</Block>
-			)}
-
-			{props.admin && (
-				<Block title="Settings">
-					<div class="ov-row">
-						<label class="pf-check">
-							<input type="checkbox" checked={c.hidden} onChange={(e) => change(() => setCharacterHidden(c.id, e.currentTarget.checked))} />
-							Hide from the gallery
-						</label>
-						{c.kind === 'oc' && (
-							<div class="pf-field rv-slots">
-								<label class="pf-label" for="rv-slots">
-									Extra trait slots
-								</label>
-								<input
-									id="rv-slots"
-									type="number"
-									min={0}
-									max={20}
-									value={slots}
-									onInput={(e) => setSlots(e.currentTarget.value)}
-									onBlur={() => Number(slots) !== c.extra_trait_slots && change(() => setExtraTraitSlots(c.id, Math.max(0, Math.min(20, Number(slots) || 0))))}
-								/>
-							</div>
-						)}
-						{c.kind === 'oc' && (
-							<div class="pf-field rv-slots">
-								<label class="pf-label" for="rv-bonus-ptp">
-									Bonus PTP
-								</label>
-								<input
-									id="rv-bonus-ptp"
-									type="number"
-									min={0}
-									max={200}
-									value={bonus}
-									onInput={(e) => setBonus(e.currentTarget.value)}
-									onBlur={() => Number(bonus) !== c.bonus_ptp && change(() => setBonusPtp(c.id, Math.max(0, Math.min(200, Math.round(Number(bonus)) || 0))))}
-								/>
-							</div>
-						)}
-					</div>
-					<div class="rv-danger">
-						{confirmDelete ? (
-							<>
-								<p role="alert">
-									Delete <strong>{c.name}</strong> for good? Its review history goes too
-									{heldNames.length > 0 ? `, and its canon claims are freed: ${heldNames.join(', ')}` : ''}. The player’s rolls stay in their history.
-								</p>
-								<div class="rv-buttons">
-									<button type="button" class="pf-button danger" disabled={busy} onClick={remove}>
-										Yes, delete
-									</button>
-									<button type="button" class="pf-button subtle" onClick={() => setConfirmDelete(false)}>
-										Cancel
-									</button>
-								</div>
-							</>
-						) : (
-							<button type="button" class="pf-button subtle" onClick={() => setConfirmDelete(true)}>
-								Delete character…
-							</button>
-						)}
-					</div>
-				</Block>
-			)}
-
-			{notes.length > 0 && (
-				<Block title="Review history">
-					<ul class="ov-events">
-						{notes.map((n) => (
-							<li key={n.id}>
-								<span class="pf-issue-section">{when(n.created_at)}</span> {n.outcome ? STATUS_LABEL[n.outcome] : 'Note'}
-								{n.body && `: ${n.body}`}
-							</li>
-						))}
-					</ul>
-				</Block>
-			)}
-
-			{decidable && (
-				<div class="rv-decide">
-					<div class="pf-field">
-						<label class="pf-label" for="rv-note">
-							Note to the player
-						</label>
-						<textarea
-							id="rv-note"
-							rows={3}
-							value={note}
-							onInput={(e) => setNote(e.currentTarget.value)}
-							placeholder="What to fix, or a welcome message. The player sees this on My Stuff."
+			<div class="rv-grid">
+				<div class="rv-side rv-side-top">
+					<Block title="Checks">
+						<IssueList
+							issues={issues}
+							decisions={decidable ? permissions : undefined}
+							onDecide={decidable ? (message, d) => setPermissions((p) => {
+								const next = { ...p };
+								if (d) next[message] = d;
+								else delete next[message];
+								return next;
+							}) : undefined}
+							onPin={canPin ? (i) => askPin(STEP_OF_SECTION[i.section], undefined, i.message) : undefined}
 						/>
-					</div>
-					{permissionNote() && (
-						<p class="pf-help rv-perm-note">
-							Added to the note: <span>{permissionNote()}</span>
-						</p>
+					</Block>
+
+					{canPin && (
+						<Block title={`Pinned notes${pins.length ? ` (${pins.length})` : ''}`}>
+							<PinnedNotesEditor characterId={c.id} kind={c.kind} sheet={c.sheet} notes={pins} request={pinRequest} onSaved={setPins} />
+						</Block>
 					)}
-					{confirm && (
-						<p class="roll-note bad" role="alert">
-							{confirm === 'denied' && openEvolution
-								? 'Denying the evolution throws these changes away; the character goes back to its last approved version. Click again to confirm.'
-								: confirm === 'denied'
-								? 'Denying is final for the player: the character is locked and they must make a new one. Click Deny again to confirm.'
-								: `${[errors > 0 ? `This sheet still has ${errors} rule problem${errors === 1 ? '' : 's'}` : '', denied ? 'you denied something that needs permission' : ''].filter(Boolean).join(', and ').replace(/^y/, 'Y')}. Click Approve again to approve anyway, or Send back so the player can change it.`}
-						</p>
+
+					{props.admin && !c.approved_at && c.kind === 'oc' && (
+						<Block title="Staff edit">
+							<StaffEditor c={c} onSaved={props.onChanged} />
+						</Block>
 					)}
-					<div class="rv-buttons">
-						<button type="button" class="pf-button primary" disabled={busy} onClick={() => decide('approved')}>
-							{confirm === 'approved' ? 'Approve anyway' : openEvolution ? 'Approve evolution' : 'Approve'}
-						</button>
-						<button type="button" class="pf-button" disabled={busy || c.status === 'needs_correction'} onClick={() => decide('needs_correction')}>
-							Send back
-						</button>
-						<button type="button" class="pf-button danger" disabled={busy || c.status === 'denied' || (isEvolution && !openEvolution)} onClick={() => decide('denied')}>
-							{confirm === 'denied' ? 'Yes, deny' : openEvolution ? 'Deny evolution' : 'Deny'}
-						</button>
-					</div>
+
 				</div>
-			)}
+				<div class="rv-main">
+					{openEvolution && (
+						<Block title="Evolution submission">
+							<p class="pf-help">Sent {when(openEvolution.submitted_at)}. Approving adds this to the character’s evolution log.</p>
+							<Row label="What evolved" value={openEvolution.summary} />
+							{openEvolution.earned && <Row label="How it was earned" value={openEvolution.earned} />}
+							{openEvolution.links && (
+								<p class="rv-text">
+									{openEvolution.links
+										.split(/\s+/)
+										.filter((l) => /^https:\/\//.test(l))
+										.map((l, i) => (
+											<a key={l} href={l} target="_blank" rel="noreferrer noopener">
+												{i === 0 ? 'Proof ↗' : ` · proof ${i + 1} ↗`}
+											</a>
+										))}
+								</p>
+							)}
+						</Block>
+					)}
+
+					{isEvolution && c.status !== 'approved' && (
+						<Block title={`What changed since approval (${changes.length})`}>
+							<ChangeList before={c.approved_sheet!} after={c.sheet} />
+						</Block>
+					)}
+
+					<CharacterArticle
+						name={c.name}
+						kind={c.kind}
+						universeName={props.universes.find((u) => u.slug === c.canon_universe)?.name ?? c.canon_universe}
+						sheet={c.sheet}
+						bonusPtp={c.bonus_ptp}
+						extraTraitSlots={c.extra_trait_slots}
+						staffOverrides={c.staff_overrides}
+						progressed={c.progressed}
+						combos={combos}
+						claims={props.board.filter((b) => c.requested_claims.includes(b.id))}
+						perks={perks ?? []}
+						families={props.families}
+						pins={pins}
+						onPin={canPin ? (step, target) => askPin(step, target) : undefined}
+						onUnpin={unpin}
+					/>
+
+					{c.approved_sheet && (
+						<Block title="Upgrade points">
+							<PointsPanel characterId={c.id} sheet={c.approved_sheet} admin={props.admin} />
+						</Block>
+					)}
+
+					{notes.length > 0 && (
+						<Block title="Review history">
+							<ul class="ov-events">
+								{notes.map((n) => (
+									<li key={n.id}>
+										<span class="pf-issue-section">{when(n.created_at)}</span> {n.outcome ? STATUS_LABEL[n.outcome] : 'Note'}
+										{n.body && `: ${n.body}`}
+									</li>
+								))}
+							</ul>
+						</Block>
+					)}
+
+				</div>
+				<div class="rv-side rv-side-bottom">
+					{decidable && (
+						<div class="rv-decide">
+							<div class="pf-field">
+								<label class="pf-label" for="rv-note">
+									Note to the player
+								</label>
+								<textarea
+									id="rv-note"
+									rows={3}
+									value={note}
+									onInput={(e) => setNote(e.currentTarget.value)}
+									placeholder="What to fix, or a welcome message. The player sees this on My Stuff."
+								/>
+							</div>
+							{permissionNote() && (
+								<p class="pf-help rv-perm-note">
+									Added to the note: <span>{permissionNote()}</span>
+								</p>
+							)}
+							{confirm && (
+								<p class="roll-note bad" role="alert">
+									{confirm === 'denied' && openEvolution
+										? 'Denying the evolution throws these changes away; the character goes back to its last approved version. Click again to confirm.'
+										: confirm === 'denied'
+										? 'Denying is final for the player: the character is locked and they must make a new one. Click Deny again to confirm.'
+										: `${[errors > 0 ? `This sheet still has ${errors} rule problem${errors === 1 ? '' : 's'}` : '', denied ? 'you denied something that needs permission' : ''].filter(Boolean).join(', and ').replace(/^y/, 'Y')}. Click Approve again to approve anyway, or Send back so the player can change it.`}
+								</p>
+							)}
+							<div class="rv-buttons">
+								<button type="button" class="pf-button primary" disabled={busy} onClick={() => decide('approved')}>
+									{confirm === 'approved' ? 'Approve anyway' : openEvolution ? 'Approve evolution' : 'Approve'}
+								</button>
+								<button type="button" class="pf-button" disabled={busy || c.status === 'needs_correction'} onClick={() => decide('needs_correction')}>
+									Send back
+								</button>
+								<button type="button" class="pf-button danger" disabled={busy || c.status === 'denied' || (isEvolution && !openEvolution)} onClick={() => decide('denied')}>
+									{confirm === 'denied' ? 'Yes, deny' : openEvolution ? 'Deny evolution' : 'Deny'}
+								</button>
+							</div>
+						</div>
+					)}
+					{picked.length > 0 && (
+						<Block title="Families">
+							<p class="pf-help">
+								{isEvolution
+									? 'Picked when the character was first sent.'
+									: 'Approving adds the character to these families. Families whose owner didn’t approve it get a join request instead.'}
+							</p>
+							<ul class="rv-families">
+								{picked.map((f) => (
+									<li key={f.id} style={{ '--fam': f.colour }}>
+										<a href={familyHref(f.slug)}>{f.name}</a>
+										<span class="pf-help">{f.ownerName ? `owner: ${f.ownerName}` : 'no owner yet'}</span>
+									</li>
+								))}
+							</ul>
+						</Block>
+					)}
+
+					{props.admin && (
+						<Block title="Settings">
+							<div class="ov-row">
+								<label class="pf-check">
+									<input type="checkbox" checked={c.hidden} onChange={(e) => change(() => setCharacterHidden(c.id, e.currentTarget.checked))} />
+									Hide from the gallery
+								</label>
+								{c.kind === 'oc' && !c.approved_at && (
+									<label class="pf-check" title="For characters coming in already progressed: the sheet skips every starting limit, like an evolution.">
+										<input type="checkbox" checked={c.progressed} onChange={(e) => change(() => setProgressed(c.id, e.currentTarget.checked))} />
+										Already progressed (skip starting limits)
+									</label>
+								)}
+								{c.kind === 'oc' && (
+									<div class="pf-field rv-slots">
+										<label class="pf-label" for="rv-slots">
+											Extra trait slots
+										</label>
+										<input
+											id="rv-slots"
+											type="number"
+											min={0}
+											max={20}
+											value={slots}
+											onInput={(e) => setSlots(e.currentTarget.value)}
+											onBlur={() => Number(slots) !== c.extra_trait_slots && change(() => setExtraTraitSlots(c.id, Math.max(0, Math.min(20, Number(slots) || 0))))}
+										/>
+									</div>
+								)}
+								{c.kind === 'oc' && (
+									<div class="pf-field rv-slots">
+										<label class="pf-label" for="rv-bonus-ptp">
+											Bonus PTP
+										</label>
+										<input
+											id="rv-bonus-ptp"
+											type="number"
+											min={0}
+											max={200}
+											value={bonus}
+											onInput={(e) => setBonus(e.currentTarget.value)}
+											onBlur={() => Number(bonus) !== c.bonus_ptp && change(() => setBonusPtp(c.id, Math.max(0, Math.min(200, Math.round(Number(bonus)) || 0))))}
+										/>
+									</div>
+								)}
+							</div>
+							<div class="rv-danger">
+								{confirmDelete ? (
+									<>
+										<p role="alert">
+											Delete <strong>{c.name}</strong> for good? Its review history goes too
+											{heldNames.length > 0 ? `, and its canon claims are freed: ${heldNames.join(', ')}` : ''}. The player’s rolls stay in their history.
+										</p>
+										<div class="rv-buttons">
+											<button type="button" class="pf-button danger" disabled={busy} onClick={remove}>
+												Yes, delete
+											</button>
+											<button type="button" class="pf-button subtle" onClick={() => setConfirmDelete(false)}>
+												Cancel
+											</button>
+										</div>
+									</>
+								) : (
+									<button type="button" class="pf-button subtle" onClick={() => setConfirmDelete(true)}>
+										Delete character…
+									</button>
+								)}
+							</div>
+						</Block>
+					)}
+
+				</div>
+			</div>
 		</div>
 	);
 }
@@ -811,15 +626,19 @@ function CharacterQueue(props: {
 								extraTraitSlots: c.extra_trait_slots,
 								bonusPtp: c.bonus_ptp,
 								approvedSheet: c.approved_sheet,
+								staffOverrides: c.staff_overrides,
+								progressed: c.progressed,
 								families: c.sheet.families,
 							}).filter((i) => i.level === 'error').length;
 							return (
 								<li key={c.id}>
 									<button type="button" class={selected === c.id ? 'active' : undefined} onClick={() => setSelected(c.id)}>
+										{owner?.avatar_url ? <img class="rv-avatar" src={owner.avatar_url} alt="" width={28} height={28} loading="lazy" /> : <span class="rv-avatar" aria-hidden="true" />}
 										<span class="rv-item">
 											<strong>{c.name}</strong>
 											<span class="pf-help">
 												{owner?.display_name ?? 'unknown'} · {c.kind === 'canon' ? 'canon tryout' : 'OC'}
+												{c.progressed ? ' · progressed' : ''}
 												{c.approved_at && c.status === 'pending' ? ' · evolution' : ''}
 												{!c.approved_at && c.sheet.families.length > 0 ? ' · family' : ''}
 												{c.submitted_at && tab === 'pending' ? ` · ${ago(c.submitted_at)}` : ''}

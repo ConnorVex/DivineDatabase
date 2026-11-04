@@ -13,6 +13,8 @@ export interface CheckData {
 	familyIds: string[];
 	/** Ability and trait perks of those families, for checking linked cards. */
 	familyPerks?: LinkablePerk[];
+	/** The Heavenly Restriction granted for this character (null: none; undefined: not known). */
+	heavenlyGrant?: string | null;
 }
 
 /** Canon picks only count for systems the character still has. */
@@ -38,6 +40,9 @@ export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[]
 		comboSystemLimits: combos.map((c) => c.system_limits ?? {}),
 		families: [...draft.sheet.families, ...data.familyIds],
 		familyPerks: data.familyPerks && new Map(data.familyPerks.map((p) => [p.id, p])),
+		heavenlyGrant: data.heavenlyGrant,
+		staffOverrides: draft.staffOverrides,
+		progressed: draft.progressed,
 	});
 	if (draft.kind === 'canon' && draft.canonUniverse && draft.name.trim()) {
 		const taken = board.find((r) => r.claim_type === 'character' && r.universe === draft.canonUniverse && r.name.toLowerCase() === draft.name.trim().toLowerCase());

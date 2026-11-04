@@ -3127,3 +3127,1097 @@
 .rv-custom-rates {
 	margin: 0 0.8rem 0.5rem;
 }
+
+/* ── Compact system cards: collapsed summary, tabs, tight fields (SystemsSection.tsx) ── */
+.system-card {
+	padding: 0;
+	overflow: hidden;
+}
+.system-card-head {
+	gap: 0.5rem;
+	padding: 0.55rem 0.75rem;
+	border-bottom: 0;
+}
+.system-card.open .system-card-head {
+	border-bottom: 1px solid var(--pf-line);
+	background: color-mix(in srgb, var(--pf-accent) 6%, transparent);
+}
+.sc-toggle {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.2rem 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+.sc-toggle:disabled {
+	cursor: default;
+}
+.sc-toggle:disabled .sc-caret {
+	display: none;
+}
+.sc-toggle h3 {
+	flex: none;
+	font-size: 0.9rem;
+}
+.sc-caret {
+	color: var(--pf-accent);
+	transition: transform 0.15s;
+}
+.system-card.open .sc-caret {
+	transform: rotate(90deg);
+}
+.sc-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3rem;
+	min-width: 0;
+}
+.sc-chip {
+	font-size: var(--sl-text-xs);
+	padding: 0.1rem 0.5rem;
+	border-radius: 999px;
+	border: 1px solid var(--pf-line);
+	color: var(--pf-muted);
+	white-space: nowrap;
+	max-width: 14rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.system-card > .pf-help,
+.system-card > .ab-source {
+	margin: 0.6rem 0.9rem 0;
+}
+.system-card > .ab-source {
+	padding-bottom: 0.6rem;
+}
+.sc-tabs {
+	display: flex;
+	gap: 0.35rem;
+	overflow-x: auto;
+	scrollbar-width: none;
+	margin: 0.6rem 0 0;
+	padding: 0 0.9rem 0.6rem;
+	border-bottom: 1px solid var(--pf-line);
+}
+.sc-tabs::-webkit-scrollbar {
+	display: none;
+}
+/* Starlight adds a top margin to every element after the first in articles. */
+.pf .sc-tabs > * {
+	margin-top: 0;
+}
+/* Each kind of tab has its own tint: fields, skills, description, canon, skill tree. */
+.sc-tabs .t-fields { --tab: var(--pf-accent); }
+.sc-tabs .t-skills { --tab: #f0883e; }
+.sc-tabs .t-about { --tab: #3fb9a2; }
+.sc-tabs .t-claims { --tab: #e3b341; }
+.sc-tabs .t-tree { --tab: #b083f0; }
+.sc-tabs button {
+	flex: none;
+	padding: 0.3rem 0.8rem;
+	border: 1px solid color-mix(in srgb, var(--tab) 35%, var(--pf-line));
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--tab) 6%, var(--pf-field));
+	color: color-mix(in srgb, var(--tab) 45%, var(--pf-muted));
+	font: inherit;
+	font-size: var(--sl-text-xs);
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	white-space: nowrap;
+	cursor: pointer;
+	transition:
+		border-color 0.15s,
+		background-color 0.15s;
+}
+.sc-tabs button:hover {
+	color: var(--tab);
+	border-color: var(--tab);
+}
+.sc-tabs button.active {
+	color: var(--tab);
+	border-color: var(--tab);
+	background: color-mix(in srgb, var(--tab) 18%, transparent);
+}
+/* Fields in a tab: a tight grid, three across on wide screens. */
+.system-card .sc-panel {
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+	gap: 0.65rem 0.9rem;
+	margin: 0;
+	padding: 0.8rem 0.9rem 0.9rem;
+}
+.system-card .pf-field {
+	gap: 0.25rem;
+}
+.system-card .pf-field input,
+.system-card .pf-field select,
+.system-card .pf-field textarea {
+	padding: 0.4rem 0.6rem;
+	border-radius: 0.45rem;
+}
+.system-card .pf-label {
+	font-size: 0.66rem;
+}
+.system-card .pf-help {
+	margin-top: 0.15rem;
+	line-height: 1.35;
+}
+.system-card .pf-field:has(textarea),
+.system-card .pf-checks {
+	grid-column: 1 / -1;
+}
+.system-card .pf-check {
+	padding: 0.25rem 0.65rem;
+	font-size: var(--sl-text-xs);
+}
+/* The tree builder lives in its own tab, so it needs no section frame. */
+.sc-panel > .ct {
+	margin: 0;
+	padding: 0;
+	border-top: 0;
+}
+.sc-panel > .ct > legend {
+	display: none;
+}
+
+/* Skills: one line each; tap to edit. */
+.sk-list {
+	display: grid;
+	gap: 0.35rem;
+}
+.sk-list .pf-subhead {
+	margin-bottom: 0.2rem;
+}
+.sk-list > .pf-button {
+	justify-self: start;
+}
+.sk-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.15rem 0.6rem;
+	width: 100%;
+	padding: 0.45rem 0.7rem;
+	border: 1px solid var(--pf-line);
+	border-left: 3px solid var(--pf-accent);
+	border-radius: 0.45rem;
+	background: color-mix(in srgb, var(--pf-accent) 4%, var(--pf-field));
+	color: var(--pf-text);
+	font: inherit;
+	font-size: var(--sl-text-sm);
+	text-align: start;
+	cursor: pointer;
+}
+.sk-row:hover {
+	border-color: var(--pf-accent);
+}
+.sk-row.ultimate {
+	border-left-color: var(--sl-color-orange-high);
+}
+.sk-row.passive {
+	border-left-color: var(--pf-muted);
+}
+.sk-name {
+	font-weight: 700;
+}
+.sk-type,
+.sk-mastery {
+	font-size: var(--sl-text-xs);
+	color: var(--pf-muted);
+}
+.sk-effect {
+	flex-basis: 100%;
+	font-size: var(--sl-text-xs);
+	color: var(--pf-faint);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.system-card .sk-edit {
+	padding: 0.7rem;
+	margin: 0;
+	gap: 0.6rem;
+}
+.sk-edit-actions {
+	grid-column: 1 / -1;
+	display: flex;
+	gap: 0.5rem;
+}
+.system-card-head .pf-badge {
+	font-size: 0.68rem;
+	padding: 0.1rem 0.5rem;
+}
+.system-card-head .pf-button {
+	padding: 0.3rem 0.7rem;
+	font-size: var(--sl-text-xs);
+}
+/* Stat override request on a power system tab (SystemsSection.tsx StatOverride). */
+.so-box {
+	display: grid;
+	gap: 0.4rem;
+	padding: 0.55rem 0.7rem;
+	border: 1px dashed var(--pf-line-strong);
+	border-radius: 0.5rem;
+}
+.so-box.on {
+	border-style: solid;
+	border-color: #e3b341;
+	background: color-mix(in srgb, #e3b341 7%, transparent);
+}
+.so-box > * {
+	margin: 0;
+}
+.system-card .so-box .pf-check {
+	justify-self: start;
+	border: 0;
+	padding: 0;
+	font-size: var(--sl-text-sm);
+	font-weight: 600;
+}
+
+/* ── Heavenly Restriction: the grant banner (SubmitForm.tsx) and what it gives (SystemsSection.tsx) ── */
+.hr-banner,
+.hr-perks {
+	border: 1px solid #e3b341;
+	background: color-mix(in srgb, #e3b341 9%, var(--pf-field));
+	border-radius: 0.6rem;
+}
+.hr-banner ul,
+.hr-perks ul {
+	margin: 0.35rem 0 0;
+	padding-inline-start: 1.1rem;
+	font-size: var(--sl-text-xs);
+}
+.hr-banner li,
+.hr-perks li {
+	margin: 0.1rem 0;
+}
+.hr-perks {
+	padding: 0.55rem 0.75rem;
+	font-size: var(--sl-text-sm);
+}
+.hr-perks strong,
+.hr-banner strong {
+	color: #e3b341;
+}
+
+/* ── Staff edit on the review page (StaffEditor.tsx) ── */
+.se {
+	display: grid;
+	gap: 0.6rem;
+}
+.se > .pf-button {
+	justify-self: start;
+}
+.se-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 0.35rem;
+	font-size: var(--sl-text-sm);
+}
+.se-list li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.3rem 0.5rem;
+	margin: 0;
+}
+.se-list .pf-button {
+	margin-inline-start: auto;
+	padding: 0.2rem 0.6rem;
+	font-size: var(--sl-text-xs);
+}
+.se-tag {
+	font-size: 0.66rem;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	padding: 0.1rem 0.45rem;
+	border-radius: 999px;
+	color: #b083f0;
+	border: 1px solid #b083f0;
+}
+.se-form {
+	display: grid;
+	gap: 0.6rem;
+	padding: 0.75rem;
+	border: 1px solid #b083f0;
+	border-radius: 0.6rem;
+	background: color-mix(in srgb, #b083f0 6%, transparent);
+}
+.se-form > * {
+	margin: 0;
+}
+.se-grid {
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+	gap: 0.6rem;
+	margin: 0;
+}
+.se-card summary {
+	cursor: pointer;
+	font-weight: 700;
+	font-size: var(--sl-text-sm);
+	color: var(--pf-accent);
+}
+.se-card .se-grid {
+	margin-top: 0.5rem;
+}
+.se-actions {
+	display: flex;
+	gap: 0.5rem;
+}
+.pf .se-list li > * {
+	margin-top: 0;
+}
+.se-what {
+	flex: 1;
+	min-width: 12rem;
+}
+
+/* ── Review page: article in the middle, checks and decisions at the side (ReviewDashboard.tsx) ── */
+.rv-detail {
+	container-type: inline-size;
+}
+.rv-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-areas: 'top' 'main' 'bottom';
+	gap: 1rem;
+	align-items: start;
+}
+.pf .rv-grid > *,
+.pf :is(.rv-side, .rv-main) > * {
+	margin-top: 0;
+}
+.rv-side-top {
+	grid-area: top;
+}
+.rv-main {
+	grid-area: main;
+	container-type: inline-size;
+}
+.rv-side-bottom {
+	grid-area: bottom;
+}
+.rv-side,
+.rv-main {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	min-width: 0;
+}
+@container (min-width: 56rem) {
+	.rv-grid {
+		grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem);
+		grid-template-areas: 'main top' 'main bottom';
+		grid-template-rows: auto 1fr;
+	}
+}
+.rv-side .rv-decide {
+	padding: 0.9rem;
+	border: 1px solid var(--card-accent);
+	border-radius: 0.7rem;
+	background: color-mix(in srgb, var(--card-accent) 6%, var(--pf-panel));
+}
+.rv-side .rv-buttons {
+	flex-wrap: wrap;
+}
+
+/* ── Wiki article (CharacterArticle.tsx): Fandom-style title, infobox and sections ── */
+.wk {
+	--wk-accent: var(--card-accent, var(--pf-accent));
+	--wk-serif: 'Linux Libertine', 'Georgia', 'Times New Roman', serif;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	grid-template-areas: 'title' 'info' 'body';
+	gap: 0.9rem 1.5rem;
+	padding: 1.1rem 1.25rem 1.4rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.8rem;
+	background: var(--pf-panel);
+}
+.pf .wk > *,
+.pf .wk-body > *,
+.pf .wk-section > *,
+.pf .wk-ability > *,
+.pf .wk-infobox > * {
+	margin-top: 0;
+}
+@container (min-width: 40rem) {
+	.wk {
+		grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem);
+		grid-template-areas: 'title title' 'body info';
+	}
+}
+.wk-title {
+	grid-area: title;
+	border-bottom: 1px solid var(--pf-line-strong);
+	padding-bottom: 0.4rem;
+}
+.pf .wk-title h2 {
+	margin: 0;
+	font-family: var(--wk-serif);
+	font-size: clamp(1.5rem, 3vw, 2rem);
+	font-weight: 600;
+	letter-spacing: 0;
+	text-transform: none;
+}
+.wk-tagline {
+	margin: 0.15rem 0 0;
+	font-size: var(--sl-text-xs);
+	color: var(--pf-muted);
+}
+.wk-infobox {
+	grid-area: info;
+	align-self: start;
+	border: 1px solid var(--pf-line-strong);
+	border-radius: 0.6rem;
+	overflow: hidden;
+	background: var(--pf-field);
+	font-size: var(--sl-text-sm);
+}
+.pf .wk-infobox-name {
+	margin: 0;
+	padding: 0.5rem 0.75rem;
+	text-align: center;
+	font-family: var(--wk-serif);
+	font-size: 1.05rem;
+	font-weight: 700;
+	background: color-mix(in srgb, var(--wk-accent) 28%, var(--pf-field));
+	border-bottom: 2px solid var(--wk-accent);
+}
+.wk-infobox-img {
+	display: block;
+	width: 100%;
+	max-height: 22rem;
+	object-fit: cover;
+}
+.wk-infobox-img.empty {
+	display: grid;
+	place-items: center;
+	height: 7rem;
+	color: var(--pf-faint);
+	font-size: var(--sl-text-xs);
+	background: var(--pf-panel);
+}
+.pf .wk-infobox-head {
+	margin: 0;
+	padding: 0.3rem 0.75rem;
+	text-align: center;
+	font-size: 0.7rem;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	background: color-mix(in srgb, var(--wk-accent) 16%, var(--pf-field));
+	color: var(--wk-accent);
+}
+.wk-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 0;
+	font-size: var(--sl-text-sm);
+	display: table;
+}
+.wk-table th,
+.wk-table td {
+	padding: 0.32rem 0.75rem;
+	border: 0;
+	border-top: 1px solid var(--pf-line);
+	text-align: start;
+	vertical-align: top;
+	overflow-wrap: anywhere;
+}
+.wk-table th {
+	width: 42%;
+	font-weight: 700;
+	color: var(--pf-muted);
+	background: none;
+}
+.wk-table.wide {
+	border: 1px solid var(--pf-line);
+	border-radius: 0.5rem;
+	border-collapse: separate;
+	border-spacing: 0;
+	overflow: hidden;
+}
+.wk-table.wide tr:first-child > * {
+	border-top: 0;
+}
+.wk-table.wide th {
+	width: 34%;
+	background: color-mix(in srgb, var(--wk-accent) 5%, transparent);
+}
+.wk-stats {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	border-top: 1px solid var(--pf-line);
+}
+.wk-stat {
+	display: grid;
+	justify-items: center;
+	padding: 0.4rem 0.2rem;
+	border-inline-start: 1px solid var(--pf-line);
+	line-height: 1.2;
+}
+.wk-stat:first-child {
+	border-inline-start: 0;
+}
+/* Starlight spaces every element after the first; the tiles sit in one row. */
+.wk-stats > *,
+.wk-stat > * {
+	margin-top: 0;
+}
+.wk-stat span {
+	font-size: 0.62rem;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	color: var(--pf-muted);
+}
+.wk-stat strong {
+	font-family: var(--pf-mono);
+	font-size: 0.95rem;
+	color: var(--wk-accent);
+}
+.wk-stat small {
+	font-size: 0.62rem;
+	color: var(--pf-faint);
+}
+.wk-stat.staff strong {
+	color: #b083f0;
+}
+.wk-facts {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1px;
+	background: var(--pf-line);
+	border-top: 1px solid var(--pf-line);
+}
+.wk-facts > *,
+.wk-fact > *,
+.wk-fact-value > * {
+	margin-top: 0;
+}
+.wk-fact {
+	display: grid;
+	gap: 0.1rem;
+	align-content: start;
+	padding: 0.45rem 0.75rem;
+	background: var(--pf-field);
+	min-width: 0;
+}
+.wk-fact.wide {
+	grid-column: 1 / -1;
+}
+.wk-fact-label {
+	font-size: 0.62rem;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--pf-muted);
+}
+.wk-fact-value {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.15rem 0.45rem;
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+.wk-fact-value small {
+	font-size: var(--sl-text-xs);
+	color: var(--pf-muted);
+}
+.wk-fact .wk-big {
+	font-family: var(--pf-mono);
+	font-size: 1.25rem;
+	color: var(--wk-accent);
+}
+.wk-fact.staff .wk-fact-label::after {
+	content: ' · staff';
+	color: #b083f0;
+}
+.wk-ptp strong {
+	font-family: var(--pf-mono);
+}
+.wk-ptp.over strong {
+	color: #f85149;
+}
+.wk-bar {
+	flex-basis: 100%;
+	height: 0.3rem;
+	border-radius: 99px;
+	background: var(--pf-line);
+	overflow: hidden;
+}
+.wk-bar > span {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--wk-accent);
+}
+.wk-ptp.over + .wk-bar > span {
+	background: #f85149;
+}
+.pf .wk-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	list-style: none;
+	margin: 0;
+	padding: 0.55rem 0.75rem 0.65rem;
+}
+.pf .wk-chips li {
+	margin: 0;
+	padding: 0.15rem 0.6rem;
+	border: 1px solid color-mix(in srgb, var(--wk-accent) 45%, transparent);
+	border-radius: 99px;
+	background: color-mix(in srgb, var(--wk-accent) 12%, transparent);
+	font-size: var(--sl-text-xs);
+	font-weight: 600;
+}
+.pf .wk-chips li.main {
+	border-color: #e3b341;
+	background: color-mix(in srgb, #e3b341 14%, transparent);
+}
+.wk-body {
+	grid-area: body;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+}
+.wk-section {
+	min-width: 0;
+}
+.pf .wk-h {
+	margin: 0.8rem 0 0.45rem;
+	padding-bottom: 0.2rem;
+	font-family: var(--wk-serif);
+	font-size: 1.3rem;
+	font-weight: 500;
+	letter-spacing: 0;
+	text-transform: none;
+	border-bottom: 1px solid var(--pf-line-strong);
+}
+.pf .wk-section:first-child .wk-h {
+	margin-top: 0;
+}
+.pf .wk-h4 {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0.6rem 0 0.4rem;
+	font-family: var(--wk-serif);
+	font-size: 1.08rem;
+	font-weight: 600;
+	color: var(--wk-accent);
+}
+.wk-ability + .wk-ability {
+	margin-top: 0.75rem;
+	padding-top: 0.5rem;
+	border-top: 1px dashed var(--pf-line);
+}
+.wk-ability > * + * {
+	margin-top: 0.5rem !important;
+}
+.wk-badge {
+	font-family: inherit;
+	font-size: 0.66rem;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	padding: 0.05rem 0.45rem;
+	border-radius: 999px;
+	border: 1px solid currentColor;
+}
+.pf .wk-prose {
+	margin: 0 0 0.5rem;
+	font-size: var(--sl-text-sm);
+	line-height: 1.65;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.pf .wk-sub-label {
+	margin: 0 0 0.15rem;
+	font-size: 0.72rem;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--pf-muted);
+}
+.wk-gallery {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+.wk-gallery img {
+	width: 6rem;
+	height: 6rem;
+	object-fit: cover;
+	border-radius: 0.4rem;
+	border: 1px solid var(--pf-line);
+}
+.wk-skills {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 0.35rem;
+}
+.wk-skills li {
+	margin: 0;
+	padding: 0.4rem 0.65rem;
+	border-left: 3px solid var(--wk-accent);
+	border-radius: 0.35rem;
+	background: color-mix(in srgb, var(--wk-accent) 5%, transparent);
+	font-size: var(--sl-text-sm);
+}
+.wk-skills li.ultimate {
+	border-left-color: var(--sl-color-orange-high);
+}
+.wk-skills li.passive {
+	border-left-color: var(--pf-muted);
+}
+.wk-skills p {
+	margin: 0.15rem 0 0;
+	font-size: var(--sl-text-xs);
+	color: var(--pf-muted);
+}
+.wk-log {
+	margin: 0;
+	padding-inline-start: 1.1rem;
+	font-size: var(--sl-text-sm);
+}
+.wk-staff {
+	font-size: 0.62rem;
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: #b083f0;
+}
+/* Review queue rows: the player's avatar, then the name and details. */
+.ov-list .rv-avatar {
+	flex: none;
+	width: 1.75rem;
+	height: 1.75rem;
+	border-radius: 50%;
+	object-fit: cover;
+	background: var(--pf-line);
+}
+.ov-list .rv-item {
+	flex: 1;
+	min-width: 0;
+}
+.ov-list .rv-item strong {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+/* The review page holds the queue, the article and the side panel side by side: give it more room. */
+:root:has(.rv-detail) {
+	--sl-content-width: 96rem;
+}
+
+/* ───────────── Pinned review notes ───────────── */
+.pin-boxes {
+	display: grid;
+	gap: 0.4rem;
+	margin: 0.5rem 0;
+}
+.pf .pin-boxes > *,
+.pin-box > * {
+	margin-top: 0;
+}
+.pin-box {
+	position: relative;
+	padding: 0.45rem 2rem 0.5rem 0.7rem;
+	border: 1px solid color-mix(in srgb, #f85149 55%, transparent);
+	border-inline-start: 3px solid #f85149;
+	border-radius: 0.45rem;
+	background: color-mix(in srgb, #f85149 10%, var(--pf-field, transparent));
+	font-size: var(--sl-text-sm);
+	text-align: start;
+}
+.pin-box .pin-where {
+	display: block;
+	font-size: 0.66rem;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: #ff7b72;
+}
+.pin-box p {
+	margin: 0.1rem 0 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.pin-remove {
+	position: absolute;
+	top: 0.3rem;
+	inset-inline-end: 0.35rem;
+	padding: 0.1rem 0.35rem;
+	border: 0;
+	border-radius: 0.3rem;
+	background: none;
+	color: var(--pf-muted);
+	cursor: pointer;
+	line-height: 1;
+}
+.pin-remove:hover {
+	background: color-mix(in srgb, #f85149 25%, transparent);
+	color: var(--sl-color-white);
+}
+.pin-add {
+	margin-inline-start: 0.4rem;
+	padding: 0.05rem 0.3rem;
+	border: 1px solid transparent;
+	border-radius: 0.35rem;
+	background: none;
+	font-size: 0.8rem;
+	line-height: 1.2;
+	vertical-align: middle;
+	cursor: pointer;
+	opacity: 0.45;
+	filter: grayscale(1);
+	transition: opacity 0.15s, filter 0.15s;
+}
+.pin-add:hover,
+.pin-add:focus-visible {
+	opacity: 1;
+	filter: none;
+	border-color: color-mix(in srgb, #f85149 50%, transparent);
+	background: color-mix(in srgb, #f85149 12%, transparent);
+}
+.wk-infobox .pin-boxes {
+	margin: 0;
+	padding: 0.45rem 0.6rem;
+	border-top: 1px solid var(--pf-line);
+}
+.wk-infobox-name .pin-add,
+.wk-infobox-head .pin-add {
+	float: inline-end;
+	margin: -0.1rem -0.35rem 0 0;
+}
+.pin-editor {
+	display: grid;
+	gap: 0.5rem;
+}
+.pin-editor > *,
+.pin-form > * {
+	margin-top: 0;
+}
+.pin-form {
+	display: grid;
+	gap: 0.45rem;
+}
+.pin-where-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+.pin-where-row select {
+	flex: 1 1 8rem;
+	min-width: 0;
+}
+.pin-form .pf-button {
+	justify-self: start;
+}
+.pin-count {
+	margin-inline-start: auto;
+	padding: 0 0.35rem;
+	border-radius: 99px;
+	background: color-mix(in srgb, #f85149 22%, transparent);
+	color: #ff7b72;
+	font-size: 0.7rem;
+	font-weight: 700;
+	white-space: nowrap;
+}
+.pin-banner {
+	border-color: color-mix(in srgb, #f85149 55%, transparent);
+	background: color-mix(in srgb, #f85149 9%, transparent);
+}
+.pin-banner ul {
+	margin: 0.35rem 0 0;
+	padding-inline-start: 1rem;
+}
+.system-card > .pin-boxes {
+	margin: 0.5rem 0.75rem 0;
+}
+
+/* ───────────── Form: wiki-article look (SubmitForm.tsx) ───────────── */
+/* Room for the live preview beside the form. */
+@media (min-width: 80rem) {
+	:root:has(.pf-wizard .pf-live) {
+		--sl-content-width: 92rem;
+	}
+	.pf-wizard .pf-layout:has(> .pf-live) {
+		grid-template-columns: 12rem minmax(0, 1fr) minmax(16rem, 19rem);
+	}
+}
+.pf-live {
+	--wk-accent: var(--card-accent, var(--pf-accent));
+	--wk-serif: 'Linux Libertine', 'Georgia', 'Times New Roman', serif;
+	min-width: 0;
+}
+.pf-live > * {
+	margin-top: 0;
+}
+aside.pf-live {
+	position: sticky;
+	top: calc(var(--sl-nav-height, 4rem) + 1rem);
+	max-height: calc(100vh - var(--sl-nav-height, 4rem) - 2rem);
+	overflow-y: auto;
+	scrollbar-width: thin;
+}
+.pf-live-head {
+	margin: 0 0 0.4rem;
+	font-size: var(--sl-text-xs);
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--pf-faint);
+}
+/* Phones and narrow screens: a card above the step that opens to the preview. */
+details.pf-live {
+	order: -1;
+	grid-row: 2;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.7rem;
+	background: var(--pf-panel);
+	overflow: hidden;
+}
+details.pf-live > summary {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.55rem 0.85rem;
+	font-size: var(--sl-text-sm);
+	font-weight: 700;
+	cursor: pointer;
+	list-style: none;
+}
+details.pf-live > summary::-webkit-details-marker {
+	display: none;
+}
+.pf-live-name {
+	font-family: var(--wk-serif);
+	font-weight: 600;
+	color: var(--pf-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+details.pf-live .wk-infobox {
+	border: 0;
+	border-top: 1px solid var(--pf-line);
+	border-radius: 0;
+}
+details.pf-live .wk-infobox-img {
+	max-height: 14rem;
+}
+@media (max-width: 59.99rem) {
+	.pf-wizard .pf-layout > .pf-rail {
+		grid-row: 1;
+	}
+	.pf-wizard .pf-layout > .pf-stage {
+		grid-row: 3;
+	}
+}
+@media (min-width: 60rem) and (max-width: 79.99rem) {
+	.pf-wizard .pf-layout > details.pf-live {
+		grid-column: 2;
+		grid-row: 1;
+	}
+	.pf-wizard .pf-layout > .pf-rail {
+		grid-row: 1 / span 2;
+	}
+	.pf-wizard .pf-layout > .pf-stage {
+		grid-column: 2;
+		grid-row: 2;
+	}
+}
+
+/* Section headings read like an article's: serif title over an accent rule. */
+.pf-wizard .pf-section-head {
+	border-bottom: 2px solid color-mix(in srgb, var(--pf-accent) 55%, var(--pf-line));
+	padding-bottom: 0.45rem;
+}
+.pf-wizard .pf-section-head h2 {
+	font-family: 'Linux Libertine', 'Georgia', 'Times New Roman', serif;
+	font-weight: 600;
+	font-size: clamp(1.35rem, 2.6vw, 1.75rem);
+	letter-spacing: 0;
+	text-transform: none;
+}
+.pf-wizard .pf-subhead {
+	font-family: 'Linux Libertine', 'Georgia', 'Times New Roman', serif;
+	font-weight: 600;
+	letter-spacing: 0;
+	text-transform: none;
+	font-size: 1.1rem;
+	border-bottom: 1px solid var(--pf-line);
+	padding-bottom: 0.2rem;
+}
+
+/* Short fields as data rows (label | value), like an infobox table; long text stays full width. */
+.pf-wizard .pf-section {
+	container-type: inline-size;
+}
+@container (min-width: 34rem) {
+	.pf-wizard :is(#basics, #appearance, #lore, #storage) > .pf-grid {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 0;
+		border: 1px solid var(--pf-line);
+		border-radius: 0.6rem;
+		background: color-mix(in srgb, var(--pf-field) 55%, transparent);
+		overflow: hidden;
+	}
+	.pf-wizard :is(#basics, #appearance, #lore, #storage) > .pf-grid > * {
+		padding: 0.55rem 0.85rem;
+		border-top: 1px solid var(--pf-line);
+	}
+	.pf-wizard :is(#basics, #appearance, #lore, #storage) > .pf-grid > :first-child {
+		border-top: 0;
+	}
+	.pf-wizard :is(#basics, #appearance, #lore, #storage) > .pf-grid > .pf-field:not(:has(textarea)) {
+		display: grid;
+		grid-template-columns: 11rem minmax(0, 1fr);
+		align-items: center;
+		column-gap: 1rem;
+		row-gap: 0.25rem;
+	}
+	.pf-wizard :is(#basics, #appearance, #lore, #storage) > .pf-grid > .pf-field:not(:has(textarea)) > .pf-help {
+		grid-column: 2;
+	}
+	.pf-wizard :is(#basics, #appearance, #lore, #storage) > .pf-grid > .pf-field:not(:has(textarea)) > .pf-label {
+		text-transform: none;
+		letter-spacing: 0;
+		font-size: var(--sl-text-sm);
+	}
+	.pf-wizard :is(#basics, #appearance, #lore, #storage) > .pf-grid > .pf-field > .pf-label {
+		text-transform: none;
+		letter-spacing: 0;
+		font-size: var(--sl-text-sm);
+	}
+}
+
+/* Review & send: the finished page. */
+.pf-review {
+	container-type: inline-size;
+}
+.pf-review .wk {
+	margin-top: 0.5rem;
+}
+.pf-subhead.pf-review-page {
+	margin-top: 1.25rem;
+}

@@ -1,18 +1,19 @@
 // Live rule checks for the submit form. Everything here is a pure function of the sheet,
 // so the same checks can run in the form, on the admin dashboard and in tests.
 import { currencyChanged, treeProblems } from './customTree.ts';
+import { HEAVENLY_RANKS, HEAVENLY_SYSTEMS, heavenlyOf, sheetHeavenly } from './heavenly.ts';
 import ranksData from '../../data/portal/ranks.json' with { type: 'json' };
 import rulesData from '../../data/portal/rules.json' with { type: 'json' };
 import traitsData from '../../data/portal/traits.json' with { type: 'json' };
 import type { LinkablePerk } from './families.ts';
 import { PROOF_LABEL, familyCardChanged, type PickedTrait, type Sheet, type SystemEntry } from './sheet.ts';
-import { abilitySystem, countsTowardLimit, systemById, visibleFields, type Field } from './systems.ts';
+import { abilitySystem, countsTowardLimit, pastStart, startText, systemById, visibleFields, type Field } from './systems.ts';
 
 export const ranks = ranksData.ranks;
 export const rules = rulesData;
 export const traits = traitsData.traits;
 
-const rankByName = new Map(ranks.map((r) => [r.rank, r]));
+const rankByName = new Map([...ranks, ...HEAVENLY_RANKS].map((r) => [r.rank, r as (typeof ranks)[number]]));
 const traitByName = new Map(traits.map((t) => [t.name, t]));
 const slotsByRarity = new Map(rules.traitSlots.rarities.map((r) => [r.id, r.slots]));
 
@@ -23,6 +24,9 @@ export interface Issue {
 	section: string;
 	message: string;
 }
+
+export type StaffOverrides = Record<string, { from?: unknown; to?: unknown; by?: string; at?: string }>;
+export const cardPath = (cardKey: string, field: string) => `card:${cardKey}.${field}`;
 
 export interface CheckContext {
 	kind: 'oc' | 'canon';
@@ -42,6 +46,13 @@ export interface CheckContext {
 	/** Claims this character already holds (don't count against it). */
 	heldClaimIds?: Set<string>;
 	requestedClaims?: string[];
+	/** The Heavenly Restriction this character may use: the owner's unused grant, or the one it used.
+	 * null when there's none; leave it out when it isn't known (no grant check then). */
+	heavenlyGrant?: string | null;
+	/** Values staff set, by path (stats.strength, potential.grade, card:<key>.<field>): exempt from the starting limits. */
+	staffOverrides?: StaffOverrides;
+	/** Staff marked the character as already progressed: no starting limits at all. */
+	progressed?: boolean;
 	/** Families the character is in or is asking to join (ids). */
 	families?: string[];
 	/** The family perks the player can link, by id. Without it, linked cards aren't checked against their perk. */
@@ -87,6 +98,8 @@ export function statStart(sheet: Sheet, stat: string): number {
 	let from = rankValue(rules.stats.baseRank) ?? 1;
 	if (ghoul?.stats.includes(stat)) from = rankValue(ghoul.rank) ?? from;
 	for (const t of traitStarts(sheet)) if (t.baseRanks?.[stat]) from = rankValue(t.baseRanks[stat]) ?? from;
+	const heavenly = sheetHeavenly(sheet);
+	if (heavenly?.baseRank) from = rankValue(heavenly.baseRank) ?? from;
 	return from;
 }
 
@@ -134,7 +147,8 @@ export function traitSlots(sheet: Sheet, extraSlots = 0) {
  * the role's starting PTP plus bonuses from systems and traits. PTP earned in RP isn't
  * part of a new character's budget. */
 /** `bonusPtp`: extra starting PTP staff granted this character. */
-export function ptp(sheet: Sheet, bonusPtp = 0) {
+/** `staff`: values staff set don't cost PTP. */
+export function ptp(sheet: Sheet, bonusPtp = 0, staff: StaffOverrides = {}) {
 	const entries = sheet.systems.map((e) => ({ e, def: systemById.get(e.system) }));
 	const ghoul = entries.map(({ e, def }) => def?.baseStats?.(e.fields)).find(Boolean) ?? null;
 	const role = rules.roles.find((r) => r.id === sheet.role);
@@ -150,13 +164,16 @@ export function ptp(sheet: Sheet, bonusPtp = 0) {
 	let spent = 0;
 	for (const stat of ['strength', 'speed', 'defense', 'stamina'] as const) {
 		const value = rankValue(sheet.stats[stat]);
-		if (value !== undefined) spent += Math.max(0, value - statStart(sheet, stat));
+		if (value !== undefined && !staff[`stats.${stat}`]) spent += Math.max(0, value - statStart(sheet, stat));
 	}
 	// Intelligence costs (or refunds) PTP relative to where it starts: Average, unless a trait says otherwise.
 	const intelPtp = (v: string) => rules.stats.intelligence.find((i) => i.value === v)?.ptp ?? 0;
-	const intelBase = traitRules.find((t) => t.baseIntelligence)?.baseIntelligence ?? 'Average';
-	spent += intelPtp(sheet.stats.intelligence) - intelPtp(intelBase);
-	spent += rules.stats.phases.filter((p) => p.phase <= sheet.stats.phase).reduce((sum, p) => sum + p.hopCost, 0);
+	const heavenly = sheetHeavenly(sheet);
+	const intelBase = heavenly?.baseIntelligence ?? traitRules.find((t) => t.baseIntelligence)?.baseIntelligence ?? 'Average';
+	if (!staff['stats.intelligence']) spent += intelPtp(sheet.stats.intelligence) - intelPtp(intelBase);
+	// Hops up to the phase a Heavenly Restriction puts you in are free.
+	const freePhase = staff['stats.phase'] ? Infinity : (heavenly?.phase ?? 0);
+	spent += rules.stats.phases.filter((p) => p.phase <= sheet.stats.phase && p.phase > freePhase).reduce((sum, p) => sum + p.hopCost, 0);
 	return { spent, available, start, bonus, traitBonus, granted, noPtp, roleKnown: Boolean(role) };
 }
 
@@ -179,7 +196,10 @@ export const minimumMoves = (max: number | undefined) => (max === undefined ? 0 
 const blank = (v: unknown) => v === undefined || v === null || (typeof v === 'string' ? v.trim() === '' : Array.isArray(v) && v.length === 0);
 const isLink = (v: string) => /^https?:\/\/\S+$/i.test(v.trim());
 
-export function checkSheet(sheet: Sheet, ctx: CheckContext): Issue[] {
+export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
+	// A character staff marked as progressed is checked like an evolution: no starting limits.
+	const ctx = given.progressed ? { ...given, isEvolution: true } : given;
+	const staff = (path: string) => Boolean(ctx.staffOverrides?.[path]);
 	const issues: Issue[] = [];
 	const add = (level: IssueLevel, section: string, message: string) => issues.push({ level, section, message });
 	const oc = ctx.kind === 'oc';
@@ -210,7 +230,7 @@ export function checkSheet(sheet: Sheet, ctx: CheckContext): Issue[] {
 	for (const stat of ['strength', 'speed', 'defense', 'stamina'] as const) {
 		const info = rankInfo(s[stat]);
 		// A rank a trait or system starts the stat at is never a problem.
-		if (info && phase && info.tier > phase.maxTier && info.value > statStart(sheet, stat)) {
+		if (info && phase && info.tier > phase.maxTier && info.value > statStart(sheet, stat) && !staff(`stats.${stat}`)) {
 			add('warning', 'Stats', `${stat[0].toUpperCase() + stat.slice(1)} (${info.rank}) is above ${phase.label} (up to Tier ${phase.maxTier}).`);
 		}
 	}
@@ -218,20 +238,22 @@ export function checkSheet(sheet: Sheet, ctx: CheckContext): Issue[] {
 	if (r) add('warning', 'Stats', `Recoil Lv ${r.level}: ${r.high} is ${r.gap} Sub-Tiers above ${r.low} (more than ${r.freeGap} apart).`);
 
 	const potential = rules.potentials.find((p) => p.id === sheet.potential.grade);
-	if (!potential) add('error', 'Traits', 'Roll your Potential.');
+	if (!potential) {
+		if (!staff('potential.grade')) add('error', 'Traits', 'Roll your Potential.');
+	}
 	else {
 		if ('rolled' in potential && potential.rolled) add('permission', 'Traits', `${potential.label} Potential is rolled by staff.`);
-		if (s.phase > potential.maxPhase) add('warning', 'Stats', `${potential.label} Potential can’t reach Phase ${s.phase} (max Phase ${potential.maxPhase}).`);
+		if (s.phase > potential.maxPhase && !staff('stats.phase') && !staff('potential.grade')) add('warning', 'Stats', `${potential.label} Potential can’t reach Phase ${s.phase} (max Phase ${potential.maxPhase}).`);
 		for (const stat of ['strength', 'speed', 'defense', 'stamina'] as const) {
 			const info = rankInfo(s[stat]);
-			if (info && info.tier > potential.maxTier && info.value > statStart(sheet, stat)) add('warning', 'Stats', `${potential.label} Potential stops at Tier ${potential.maxTier}, but ${stat} is ${info.rank}.`);
+			if (info && info.tier > potential.maxTier && info.value > statStart(sheet, stat) && !staff(`stats.${stat}`) && !staff('potential.grade')) add('warning', 'Stats', `${potential.label} Potential stops at Tier ${potential.maxTier}, but ${stat} is ${info.rank}.`);
 		}
 	}
 	const intel = rules.stats.intelligence.find((i) => i.value === s.intelligence);
 	if (intel && 'permission' in intel && intel.permission) add('permission', 'Stats', `${intel.value} Intelligence needs permission.`);
 
 	if (!ctx.isEvolution) {
-		const budget = ptp(sheet, ctx.bonusPtp);
+		const budget = ptp(sheet, ctx.bonusPtp, ctx.staffOverrides);
 		if (budget.roleKnown && budget.spent > budget.available) {
 			const granted = budget.granted ? `${budget.granted} granted by staff` : '';
 			const parts = budget.noPtp
@@ -286,10 +308,12 @@ export function checkSheet(sheet: Sheet, ctx: CheckContext): Issue[] {
 }
 
 function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, section: string, message: string) => void) {
+	const staff = (path: string) => Boolean(ctx.staffOverrides?.[path]);
 	const entries = sheet.systems;
 	if (entries.length > 1 && !entries.some((e) => e.key === sheet.prioritySystem)) {
 		add('error', 'Systems', 'With more than one power system, pick your priority system.');
 	}
+	checkHeavenly(sheet, ctx, add, staff);
 	const counts = new Map<string, number>();
 	for (const e of entries) {
 		if (countsTowardLimit(systemById.get(e.system), e.fields)) counts.set(e.system, (counts.get(e.system) ?? 0) + 1);
@@ -334,13 +358,28 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 		}
 		// Rolled fields come from one roll: report a missing roll once, not once per field.
 		const missingRolls = new Set<string>();
+		// Fields a Heavenly Restriction sets are checked with it (checkHeavenly).
+		const heavenlyFixed = entry.system === 'jujutsu-kaisen' ? (sheetHeavenly(sheet)?.fixed ?? {}) : {};
 		for (const field of visibleFields(def, entry.fields)) {
+			if (field.key in heavenlyFixed || staff(cardPath(entry.key, field.key))) continue;
 			if (field.rolled && field.required && blank(entry.fields[field.key])) {
 				if (!missingRolls.has(field.rolled)) add('error', 'Systems', `${where}: roll your ${field.label}.`);
 				missingRolls.add(field.rolled);
 				continue;
 			}
 			checkField(field, entry.fields[field.key], where, add);
+		}
+		// A new character starts at set stats; going past them needs a stat override staff approve.
+		if (!ctx.isEvolution) {
+			const fixed = entry.system === 'jujutsu-kaisen' ? (sheetHeavenly(sheet)?.fixed ?? {}) : {};
+			const past = visibleFields(def, entry.fields).filter((f) => !(f.key in fixed) && !staff(cardPath(entry.key, f.key)) && pastStart(f, entry.fields[f.key]));
+			if (past.length && entry.statOverride) {
+				const list = past.map((f) => `${f.label} ${entry.fields[f.key]}`).join(', ');
+				if (blank(entry.statOverride.reason)) add('error', 'Systems', `${where}: explain why you're asking for a stat override.`);
+				else add('permission', 'Systems', `${where}: stat override (${list}): “${entry.statOverride.reason.trim()}”`);
+			} else {
+				for (const f of past) add('error', 'Systems', `${where}: ${f.label} starts at ${startText(f)}. Ask for a stat override to start higher.`);
+			}
 		}
 
 		const budget = systemBudget(sheet, entry);
@@ -418,3 +457,32 @@ function checkField(field: Field, value: unknown, where: string, add: (level: Is
 }
 
 export const hasBlockingIssues = (issues: Issue[]) => issues.some((i) => i.level === 'error');
+
+/** A Heavenly Restriction: granted to the account, only JJK and Cyberpunk, and the stats and fields it sets. */
+function checkHeavenly(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, section: string, message: string) => void, staff: (path: string) => boolean) {
+	const hr = heavenlyOf(sheet);
+	if (!hr) return;
+	const effect = sheetHeavenly(sheet)!;
+	const name = `${hr} Heavenly Restriction`;
+	if (ctx.heavenlyGrant !== undefined && !ctx.isEvolution) {
+		if (ctx.heavenlyGrant === hr) add('permission', 'Systems', `${name} (granted to this account ✓).`);
+		else add('error', 'Systems', `${name}: it’s Permission Based and isn’t granted to your account${ctx.heavenlyGrant ? ` (you were granted ${ctx.heavenlyGrant})` : ''}. Set it to None or ask the admins.`);
+	} else if (!ctx.isEvolution) add('permission', 'Systems', `${name} needs a grant.`);
+	for (const e of sheet.systems) {
+		if (!HEAVENLY_SYSTEMS.includes(e.system)) add('error', 'Systems', `${name}: you lose every power system but Jujutsu Kaisen and Cyberpunk. Remove ${systemById.get(e.system)?.label ?? e.system}.`);
+	}
+	const card = sheet.systems.find((e) => e.system === 'jujutsu-kaisen')!;
+	for (const [key, value] of Object.entries(effect.fixed)) {
+		if (card.fields[key] !== value && !staff(cardPath(card.key, key))) add('error', 'Systems', `${name}: ${systemById.get('jujutsu-kaisen')?.fields.find((f) => f.key === key)?.label ?? key} is ${value}.`);
+	}
+	if (ctx.isEvolution) return;
+	if (effect.lockStats && effect.baseRank) {
+		for (const stat of ['strength', 'speed', 'defense', 'stamina'] as const) {
+			if (sheet.stats[stat] !== effect.baseRank && !staff(`stats.${stat}`)) add('error', 'Stats', `${name}: ${stat[0].toUpperCase() + stat.slice(1)} is set to ${effect.baseRank}.`);
+		}
+	}
+	if (effect.lockIntelligence && sheet.stats.intelligence !== effect.baseIntelligence && !staff('stats.intelligence')) add('error', 'Stats', `${name}: Intelligence is set to ${effect.baseIntelligence}.`);
+	if (effect.phase !== undefined && !staff('stats.phase') && (effect.lockPhase ? sheet.stats.phase !== effect.phase : sheet.stats.phase < effect.phase)) {
+		add('error', 'Stats', `${name}: you start in Phase ${effect.phase}.`);
+	}
+}

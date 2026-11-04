@@ -43,6 +43,8 @@ export interface SystemEntry {
 	familyLink?: FamilyLink;
 	/** The player's own skill tree for this card (optional). */
 	customTree?: CustomTree | null;
+	/** Asks staff to let this new character start past the usual stats (e.g. Cursed Energy Output). */
+	statOverride?: { reason: string } | null;
 }
 
 export interface PickedTrait {

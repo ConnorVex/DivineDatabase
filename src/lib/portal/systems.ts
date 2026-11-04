@@ -1,5 +1,6 @@
 // What the submit form asks for on each power system's card, mirrored from the wiki's
 // Power Systems pages. Edit here when a system's rules change.
+import { HEAVENLY, heavenlyEffect } from './heavenly.ts';
 import cyberwareData from '../../data/portal/cyberware.json' with { type: 'json' };
 import rulesData from '../../data/portal/rules.json' with { type: 'json' };
 
@@ -37,6 +38,9 @@ export interface Field {
 	required?: boolean;
 	/** Filled by a roll on the portal (read-only on the card). */
 	rolled?: 'cursed_energy';
+	/** A new character starts here (the allowed choices, or a number's starting value); going past it
+	 * needs a family ability or a stat override staff approve. */
+	startsAt?: string[] | number;
 	/** For list columns: other cells to fill in when this one is picked (e.g. an item's slot). */
 	derive?: (value: string) => Record<string, string>;
 }
@@ -60,6 +64,8 @@ export interface SystemDef {
 	startingMoves?: (f: Fields) => { standard?: number; ultimate?: number; label?: string };
 	/** Extra Physical Tiering Points this system grants. */
 	ptpBonus?: (f: Fields) => number;
+	/** Fields the card's own answers take away (e.g. a Heavenly Restriction). */
+	hiddenKeys?: (f: Fields) => string[];
 	/** When only some cards count toward the one-per-character limit, e.g. only Stands for JoJo.
 	 * Without it, every card of this system counts. */
 	limitedChoice?: { key: string; value: string; label: string };
@@ -173,9 +179,9 @@ export const systems: SystemDef[] = [
 		claimLabel: 'Cursed Technique',
 		groups: [
 			{ label: 'Start', keys: ['start'] },
-			{ label: 'Cursed Energy', keys: ['ceClass', 'ceAmount', 'ceOutput', 'ceControl', 'rp2rpRecharge', 'completeRecharge', 'ceUpgradePoints'] },
+			{ label: 'Cursed Energy', keys: ['heavenlyRestriction', 'ceClass', 'ceAmount', 'ceOutput', 'ceControl', 'rp2rpRecharge', 'completeRecharge', 'ceUpgradePoints'] },
 			{ label: 'Cursed Technique', keys: ['ctName', 'ctType', 'ctClass', 'ctRange', 'ctPower', 'ctEfficiency', 'ctUpgradePoints'] },
-			{ label: 'Restrictions & tools', keys: ['heavenlyRestriction', 'bindingVows', 'cursedTools'] },
+			{ label: 'Restrictions & tools', keys: ['bindingVows', 'cursedTools'] },
 		],
 		familyParts: [
 			{ label: 'Cursed Energy', groups: ['Cursed Energy'] },
@@ -196,7 +202,7 @@ export const systems: SystemDef[] = [
 				key: 'ceClass',
 				label: 'Cursed Energy',
 				type: 'select',
-				options: [{ value: 'Common' }, { value: 'Uncommon' }, { value: 'Rare' }, { value: 'Legendary' }, { value: 'Mythical' }],
+				options: [{ value: 'Common' }, { value: 'Uncommon' }, { value: 'Rare' }, { value: 'Legendary' }, { value: 'Mythical' }, { value: 'Heavenly' }, { value: 'Heavenly Twin' }],
 				required: true,
 				rolled: 'cursed_energy',
 			},
@@ -207,11 +213,12 @@ export const systems: SystemDef[] = [
 				type: 'select',
 				options: levels(['None', 'Extremely Poor', 'Poor', 'Miniscule', 'Small', 'Average', 'Above Average', 'Good', 'High', 'Amazing', 'Extremely High', 'Intense', 'Immense', 'Maximum']),
 				default: 'None',
+				startsAt: ['None'],
 			},
-			{ key: 'ceControl', label: 'Cursed Energy Control level', type: 'number', default: 0, min: 0 },
-			{ key: 'rp2rpRecharge', label: 'RP2RP Recharge level', type: 'number', default: 0, min: 0 },
-			{ key: 'completeRecharge', label: 'Complete Recharge level', type: 'number', default: 0, min: 0 },
-			{ key: 'ceUpgradePoints', label: 'Cursed Energy Upgrade Points (CEUP)', type: 'number', default: 0, min: 0 },
+			{ key: 'ceControl', label: 'Cursed Energy Control level', type: 'number', default: 0, min: 0, startsAt: 0 },
+			{ key: 'rp2rpRecharge', label: 'RP2RP Recharge level', type: 'number', default: 0, min: 0, startsAt: 0 },
+			{ key: 'completeRecharge', label: 'Complete Recharge level', type: 'number', default: 0, min: 0, startsAt: 0 },
+			{ key: 'ceUpgradePoints', label: 'Cursed Energy Upgrade Points (CEUP)', type: 'number', default: 0, min: 0, startsAt: 0 },
 			{ key: 'ctName', label: 'Cursed Technique name', type: 'text', showIf: JJK_HAS_TECHNIQUE },
 			{ key: 'ctType', label: 'Cursed Technique type', type: 'select', options: [{ value: 'Innate' }, { value: 'Inherited' }], showIf: JJK_HAS_TECHNIQUE },
 			{ key: 'ctClass', label: 'Cursed Technique class', type: 'select', options: [{ value: 'General' }, { value: 'Shikigami' }, { value: 'Support' }], showIf: JJK_HAS_TECHNIQUE },
@@ -222,6 +229,7 @@ export const systems: SystemDef[] = [
 				type: 'select',
 				options: levels(['Physical', 'Close', 'Medium', 'Long', 'Impossible', 'Heavenly', 'Unknown'], ['Impossible', 'Heavenly', 'Unknown']),
 				default: 'Physical',
+				startsAt: ['Physical', 'Close'],
 			},
 			{
 				key: 'ctPower',
@@ -230,6 +238,7 @@ export const systems: SystemDef[] = [
 				type: 'select',
 				options: levels(['Below Grade 4', 'Grade 4', 'Semi Grade 3', 'Grade 3', 'Semi Grade 2', 'Grade 2', 'Semi Grade 1', 'Grade 1', 'Special Grade'], ['Special Grade']),
 				default: 'Below Grade 4',
+				startsAt: ['Below Grade 4'],
 			},
 			{
 				key: 'ctEfficiency',
@@ -237,24 +246,28 @@ export const systems: SystemDef[] = [
 				label: 'Cursed Technique Efficiency',
 				type: 'select',
 				options: levels(
-					['Extremely Poor', 'Very Poor', 'Poor', 'Subpar', 'Tolerable', 'Average', 'Decent', 'Adequate', 'Great', 'Amazing', 'Insane', 'Remarkable', 'Unparalleled', 'Terrifying'],
-					['Unparalleled', 'Terrifying'],
+					['Extremely Poor', 'Very Poor', 'Poor', 'Subpar', 'Tolerable', 'Average', 'Decent', 'Adequate', 'Great', 'Amazing', 'Insane', 'Remarkable', 'Unparalleled', 'Terrifying', 'Heavenly Twin'],
+					['Unparalleled', 'Terrifying', 'Heavenly Twin'],
 				),
 				default: 'Extremely Poor',
+				startsAt: ['Extremely Poor'],
 			},
-			{ key: 'ctUpgradePoints', label: 'Cursed Technique Upgrade Points (CTUP)', type: 'number', default: 0, min: 0, showIf: JJK_HAS_TECHNIQUE },
+			{ key: 'ctUpgradePoints', label: 'Cursed Technique Upgrade Points (CTUP)', type: 'number', default: 0, min: 0, startsAt: 0, showIf: JJK_HAS_TECHNIQUE },
 			{
 				key: 'heavenlyRestriction',
 				label: 'Heavenly Restriction',
 				type: 'select',
-				options: [{ value: 'None' }, { value: 'Physical' }, { value: 'Cursed Energy' }, { value: 'Twins' }, { value: 'Equilibrium' }],
+				options: [{ value: 'None' }, ...HEAVENLY.map((value) => ({ value, label: `${value} 🔑` }))],
 				default: 'None',
+				help: 'Permission Based: staff grant it to your account. It locks you out of every power system but JJK and Cyberpunk.',
 			},
 			{ key: 'bindingVows', label: 'Binding Vows', type: 'textarea' },
 			{ key: 'cursedTools', label: 'Cursed Tools', type: 'textarea' },
 		],
-		startingMoves: (f) => (f.start === JJK_CEU_ONLY ? {} : { standard: 2, label: 'Extension Technique' }),
-		ptpBonus: (f) => (f.heavenlyRestriction === 'Physical' ? 9 : 0),
+		startingMoves: (f) => (f.start === JJK_CEU_ONLY || heavenlyEffect(f.heavenlyRestriction, f)?.noTechnique ? {} : { standard: 2, label: 'Extension Technique' }),
+		// The Cursed Energy Restriction gives 9 PTP to build your Heavenly.
+		ptpBonus: (f) => heavenlyEffect(f.heavenlyRestriction, f)?.ptp ?? 0,
+		hiddenKeys: (f) => heavenlyEffect(f.heavenlyRestriction, f)?.hidden ?? [],
 		notes: ['Barriers and Domain Expansions are added later as evolutions.'],
 	},
 	{
@@ -482,8 +495,10 @@ export const systems: SystemDef[] = [
 
 export const systemById = new Map(systems.map((s) => [s.id, s]));
 
-export const visibleFields = (def: SystemDef, f: Fields) =>
-	def.fields.filter((field) => !field.showIf || field.showIf.in.includes(String(f[field.showIf.key] ?? '')));
+export const visibleFields = (def: SystemDef, f: Fields) => {
+	const hidden = def.hiddenKeys?.(f) ?? [];
+	return def.fields.filter((field) => !hidden.includes(field.key) && (!field.showIf || field.showIf.in.includes(String(f[field.showIf.key] ?? ''))));
+};
 
 /** Which system a family ability's card is for; perks from before other systems were allowed are Abilities. */
 export const abilitySystem = (a: { system?: string }) => a.system ?? 'abilities';
@@ -530,3 +545,13 @@ export function groupedFields(def: SystemDef, f: Fields) {
 /** Whether a card counts toward its system's one-per-character limit. */
 export const countsTowardLimit = (def: SystemDef | undefined, f: Fields) =>
 	!def?.limitedChoice || f[def.limitedChoice.key] === def.limitedChoice.value;
+
+/** Whether a value is past where a new character starts. */
+export const pastStart = (field: Field, value: unknown) => {
+	const start = field.startsAt;
+	if (start === undefined || value === undefined || value === '') return false;
+	return typeof start === 'number' ? (Number(value) || 0) > start : !start.includes(String(value));
+};
+
+/** "Physical or Close", "0" */
+export const startText = (field: Field) => (typeof field.startsAt === 'number' ? String(field.startsAt) : (field.startsAt ?? []).join(' or '));
