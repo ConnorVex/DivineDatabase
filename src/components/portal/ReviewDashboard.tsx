@@ -15,6 +15,8 @@ import {
 	loadHeldClaims,
 	loadReviewNotes,
 	setPinnedNotes,
+	setEncryption,
+	characterPageHref,
 	loadUniverses,
 	reviewCharacter,
 	reviewEvolution,
@@ -42,7 +44,7 @@ import { EquipmentReview } from './EquipmentReview.tsx';
 import { loadCraftingItems, loadEquipmentQueue, type CraftingItem, type EquipmentQueueItem } from '../../lib/portal/equipment.ts';
 import { familyHref, loadFamilies, loadMyFamily, loadPerkQueue, type Family, type FamilyCard, type PerkRequest } from '../../lib/families/api.ts';
 import { loadFamilyChoices, loadLinkablePerks, type LinkablePerk } from '../../lib/portal/families.ts';
-import { checkSheet, type Issue } from '../../lib/portal/rules.ts';
+import { checkSheet, ENCRYPTION_ITEM, type Issue } from '../../lib/portal/rules.ts';
 import { startPortalTheme, themeForRole } from '../../lib/portal/theme.ts';
 import { logIn, watchPlayer, type Player } from '../../lib/supabase.ts';
 
@@ -252,6 +254,7 @@ function Detail(props: {
 				staffOverrides: c.staff_overrides,
 				progressed: c.progressed,
 				adminCharacter: c.admin_character,
+				encryptionRequest: c.encryption_requested && !c.encrypted ? { reason: c.encryption_reason } : null,
 			}),
 		[c, held, combos, props.board, perks, memberOf, heavenlyGrant],
 	);
@@ -287,6 +290,9 @@ function Detail(props: {
 			const full = [permissionNote(), note.trim()].filter(Boolean).join('\n\n');
 			if (openEvolution) await reviewEvolution(openEvolution.id, outcome, full);
 			else await reviewCharacter(c.id, outcome, full);
+			// Approving the encryption request (and the character) encrypts it. Only admins can.
+			const encryption = issues.find((i) => i.level === 'permission' && i.message.startsWith(ENCRYPTION_ITEM));
+			if (props.admin && outcome === 'approved' && encryption && permissions[encryption.message] === 'approved') await setEncryption(c.id, true);
 			props.onDecided();
 		} catch (e) {
 			setError(messageOf(e));
@@ -327,16 +333,24 @@ function Detail(props: {
 				<div>
 					<h2>{c.name}</h2>
 					<p class="pf-help">
+						{c.encrypted && <span class="rv-enc">🔒 Encrypted · </span>}
 						{props.owner ? `by ${props.owner.display_name}` : 'unknown player'} · {STATUS_LABEL[c.status]}
 						{isEvolution && c.status !== 'approved' ? ' · evolution of an approved character' : ''}
 						{c.submitted_at ? ` · sent ${ago(c.submitted_at)}` : ''}
 					</p>
 				</div>
-				{props.admin && (
-					<a class="pf-button subtle" href={`${base}submit/?id=${c.id}`}>
-						Open in form
-					</a>
-				)}
+				<span class="rv-head-links">
+					{c.approved_at && (
+						<a class="pf-button subtle" href={characterPageHref(c.id)}>
+							View page
+						</a>
+					)}
+					{props.admin && (
+						<a class="pf-button subtle" href={`${base}submit/?id=${c.id}`}>
+							Open in form
+						</a>
+					)}
+				</span>
 			</header>
 			{error && <p class="portal-error">{error}</p>}
 
@@ -501,6 +515,10 @@ function Detail(props: {
 								<label class="pf-check">
 									<input type="checkbox" checked={c.hidden} onChange={(e) => change(() => setCharacterHidden(c.id, e.currentTarget.checked))} />
 									Hide from the gallery
+								</label>
+								<label class="pf-check" title="Only the owner, admins and the players the owner adds can see it.">
+									<input type="checkbox" checked={c.encrypted} onChange={(e) => change(() => setEncryption(c.id, e.currentTarget.checked))} />
+									🔒 Encrypted
 								</label>
 								{c.kind === 'oc' && !c.approved_at && (
 									<label class="pf-check" title="For characters coming in already progressed: the sheet skips every starting limit, like an evolution.">

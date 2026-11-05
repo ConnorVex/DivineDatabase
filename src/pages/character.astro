@@ -1,0 +1,12 @@
+---
+// A character's public page. Encrypted characters show their lock screen to anyone not allowed.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import PortalNav from '../components/portal/PortalNav.astro';
+import CharacterPage from '../components/portal/CharacterPage.tsx';
+import '../styles/portal.css';
+---
+
+<StarlightPage frontmatter={{ title: 'Character', description: 'A character in the Divine Database.', template: 'splash', tableOfContents: false, pagefind: false }}>
+	<PortalNav current="mine" />
+	<CharacterPage client:only="preact" />
+</StarlightPage>

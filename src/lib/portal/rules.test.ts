@@ -1,7 +1,7 @@
 // Run with: node --test src/lib/portal/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardPath, checkSheet, power, ptp, recoil, systemLimit, traitSlots, type Issue } from './rules.ts';
+import { cardPath, checkSheet, ENCRYPTION_ITEM, power, ptp, recoil, systemLimit, traitSlots, type Issue } from './rules.ts';
 import { emptySheet, normalizeSheet, type Sheet } from './sheet.ts';
 
 const ocCtx = { kind: 'oc' as const, name: 'Kaito' };
@@ -494,4 +494,13 @@ test('admin characters skip every rule; the Divine S.T.S needs Divine Potential'
 	assert.equal(power(s), (152 + 124) / 2, 'Divine ranks have values past 20A');
 	s.potential.grade = 'divine';
 	assert.ok(!messages(all({}), 'error').some((m) => m.includes('Divine')), messages(all({}), 'error').join('\n'));
+});
+
+test('an encryption request needs a reason and permission', () => {
+	const s = goodSheet();
+	const all = (extra: object) => checkSheet(s, { ...ocCtx, ...extra });
+	assert.ok(messages(all({ encryptionRequest: { reason: '  ' } }), 'error').some((m) => m.includes('encrypted')), 'a blank reason is an error');
+	const asked = messages(all({ encryptionRequest: { reason: 'Story reasons' } }), 'permission');
+	assert.ok(asked.includes(`${ENCRYPTION_ITEM}: Story reasons`), asked.join('\n'));
+	assert.ok(!messages(all({}), 'permission').some((m) => m.startsWith(ENCRYPTION_ITEM)), 'no request, no item');
 });

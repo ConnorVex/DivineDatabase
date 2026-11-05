@@ -4289,3 +4289,170 @@ details.pf-live .wk-infobox-img {
 	color: #f85149;
 	letter-spacing: 0.04em;
 }
+
+/* ───────────── Encrypted characters (EncryptedScreen.tsx, ViewerPanel.tsx) ───────────── */
+.enc-screen {
+	position: relative;
+	display: grid;
+	place-items: center;
+	min-height: min(70vh, 36rem);
+	padding: 2rem 1rem;
+	border: 1px solid var(--pf-line-strong);
+	border-radius: 0.9rem;
+	background: #0a0c12;
+	overflow: hidden;
+	isolation: isolate;
+}
+.enc-rain {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	z-index: -1;
+}
+.pf .enc-screen > *,
+.pf .enc-card > * {
+	margin-top: 0;
+}
+.enc-card {
+	display: grid;
+	justify-items: center;
+	gap: 0.45rem;
+	max-width: 26rem;
+	padding: 1.6rem 1.8rem 1.4rem;
+	text-align: center;
+	border: 1px solid color-mix(in srgb, var(--pf-accent) 45%, transparent);
+	border-radius: 0.8rem;
+	background: color-mix(in srgb, #0a0c12 82%, transparent);
+	backdrop-filter: blur(3px);
+	box-shadow: 0 0 2.5rem color-mix(in srgb, var(--pf-accent) 22%, transparent);
+}
+.enc-lock {
+	font-size: 2rem;
+	line-height: 1;
+}
+.enc-kicker {
+	font-family: var(--pf-mono);
+	font-size: var(--sl-text-xs);
+	font-weight: 700;
+	letter-spacing: 0.3em;
+	text-transform: uppercase;
+	color: var(--pf-accent);
+}
+.pf .enc-name {
+	margin: 0;
+	font-family: 'Linux Libertine', 'Georgia', 'Times New Roman', serif;
+	font-size: clamp(1.4rem, 4vw, 1.9rem);
+	font-weight: 600;
+	text-transform: none;
+	letter-spacing: 0;
+	color: #e8ecff;
+}
+.enc-owner {
+	font-size: var(--sl-text-xs);
+	color: var(--pf-muted);
+}
+.enc-message {
+	font-weight: 700;
+	color: #ff7b72;
+}
+.enc-help {
+	max-width: 20rem;
+}
+.enc-banner {
+	border-left-color: var(--pf-accent);
+}
+.cp {
+	gap: 0.9rem;
+}
+.cp .wk {
+	container-type: inline-size;
+}
+.cp-viewers {
+	max-width: 36rem;
+}
+.vw {
+	display: grid;
+	gap: 0.55rem;
+}
+.pf .vw > *,
+.pf .vw-stop > * {
+	margin-top: 0;
+}
+.pf .vw-list {
+	display: grid;
+	gap: 0.3rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.pf .vw-list li {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	margin: 0;
+	padding: 0.35rem 0.5rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.5rem;
+	background: var(--pf-field);
+}
+.vw-found li {
+	border-style: dashed;
+}
+.vw-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 600;
+}
+.vw-avatar {
+	width: 1.7rem;
+	height: 1.7rem;
+	flex: none;
+	border-radius: 50%;
+	object-fit: cover;
+}
+.vw-avatar.empty {
+	display: grid;
+	place-items: center;
+	background: var(--pf-line);
+	font-size: var(--sl-text-xs);
+	font-weight: 700;
+	text-transform: uppercase;
+}
+.vw-stop {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	padding-top: 0.5rem;
+	border-top: 1px solid var(--pf-line);
+}
+
+/* Encryption bits on the form, My Stuff and review. */
+.pf-enc-request {
+	display: grid;
+	gap: 0.35rem;
+	padding: 0.75rem 0.9rem;
+	border: 1px dashed var(--pf-line, rgba(127, 127, 127, 0.35));
+	border-radius: 0.6rem;
+}
+.pf .pf-enc-request > * {
+	margin-top: 0;
+}
+.mc-lock {
+	white-space: nowrap;
+}
+.rv-enc {
+	font-weight: 600;
+}
+.rv-head-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+.pf .rv-head-links > * {
+	margin-top: 0;
+}

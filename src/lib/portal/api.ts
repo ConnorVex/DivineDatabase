@@ -27,6 +27,11 @@ export interface CharacterDraft {
 	pinnedNotes: PinnedNote[];
 	/** An admin's own character: no rule checks, approved as soon as it's sent. */
 	adminCharacter: boolean;
+	/** The owner asks staff to encrypt it, and why. */
+	encryptionRequested: boolean;
+	encryptionReason: string;
+	/** Staff approved it: only the owner, admins and listed viewers can see it. */
+	encrypted: boolean;
 }
 
 export interface Universe {
@@ -79,6 +84,9 @@ export const newDraft = (): CharacterDraft => ({
 	progressed: false,
 	pinnedNotes: [],
 	adminCharacter: false,
+	encryptionRequested: false,
+	encryptionReason: '',
+	encrypted: false,
 });
 
 export async function loadCharacter(id: string): Promise<CharacterDraft> {
@@ -101,6 +109,9 @@ export async function loadCharacter(id: string): Promise<CharacterDraft> {
 		progressed: data.progressed ?? false,
 		pinnedNotes: normalizePins(data.pinned_notes),
 		adminCharacter: data.admin_character ?? false,
+		encryptionRequested: data.encryption_requested ?? false,
+		encryptionReason: data.encryption_reason ?? '',
+		encrypted: data.encrypted ?? false,
 	};
 }
 
@@ -115,6 +126,8 @@ export async function saveCharacter(c: CharacterDraft, status?: 'draft' | 'pendi
 		status: status ?? (c.status === 'pending' ? 'pending' : 'draft'),
 		// Only admins can set it; the database ignores it for everyone else.
 		...(c.adminCharacter ? { admin_character: true } : {}),
+		encryption_requested: c.encryptionRequested && !c.encrypted,
+		encryption_reason: c.encryptionRequested ? c.encryptionReason.trim().slice(0, 1000) : '',
 	};
 	const query = c.id ? db().from('characters').update(row).eq('id', c.id) : db().from('characters').insert(row);
 	const { data, error } = await query.select('id, status').single();
@@ -349,6 +362,7 @@ export interface CharacterSummary {
 	updated_at: string;
 	created_at: string;
 	image: string | null;
+	encrypted: boolean;
 	role: string | null;
 	potential: string | null;
 }
@@ -370,7 +384,7 @@ export async function loadMyCharacters(): Promise<CharacterSummary[]> {
 	const { data, error } = await db()
 		.from('characters')
 		.select(
-			'id, name, kind, canon_universe, status, approved_at, submitted_at, updated_at, created_at, image:sheet->appearance->>image, role:sheet->>role, potential:sheet->potential->>grade',
+			'id, name, kind, canon_universe, status, encrypted, approved_at, submitted_at, updated_at, created_at, image:sheet->appearance->>image, role:sheet->>role, potential:sheet->potential->>grade',
 		)
 		.eq('owner_id', uid)
 		.order('updated_at', { ascending: false });
@@ -411,6 +425,9 @@ export interface AdminCharacter {
 	progressed: boolean;
 	pinned_notes: PinnedNote[];
 	admin_character: boolean;
+	encryption_requested: boolean;
+	encryption_reason: string;
+	encrypted: boolean;
 	requested_claims: string[];
 	sheet: Sheet;
 	approved_sheet: Sheet | null;
@@ -426,7 +443,7 @@ export async function loadAllCharacters(): Promise<AdminCharacter[]> {
 	const { data, error } = await db()
 		.from('characters')
 		.select(
-			'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, bonus_ptp, staff_overrides, progressed, pinned_notes, admin_character, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at',
+			'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, bonus_ptp, staff_overrides, progressed, pinned_notes, admin_character, encryption_requested, encryption_reason, encrypted, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at',
 		)
 		.order('submitted_at', { ascending: true, nullsFirst: false });
 	fail(error);
@@ -628,3 +645,75 @@ export async function revokeHeavenly(grantId: number) {
 	const { error } = await db().rpc('revoke_heavenly', { p_grant: grantId });
 	fail(error);
 }
+
+// ───────────────────────────── Character pages & encryption ─────────────────────────────
+
+/** What character_page sends: everything for allowed viewers, only the name for everyone else. */
+export interface CharacterPageData {
+	id: string;
+	name: string;
+	owner: string | null;
+	encrypted: boolean;
+	/** False: encrypted and this viewer isn't allowed, so there's no sheet. */
+	allowed: boolean;
+	owner_id?: string;
+	kind?: 'oc' | 'canon';
+	canon_universe?: string | null;
+	admin_character?: boolean;
+	mine?: boolean;
+	approved?: boolean;
+	sheet?: Sheet;
+}
+
+/** One character's public page, or null when it doesn't exist or isn't public yet. */
+export async function loadCharacterPage(id: string): Promise<CharacterPageData | null> {
+	const { data, error } = await db().rpc('character_page', { p_character: id });
+	fail(error);
+	if (!data) return null;
+	const page = data as CharacterPageData;
+	return page.sheet ? { ...page, sheet: normalizeSheet(page.sheet) } : page;
+}
+
+export interface Viewer {
+	profile_id: string;
+	display_name: string;
+	avatar_url: string | null;
+	added_at?: string;
+}
+
+export async function characterViewers(id: string): Promise<Viewer[]> {
+	const { data, error } = await db().rpc('character_viewer_list', { p_character: id });
+	fail(error);
+	return (data ?? []) as Viewer[];
+}
+
+export async function findViewerCandidates(query: string): Promise<Viewer[]> {
+	if (query.trim().length < 2) return [];
+	const { data, error } = await db().rpc('find_viewer_candidates', { p_query: query });
+	fail(error);
+	return (data ?? []) as Viewer[];
+}
+
+export async function addCharacterViewer(id: string, profile: string) {
+	const { error } = await db().rpc('add_character_viewer', { p_character: id, p_profile: profile });
+	fail(error);
+}
+
+export async function removeCharacterViewer(id: string, profile: string) {
+	const { error } = await db().rpc('remove_character_viewer', { p_character: id, p_profile: profile });
+	fail(error);
+}
+
+/** Admins: encrypt a character (approving its request) or decrypt it. */
+export async function setEncryption(id: string, on: boolean) {
+	const { error } = await db().rpc('set_encryption', { p_character: id, p_on: on });
+	fail(error);
+}
+
+/** The owner (or an admin) switches encryption off. */
+export async function stopEncryption(id: string) {
+	const { error } = await db().rpc('stop_encryption', { p_character: id });
+	fail(error);
+}
+
+export const characterPageHref = (id: string) => `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}character/?id=${id}`;

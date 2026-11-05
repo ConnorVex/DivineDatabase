@@ -44,6 +44,7 @@ export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[]
 		staffOverrides: draft.staffOverrides,
 		progressed: draft.progressed,
 		adminCharacter: draft.adminCharacter,
+		encryptionRequest: draft.encryptionRequested && !draft.encrypted && !draft.adminCharacter ? { reason: draft.encryptionReason } : null,
 	});
 	if (draft.kind === 'canon' && draft.canonUniverse && draft.name.trim()) {
 		const taken = board.find((r) => r.claim_type === 'character' && r.universe === draft.canonUniverse && r.name.toLowerCase() === draft.name.trim().toLowerCase());

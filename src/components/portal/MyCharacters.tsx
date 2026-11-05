@@ -1,6 +1,7 @@
 // "My Stuff": the player's characters (status, admin notes, roll locks) and, on its own tab, families.
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
+	characterPageHref,
 	deleteCharacter,
 	loadEvolutions,
 	loadMyCharacters,
@@ -82,6 +83,11 @@ function CharacterCard({
 				<header class="mc-head">
 					<h3>
 						<a href={editHref}>{c.name}</a>
+						{c.encrypted && (
+							<span class="mc-lock" title="Encrypted: only you, the admins and the players you add can see it">
+								{' '}🔒
+							</span>
+						)}
 					</h3>
 					<span class="mc-status">{evolving ? evolutionStatus : status.label}</span>
 				</header>
@@ -139,6 +145,11 @@ function CharacterCard({
 									? 'Fix and resend'
 									: 'Edit'}
 					</a>
+					{c.approved_at && c.status !== 'denied' && (
+						<a class="pf-button subtle" href={characterPageHref(c.id)}>
+							{c.encrypted ? 'Page & who can see it' : 'View page'}
+						</a>
+					)}
 					{canDelete &&
 						(confirming ? (
 							<span class="pf-confirm" role="group" aria-label={`Delete ${c.name}?`}>

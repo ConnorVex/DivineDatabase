@@ -12,6 +12,7 @@ import {
 	loadUniverses,
 	newDraft,
 	publishAdminCharacter,
+	setEncryption,
 	saveCharacter,
 	type CharacterDraft,
 	type ClaimRow,
@@ -325,6 +326,7 @@ export default function SubmitForm() {
 			if (!result) return;
 			try {
 				await publishAdminCharacter(result.id, isEvolution);
+				if (draft?.encryptionRequested && !draft.encrypted) await setEncryption(result.id, true);
 				location.href = location.pathname.replace(/submit\/?$/, 'characters/');
 			} catch (e) {
 				setSaveState('error');
@@ -583,6 +585,38 @@ export default function SubmitForm() {
 									<TextField label="Age" value={s.age ?? ''} disabled={readOnly} onInput={(v) => updateSheet((x) => void (x.age = v))} />
 									<TextField label="Pronouns" value={s.pronouns ?? ''} disabled={readOnly} onInput={(v) => updateSheet((x) => void (x.pronouns = v))} />
 								</>
+							)}
+							{draft.encrypted ? (
+								<p class="pf-status enc-banner" role="note">
+									<strong>🔒 Encrypted</strong> · Only you, the admins and the players you add can see this character. Manage who can see it on its page.
+								</p>
+							) : (
+								<div class="pf-enc-request">
+									<label class="pf-check">
+										<input
+											type="checkbox"
+											checked={draft.encryptionRequested}
+											disabled={readOnly}
+											onChange={(e) => change((d) => void (d.encryptionRequested = e.currentTarget.checked))}
+										/>
+										Request encryption 🔒
+									</label>
+									<p class="pf-help">
+										{adminChar
+											? 'Encrypted as soon as you send it.'
+											: 'Hides the character from everyone except you, the admins and the players you pick. Staff approve it with the character.'}
+									</p>
+									{draft.encryptionRequested && !adminChar && (
+										<TextArea
+											label="Why should it be encrypted?"
+											required
+											rows={2}
+											value={draft.encryptionReason}
+											disabled={readOnly}
+											onInput={(v) => change((d) => void (d.encryptionReason = v))}
+										/>
+									)}
+								</div>
 							)}
 						</Section>
 					</div>

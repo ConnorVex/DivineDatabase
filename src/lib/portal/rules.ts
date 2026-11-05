@@ -56,6 +56,8 @@ export interface CheckContext {
 	progressed?: boolean;
 	/** An admin's own character: no rule checks or limits. */
 	adminCharacter?: boolean;
+	/** The owner asks for encryption (not yet approved), and why. */
+	encryptionRequest?: { reason: string } | null;
 	/** Families the character is in or is asking to join (ids). */
 	families?: string[];
 	/** The family perks the player can link, by id. Without it, linked cards aren't checked against their perk. */
@@ -199,6 +201,9 @@ export const minimumMoves = (max: number | undefined) => (max === undefined ? 0 
 const blank = (v: unknown) => v === undefined || v === null || (typeof v === 'string' ? v.trim() === '' : Array.isArray(v) && v.length === 0);
 const isLink = (v: string) => /^https?:\/\/\S+$/i.test(v.trim());
 
+/** The start of the permission item an encryption request makes; approving it encrypts the character. */
+export const ENCRYPTION_ITEM = 'Encryption 🔒 needs permission';
+
 export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 	// A character staff marked as progressed is checked like an evolution: no starting limits.
 	const ctx = given.progressed ? { ...given, isEvolution: true } : given;
@@ -210,6 +215,10 @@ export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 	// ── Basics ──
 	if (blank(ctx.name)) add('error', 'Basics', 'Give your character a name.');
 	if (!oc && blank(ctx.canonUniverse)) add('error', 'Basics', 'Pick which series your canon character is from.');
+	if (ctx.encryptionRequest) {
+		if (blank(ctx.encryptionRequest.reason)) add('error', 'Basics', 'Say why you want this character encrypted.');
+		else add('permission', 'Basics', `${ENCRYPTION_ITEM}: ${ctx.encryptionRequest.reason.trim()}`);
+	}
 	if (ctx.adminCharacter) return issues; // admin characters skip every rule
 	if (oc && blank(sheet.role)) add('error', 'Basics', 'Pick a role.');
 
