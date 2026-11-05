@@ -11,6 +11,7 @@ import {
 	loadMyRolls,
 	loadUniverses,
 	newDraft,
+	publishAdminCharacter,
 	saveCharacter,
 	type CharacterDraft,
 	type ClaimRow,
@@ -162,7 +163,8 @@ export default function SubmitForm() {
 	/** A granted Heavenly Restriction applies to a new OC. */
 	const grantedHeavenly = !isEvolution && draft?.kind === 'oc' && isHeavenly(heavenlyGrant) ? heavenlyGrant : null;
 	/** Starting limits apply to a new character, unless staff marked it as already progressed. */
-	const startRules = !isEvolution && !draft?.progressed;
+	const adminChar = Boolean(draft?.adminCharacter);
+	const startRules = !isEvolution && !draft?.progressed && !adminChar;
 	const staffSet = (path: string) => Boolean(draft?.staffOverrides[path]);
 
 	/** Applies a change to the draft and schedules an autosave. */
@@ -317,6 +319,19 @@ export default function SubmitForm() {
 			return;
 		}
 		while (saving.current) await new Promise((r) => setTimeout(r, 100));
+		if (adminChar) {
+			// Admin characters skip review: approved on send, and later edits go live straight away.
+			const result = await save(isEvolution ? undefined : 'pending');
+			if (!result) return;
+			try {
+				await publishAdminCharacter(result.id, isEvolution);
+				location.href = location.pathname.replace(/submit\/?$/, 'characters/');
+			} catch (e) {
+				setSaveState('error');
+				setSaveError(messageOf(e));
+			}
+			return;
+		}
 		if (isEvolution) {
 			// Approved characters: save the changes, then describe them on the evolution page.
 			const result = await save();
@@ -409,6 +424,7 @@ export default function SubmitForm() {
 		extraTraitSlots: draft.extraTraitSlots,
 		staffOverrides: draft.staffOverrides,
 		progressed: draft.progressed,
+		adminCharacter: adminChar,
 	};
 	/** A step's pinned notes; card notes show in their card instead. */
 	const stepPins = (id: string) => <PinBoxes notes={pins.filter((n) => n.step === id && !(id === 'systems' && n.target))} sheet={s} />;
@@ -420,6 +436,12 @@ export default function SubmitForm() {
 			{status && (
 				<div class={`pf-status status-${draft.status}`}>
 					<strong>{status.label}</strong> · {status.text}
+				</div>
+			)}
+
+			{adminChar && (
+				<div class="pf-status admin-banner" role="note">
+					<strong>🛡 Admin character</strong> · No rule checks or limits. {isEvolution ? 'Your changes go live as soon as you send them.' : 'It’s approved as soon as you send it.'}
 				</div>
 			)}
 
@@ -497,12 +519,19 @@ export default function SubmitForm() {
 								<SelectField
 									label="Submission type"
 									required
-									value={draft.kind}
-									onChange={(v) => change((d) => void (d.kind = v === 'canon' ? 'canon' : 'oc'))}
+									value={draft.adminCharacter ? 'admin' : draft.kind}
+									onChange={(v) =>
+										change((d) => {
+											d.kind = v === 'canon' ? 'canon' : 'oc';
+											d.adminCharacter = v === 'admin';
+										})
+									}
 									options={[
 										{ value: 'oc', label: 'Original character (OC)' },
 										{ value: 'canon', label: 'Canon character tryout' },
+										...(player.isAdmin ? [{ value: 'admin', label: 'Admin character (no limits)' }] : []),
 									]}
+									help={draft.adminCharacter ? 'No rule checks or limits, every rank including the Divine S.T.S, and Error Tiers. It’s approved as soon as you send it.' : undefined}
 								/>
 							)}
 							{!oc && (
@@ -635,7 +664,7 @@ export default function SubmitForm() {
 						<>
 							<div class="pf-step" hidden={current !== 'stats'}>
 								{stepPins('stats')}
-								<StatsSection sheet={s} update={updateSheet} readOnly={readOnly} isEvolution={!startRules} bonusPtp={draft.bonusPtp} staffOverrides={draft.staffOverrides} />
+								<StatsSection sheet={s} update={updateSheet} readOnly={readOnly} isEvolution={!startRules} bonusPtp={draft.bonusPtp} staffOverrides={draft.staffOverrides} adminCharacter={adminChar} />
 							</div>
 							<div class="pf-step" hidden={current !== 'traits'}>
 								{stepPins('traits')}
@@ -828,7 +857,11 @@ export default function SubmitForm() {
 				) : (
 					!readOnly && (
 						<button type="button" class="pf-button primary" disabled={saveState === 'saving'} onClick={submit}>
-							{isEvolution
+							{adminChar
+								? isEvolution
+									? 'Publish changes'
+									: 'Approve & publish'
+								: isEvolution
 								? 'Continue to the evolution →'
 								: draft.status === 'pending'
 									? 'Save changes'

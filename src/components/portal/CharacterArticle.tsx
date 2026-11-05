@@ -114,6 +114,9 @@ export interface ArticleProps {
 	/** Reviewers: pin a note to this spot (shows 📌 buttons). */
 	onPin?: (step: string, target?: string) => void;
 	onUnpin?: (id: string) => void;
+	adminCharacter?: boolean;
+	/** Viewers who aren't allowed past Error Tiers see ERROR instead of those stats. */
+	hideErrors?: boolean;
 }
 
 /** Red boxes and 📌 buttons for pinned review notes. */
@@ -138,6 +141,10 @@ export function CharacterInfobox(props: ArticleProps) {
 	const role = rules.roles.find((x) => x.id === s.role);
 	const potential = rules.potentials.find((p) => p.id === s.potential.grade);
 	const heavenly = heavenlyOf(s);
+	const errored = new Set(s.errorStats ?? []);
+	/** A value in an Error Tier: ERROR for viewers who can't see it, tagged for those who can. */
+	const err = (key: string, value: ComponentChildren) =>
+		!errored.has(key) ? value : props.hideErrors ? <span class="wk-error">ERROR</span> : <>{value} <span class="wk-error-tag">hidden</span></>;
 	const image = /^https:\/\//.test(s.appearance.image) ? s.appearance.image : '';
 	return (
 		<aside class="wk-infobox" aria-label="Infobox">
@@ -152,7 +159,7 @@ export function CharacterInfobox(props: ArticleProps) {
 					<Row label="Race" value={s.race} />
 					<Row label="Age" value={s.age} />
 					<Row label="Pronouns" value={s.pronouns} />
-					{oc && <Row label="Potential" value={potential ? `${potential.label}${s.potential.roll ? ` (rolled ${s.potential.roll})` : ''}` : 'Not rolled'} staff={Boolean(staff['potential.grade'])} />}
+					{oc && <Row label="Potential" value={err('potential', potential ? `${potential.label}${s.potential.roll ? ` (rolled ${s.potential.roll})` : ''}` : 'Not rolled')} staff={Boolean(staff['potential.grade'])} />}
 					{heavenly && <Row label="Heavenly" value={`⛩ ${heavenly}`} />}
 				</tbody>
 			</table>
@@ -166,30 +173,41 @@ export function CharacterInfobox(props: ArticleProps) {
 					<div class="wk-stats">
 						{STATS.map(([key, short]) => {
 							const info = rankInfo(s.stats[key]);
+							const erroring = errored.has(key);
+							if (erroring && props.hideErrors)
+								return (
+									<div class="wk-stat error-tier" key={key} title="Error Tier">
+										<span>{short}</span>
+										<strong>ERROR</strong>
+										<small>???</small>
+									</div>
+								);
 							return (
-								<div class={`wk-stat${staff[`stats.${key}`] ? ' staff' : ''}`} key={key} title={staff[`stats.${key}`] ? 'Set by staff' : undefined}>
+								<div class={`wk-stat${staff[`stats.${key}`] ? ' staff' : ''}${erroring ? ' erroring' : ''}`} key={key} title={erroring ? 'Error Tier: shows as ERROR to non-admins' : staff[`stats.${key}`] ? 'Set by staff' : undefined}>
 									<span>{short}</span>
 									<strong>{info?.rank ?? '—'}</strong>
-									<small>{info ? info.value : ''}</small>
+									<small>{erroring ? 'hidden' : info ? info.value : ''}</small>
 								</div>
 							);
 						})}
 					</div>
 					<div class="wk-facts">
 						<Fact label="Power" wide>
-							<strong class="wk-big">{power(s) ?? '—'}</strong>
+							<strong class="wk-big">{props.hideErrors && (errored.has('strength') || errored.has('speed')) ? <span class="wk-error">ERROR</span> : (power(s) ?? '—')}</strong>
 						</Fact>
 						<Fact label="Intelligence" staff={Boolean(staff['stats.intelligence'])}>
-							{s.stats.intelligence || '—'}
+							{err('intelligence', s.stats.intelligence || '—')}
 						</Fact>
 						<Fact label="Physical meter" staff={Boolean(staff['stats.physicalMeter'])}>
 							{s.stats.physicalMeter}
 						</Fact>
 						<Fact label="Phase" wide staff={Boolean(staff['stats.phase'])}>
-							{rules.stats.phases.find((p) => p.phase === s.stats.phase)?.label ?? '—'}
+							{err('phase', rules.stats.phases.find((p) => p.phase === s.stats.phase)?.label ?? '—')}
 						</Fact>
 						<Fact label="Recoil" wide>
-							{r ? (
+							{props.hideErrors && ['strength', 'speed', 'defense'].some((k) => errored.has(k)) ? (
+								<span class="wk-error">ERROR</span>
+							) : r ? (
 								<>
 									<strong>Lv {r.level}</strong>
 									<small>
@@ -201,7 +219,9 @@ export function CharacterInfobox(props: ArticleProps) {
 							)}
 						</Fact>
 						<Fact label="Starting PTP" wide>
-							{props.progressed ? (
+							{props.adminCharacter ? (
+								<small>No limits: admin character</small>
+							) : props.progressed ? (
 								<small>Not limited: already progressed</small>
 							) : (
 								<>
@@ -257,6 +277,7 @@ export function CharacterArticle(props: ArticleProps) {
 				<p class="wk-tagline">
 					{oc ? `Original character${role ? ` · ${role.label}` : ''}` : `Canon tryout · ${props.universeName ?? 'unknown series'}`}
 					{props.progressed && <span class="wk-staff"> already progressed</span>}
+					{props.adminCharacter && <span class="wk-admin"> admin character</span>}
 				</p>
 			</header>
 

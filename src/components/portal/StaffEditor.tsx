@@ -9,6 +9,7 @@ import { systemById, visibleFields, type FieldValue } from '../../lib/portal/sys
 import { watchPlayer } from '../../lib/supabase.ts';
 import { NumberField, SelectField } from './fields.tsx';
 import { FieldInput } from './SystemsSection.tsx';
+import { divineOptions } from './StatsSection.tsx';
 
 const STATS = [
 	['strength', 'Strength'],
@@ -16,7 +17,7 @@ const STATS = [
 	['defense', 'Defense'],
 	['stamina', 'Stamina'],
 ] as const;
-const rankOptions = ranks.map((r) => ({ value: r.rank, label: `${r.rank} · ${r.value}`, group: `Tier ${r.tier}` }));
+const rankOptions = [...ranks.map((r) => ({ value: r.rank, label: `${r.rank} · ${r.value}`, group: `Tier ${r.tier}` })), ...divineOptions];
 
 /** Reads a path (stats.strength, potential.grade, card:<key>.<field>) from a sheet. */
 export function readPath(sheet: Sheet, path: string): unknown {

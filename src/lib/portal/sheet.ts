@@ -91,6 +91,8 @@ export interface Sheet {
 	families: string[];
 	/** Canon tryouts only. */
 	canon: { portrayal: string; sample: string };
+	/** Admin characters: stats in an Error Tier, shown as ERROR to everyone but admins. */
+	errorStats?: string[];
 }
 
 /** JSON with object keys sorted, so the database's key order doesn't count as a change. */

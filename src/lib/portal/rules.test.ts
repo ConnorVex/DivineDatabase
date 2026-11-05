@@ -483,3 +483,15 @@ test('staff overrides: staff-set stats cost no PTP and skip starting limits; pro
 	assert.ok(!errs({ staffOverrides: { ...staff, [cardPath('j', 'ceOutput')]: {} } }).some((m) => m.includes('stat override')));
 	assert.ok(!errs({ progressed: true }).some((m) => m.includes('PTP') || m.includes('stat override')));
 });
+
+test('admin characters skip every rule; the Divine S.T.S needs Divine Potential', () => {
+	const s = goodSheet();
+	s.stats = { ...s.stats, phase: 4, strength: 'ΩSS+', speed: 'ΚF' };
+	s.lore.backstory = '';
+	const all = (extra: object) => checkSheet(s, { ...ocCtx, ...extra });
+	assert.ok(messages(all({}), 'error').some((m) => m.includes('Divine Potential')), 'Divine ranks need Divine Potential');
+	assert.deepEqual(all({ adminCharacter: true }), [], 'admin characters have no issues');
+	assert.equal(power(s), (152 + 124) / 2, 'Divine ranks have values past 20A');
+	s.potential.grade = 'divine';
+	assert.ok(!messages(all({}), 'error').some((m) => m.includes('Divine')), messages(all({}), 'error').join('\n'));
+});

@@ -3,6 +3,7 @@ import { useId, useState } from 'preact/hooks';
 import { power, ptp, rankInfo, ranks, recoil, rules, statStart, type StaffOverrides } from '../../lib/portal/rules.ts';
 import { heavenlyOf, sheetHeavenly } from '../../lib/portal/heavenly.ts';
 import type { Sheet } from '../../lib/portal/sheet.ts';
+import { DIVINE_PHASE, DIVINE_RANKS, DIVINE_TIERS } from '../../lib/portal/divine.ts';
 import { NumberField, Section, SelectField } from './fields.tsx';
 
 type Rank = (typeof ranks)[number];
@@ -15,10 +16,13 @@ const STATS = [
 
 const INTEL = rules.stats.intelligence;
 const rankOptions = ranks.map((r) => ({ value: r.rank, label: `${r.rank} · ${r.value}`, group: `Tier ${r.tier}` }));
+/** The Divine S.T.S, past 20A: for Divine Potential and admin characters. */
+export const divineOptions = DIVINE_RANKS.map((r) => ({ value: r.rank, label: `${r.rank} · ${r.value}`, group: `Divine · ${DIVINE_TIERS[r.tier - 21].name}` }));
+const ERROR_KEYS = ['strength', 'speed', 'defense', 'stamina', 'intelligence', 'phase', 'potential'];
 /** Bars and radar are scaled to the top rank of the character's Phase. */
 const phaseTopValue = (phase: number) => {
 	const maxTier = rules.stats.phases.find((p) => p.phase === phase)?.maxTier ?? 2;
-	return Math.max(...ranks.filter((r) => r.tier <= maxTier).map((r) => r.value));
+	return Math.max(...[...ranks, ...DIVINE_RANKS].filter((r) => r.tier <= maxTier).map((r) => r.value));
 };
 
 function StatRow(props: { label: string; value: string; options: { value: string; label: string; group?: string }[]; fill: number; detail?: string; onChange: (v: string) => void; disabled: boolean }) {
@@ -106,6 +110,7 @@ export function StatsSection({
 	isEvolution,
 	bonusPtp = 0,
 	staffOverrides = {},
+	adminCharacter = false,
 }: {
 	sheet: Sheet;
 	update: (fn: (s: Sheet) => void) => void;
@@ -114,6 +119,8 @@ export function StatsSection({
 	bonusPtp?: number;
 	/** Values staff set: locked here, and they don't cost PTP. */
 	staffOverrides?: StaffOverrides;
+	/** An admin's own character: every rank, any Potential, and Error Tiers. */
+	adminCharacter?: boolean;
 }) {
 	const staff = (key: string) => Boolean(staffOverrides[`stats.${key}`]);
 	const s = sheet.stats;
@@ -121,13 +128,31 @@ export function StatsSection({
 	const r = recoil(sheet);
 	const budget = ptp(sheet, bonusPtp, staffOverrides);
 	const top = phaseTopValue(s.phase);
-	const overBudget = !isEvolution && budget.roleKnown && budget.spent > budget.available;
+	const overBudget = !adminCharacter && !isEvolution && budget.roleKnown && budget.spent > budget.available;
 	const intelIndex = Math.max(0, INTEL.findIndex((i) => i.value === s.intelligence));
 	const phase = rules.stats.phases.find((x) => x.phase === s.phase);
 	// A Heavenly Restriction can set the physical stats and the phase.
 	const heavenly = isEvolution ? null : sheetHeavenly(sheet);
 	const statsLocked = Boolean(heavenly?.lockStats && heavenly.baseRank);
-	const statOptions = statsLocked && !rankOptions.some((o) => o.value === heavenly!.baseRank) ? [{ value: heavenly!.baseRank!, label: `${heavenly!.baseRank} · Heavenly` }, ...rankOptions] : rankOptions;
+	// The Divine S.T.S opens with Divine Potential (or on an admin character).
+	const divine = adminCharacter || sheet.potential.grade === 'divine' || (['strength', 'speed', 'defense', 'stamina'] as const).some((k) => (rankInfo(s[k])?.tier ?? 0) > 20);
+	const allRanks = divine ? [...rankOptions, ...divineOptions] : rankOptions;
+	const statOptions = statsLocked && !rankOptions.some((o) => o.value === heavenly!.baseRank) ? [{ value: heavenly!.baseRank!, label: `${heavenly!.baseRank} · Heavenly` }, ...allRanks] : allRanks;
+	const errors = new Set(sheet.errorStats ?? []);
+	const toggleError = (key: string, on: boolean) =>
+		update((x) => {
+			const next = new Set(x.errorStats ?? []);
+			if (on) next.add(key);
+			else next.delete(key);
+			x.errorStats = ERROR_KEYS.filter((k) => next.has(k));
+		});
+	const ErrorToggle = ({ k }: { k: string }) =>
+		adminCharacter ? (
+			<label class="hud-error-toggle">
+				<input type="checkbox" checked={errors.has(k)} disabled={readOnly} onChange={(e) => toggleError(k, e.currentTarget.checked)} /> Error Tier
+				<span class="pf-help"> · shows as ERROR to non-admins</span>
+			</label>
+		) : null;
 
 	const axes = [
 		...STATS.map((stat) => {
@@ -147,8 +172,8 @@ export function StatsSection({
 						// A rank a trait or system starts the stat at isn't “above” anything.
 						const above = info && phase && info.tier > phase.maxTier && info.value > statStart(sheet, stat.key);
 						return (
+							<div key={stat.key} class={errors.has(stat.key) ? 'hud-erroring' : undefined}>
 							<StatRow
-								key={stat.key}
 								label={stat.label}
 								value={s[stat.key]}
 								options={statOptions}
@@ -165,6 +190,8 @@ export function StatsSection({
 								disabled={readOnly || statsLocked || staff(stat.key)}
 								onChange={(v) => update((x) => void (x.stats[stat.key] = v))}
 							/>
+							<ErrorToggle k={stat.key} />
+							</div>
 						);
 					})}
 					<StatRow
@@ -178,6 +205,7 @@ export function StatsSection({
 						disabled={readOnly || Boolean(heavenly?.lockIntelligence) || staff('intelligence')}
 						onChange={(v) => update((x) => void (x.stats.intelligence = v))}
 					/>
+					<ErrorToggle k="intelligence" />
 				</div>
 
 				<div class="hud-panel hud-readout">
@@ -194,12 +222,18 @@ export function StatsSection({
 						</div>
 						<div class={`hud-tile ${overBudget ? 'bad' : ''}`}>
 							<span class="hud-tile-label">PTP</span>
-							<strong>
-								{budget.spent}
-								<small> / {budget.roleKnown ? budget.available : '?'}</small>
-							</strong>
+							{adminCharacter ? (
+								<strong>∞</strong>
+							) : (
+								<strong>
+									{budget.spent}
+									<small> / {budget.roleKnown ? budget.available : '?'}</small>
+								</strong>
+							)}
 							<span class="hud-tile-sub">
-								{!budget.roleKnown
+								{adminCharacter
+									? 'No limits on an admin character'
+									: !budget.roleKnown
 									? 'Pick a role first'
 									: (budget.noPtp
 											? 'No starting PTP (trait or system)'
@@ -219,8 +253,21 @@ export function StatsSection({
 				disabled={readOnly || Boolean(heavenly?.lockPhase) || staff('phase')}
 				help={heavenly?.phase !== undefined ? `Your Heavenly Restriction puts you in Phase ${heavenly.phase}${heavenly.lockPhase ? '' : '; hops up to it are free'}.` : undefined}
 				onChange={(v) => update((x) => void (x.stats.phase = Number(v) || 0))}
-				options={rules.stats.phases.map((ph) => ({ value: String(ph.phase), label: `${ph.label} (Tiers ${ph.minTier}–${ph.maxTier})` }))}
+				options={rules.stats.phases
+					.filter((ph) => ph.phase < DIVINE_PHASE || divine || s.phase >= DIVINE_PHASE)
+					.map((ph) => ({ value: String(ph.phase), label: `${ph.label} (Tiers ${ph.minTier}–${ph.maxTier})` }))}
 			/>
+			{adminCharacter && <ErrorToggle k="phase" />}
+			{adminCharacter && (
+				<SelectField
+					label="Potential (admin character)"
+					value={sheet.potential.grade}
+					disabled={readOnly}
+					onChange={(v) => update((x) => void (x.potential = { ...x.potential, grade: v, roll: null }))}
+					options={rules.potentials.map((p) => ({ value: p.id, label: p.label }))}
+				/>
+			)}
+			{adminCharacter && <ErrorToggle k="potential" />}
 			<NumberField
 				label="Physical meter"
 				min={0}

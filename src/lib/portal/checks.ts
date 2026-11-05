@@ -43,6 +43,7 @@ export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[]
 		heavenlyGrant: data.heavenlyGrant,
 		staffOverrides: draft.staffOverrides,
 		progressed: draft.progressed,
+		adminCharacter: draft.adminCharacter,
 	});
 	if (draft.kind === 'canon' && draft.canonUniverse && draft.name.trim()) {
 		const taken = board.find((r) => r.claim_type === 'character' && r.universe === draft.canonUniverse && r.name.toLowerCase() === draft.name.trim().toLowerCase());

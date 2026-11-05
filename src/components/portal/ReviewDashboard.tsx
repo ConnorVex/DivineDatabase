@@ -251,6 +251,7 @@ function Detail(props: {
 				heavenlyGrant,
 				staffOverrides: c.staff_overrides,
 				progressed: c.progressed,
+				adminCharacter: c.admin_character,
 			}),
 		[c, held, combos, props.board, perks, memberOf, heavenlyGrant],
 	);
@@ -408,6 +409,7 @@ function Detail(props: {
 						claims={props.board.filter((b) => c.requested_claims.includes(b.id))}
 						perks={perks ?? []}
 						families={props.families}
+						adminCharacter={c.admin_character}
 						pins={pins}
 						onPin={canPin ? (step, target) => askPin(step, target) : undefined}
 						onUnpin={unpin}
@@ -628,6 +630,7 @@ function CharacterQueue(props: {
 								approvedSheet: c.approved_sheet,
 								staffOverrides: c.staff_overrides,
 								progressed: c.progressed,
+								adminCharacter: c.admin_character,
 								families: c.sheet.families,
 							}).filter((i) => i.level === 'error').length;
 							return (
@@ -639,6 +642,7 @@ function CharacterQueue(props: {
 											<span class="pf-help">
 												{owner?.display_name ?? 'unknown'} · {c.kind === 'canon' ? 'canon tryout' : 'OC'}
 												{c.progressed ? ' · progressed' : ''}
+												{c.admin_character ? ' · admin character' : ''}
 												{c.approved_at && c.status === 'pending' ? ' · evolution' : ''}
 												{!c.approved_at && c.sheet.families.length > 0 ? ' · family' : ''}
 												{c.submitted_at && tab === 'pending' ? ` · ${ago(c.submitted_at)}` : ''}

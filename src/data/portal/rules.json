@@ -162,6 +162,14 @@
 			"maxPhase": 3,
 			"maxTier": 18,
 			"rolled": true
+		},
+		{
+			"id": "divine",
+			"label": "Divine",
+			"maxPhase": 4,
+			"maxTier": 24,
+			"rolled": false,
+			"staffOnly": true
 		}
 	],
 	"potentialNote": "Peak, Ultimate and Apex are rolled silently by staff and override the existing Potential.",
@@ -197,6 +205,13 @@
 				"minTier": 15,
 				"maxTier": 20,
 				"hopCost": 30
+			},
+			{
+				"phase": 4,
+				"label": "Phase 4: Divine",
+				"minTier": 21,
+				"maxTier": 24,
+				"hopCost": 0
 			}
 		],
 		"intelligence": [

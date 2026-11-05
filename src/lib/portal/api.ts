@@ -25,6 +25,8 @@ export interface CharacterDraft {
 	progressed: boolean;
 	/** Notes reviewers pinned to parts of the form. */
 	pinnedNotes: PinnedNote[];
+	/** An admin's own character: no rule checks, approved as soon as it's sent. */
+	adminCharacter: boolean;
 }
 
 export interface Universe {
@@ -76,6 +78,7 @@ export const newDraft = (): CharacterDraft => ({
 	staffOverrides: {},
 	progressed: false,
 	pinnedNotes: [],
+	adminCharacter: false,
 });
 
 export async function loadCharacter(id: string): Promise<CharacterDraft> {
@@ -97,6 +100,7 @@ export async function loadCharacter(id: string): Promise<CharacterDraft> {
 		staffOverrides: data.staff_overrides ?? {},
 		progressed: data.progressed ?? false,
 		pinnedNotes: normalizePins(data.pinned_notes),
+		adminCharacter: data.admin_character ?? false,
 	};
 }
 
@@ -109,6 +113,8 @@ export async function saveCharacter(c: CharacterDraft, status?: 'draft' | 'pendi
 		sheet: c.sheet,
 		requested_claims: c.requestedClaims,
 		status: status ?? (c.status === 'pending' ? 'pending' : 'draft'),
+		// Only admins can set it; the database ignores it for everyone else.
+		...(c.adminCharacter ? { admin_character: true } : {}),
 	};
 	const query = c.id ? db().from('characters').update(row).eq('id', c.id) : db().from('characters').insert(row);
 	const { data, error } = await query.select('id, status').single();
@@ -404,6 +410,7 @@ export interface AdminCharacter {
 	staff_overrides: StaffOverrides;
 	progressed: boolean;
 	pinned_notes: PinnedNote[];
+	admin_character: boolean;
 	requested_claims: string[];
 	sheet: Sheet;
 	approved_sheet: Sheet | null;
@@ -419,7 +426,7 @@ export async function loadAllCharacters(): Promise<AdminCharacter[]> {
 	const { data, error } = await db()
 		.from('characters')
 		.select(
-			'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, bonus_ptp, staff_overrides, progressed, pinned_notes, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at',
+			'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, bonus_ptp, staff_overrides, progressed, pinned_notes, admin_character, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at',
 		)
 		.order('submitted_at', { ascending: true, nullsFirst: false });
 	fail(error);
@@ -450,6 +457,15 @@ export async function setExtraTraitSlots(id: string, slots: number) {
 export async function staffEditCharacter(id: string, sheet: Sheet, overrides: StaffOverrides) {
 	const { error } = await db().from('characters').update({ sheet, staff_overrides: overrides }).eq('id', id);
 	fail(error);
+}
+
+/** Admin characters: approve a new one, or put the edits live on an approved one. */
+export async function publishAdminCharacter(id: string, approved: boolean) {
+	if (!approved) return reviewCharacter(id, 'approved', 'Admin character.');
+	const { data, error } = await db().from('characters').select('name, sheet').eq('id', id).single();
+	fail(error);
+	const { error: e2 } = await db().from('characters').update({ approved_name: data!.name, approved_sheet: data!.sheet }).eq('id', id);
+	fail(e2);
 }
 
 export async function setPinnedNotes(id: string, notes: PinnedNote[]) {

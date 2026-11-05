@@ -2,6 +2,7 @@
 // so the same checks can run in the form, on the admin dashboard and in tests.
 import { currencyChanged, treeProblems } from './customTree.ts';
 import { HEAVENLY_RANKS, HEAVENLY_SYSTEMS, heavenlyOf, sheetHeavenly } from './heavenly.ts';
+import { DIVINE_PHASE, DIVINE_RANKS } from './divine.ts';
 import ranksData from '../../data/portal/ranks.json' with { type: 'json' };
 import rulesData from '../../data/portal/rules.json' with { type: 'json' };
 import traitsData from '../../data/portal/traits.json' with { type: 'json' };
@@ -13,7 +14,7 @@ export const ranks = ranksData.ranks;
 export const rules = rulesData;
 export const traits = traitsData.traits;
 
-const rankByName = new Map([...ranks, ...HEAVENLY_RANKS].map((r) => [r.rank, r as (typeof ranks)[number]]));
+const rankByName = new Map([...ranks, ...HEAVENLY_RANKS, ...DIVINE_RANKS].map((r) => [r.rank, r as (typeof ranks)[number]]));
 const traitByName = new Map(traits.map((t) => [t.name, t]));
 const slotsByRarity = new Map(rules.traitSlots.rarities.map((r) => [r.id, r.slots]));
 
@@ -53,6 +54,8 @@ export interface CheckContext {
 	staffOverrides?: StaffOverrides;
 	/** Staff marked the character as already progressed: no starting limits at all. */
 	progressed?: boolean;
+	/** An admin's own character: no rule checks or limits. */
+	adminCharacter?: boolean;
 	/** Families the character is in or is asking to join (ids). */
 	families?: string[];
 	/** The family perks the player can link, by id. Without it, linked cards aren't checked against their perk. */
@@ -207,6 +210,7 @@ export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 	// ── Basics ──
 	if (blank(ctx.name)) add('error', 'Basics', 'Give your character a name.');
 	if (!oc && blank(ctx.canonUniverse)) add('error', 'Basics', 'Pick which series your canon character is from.');
+	if (ctx.adminCharacter) return issues; // admin characters skip every rule
 	if (oc && blank(sheet.role)) add('error', 'Basics', 'Pick a role.');
 
 	// ── Appearance & lore ──
@@ -248,6 +252,12 @@ export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 			const info = rankInfo(s[stat]);
 			if (info && info.tier > potential.maxTier && info.value > statStart(sheet, stat) && !staff(`stats.${stat}`) && !staff('potential.grade')) add('warning', 'Stats', `${potential.label} Potential stops at Tier ${potential.maxTier}, but ${stat} is ${info.rank}.`);
 		}
+	}
+	// The Divine S.T.S (past 20A) needs Divine Potential, which only staff give.
+	const divineStats = (['strength', 'speed', 'defense', 'stamina'] as const).filter((k) => (rankInfo(s[k])?.tier ?? 0) > 20 && !staff(`stats.${k}`));
+	if (sheet.potential.grade !== 'divine' && !staff('potential.grade')) {
+		if (divineStats.length) add('error', 'Stats', `The Divine S.T.S (${divineStats.join(', ')}) needs Divine Potential.`);
+		if (s.phase >= DIVINE_PHASE && !staff('stats.phase')) add('error', 'Stats', 'Phase 4: Divine needs Divine Potential.');
 	}
 	const intel = rules.stats.intelligence.find((i) => i.value === s.intelligence);
 	if (intel && 'permission' in intel && intel.permission) add('permission', 'Stats', `${intel.value} Intelligence needs permission.`);
