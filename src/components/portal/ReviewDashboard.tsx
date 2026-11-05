@@ -46,6 +46,7 @@ import { familyHref, loadFamilies, loadMyFamily, loadPerkQueue, type Family, typ
 import { loadFamilyChoices, loadLinkablePerks, type LinkablePerk } from '../../lib/portal/families.ts';
 import { applyApproved, approvedText, checkSheet, ENCRYPTION_ITEM, type Issue } from '../../lib/portal/rules.ts';
 import { AdminRail } from './AdminRail.tsx';
+import { MaintenancePanel } from './MaintenancePanel.tsx';
 import { PlayersView } from './OverridePanel.tsx';
 import { OwnerCard } from './OwnerCard.tsx';
 import { startPortalTheme, themeForRole } from '../../lib/portal/theme.ts';
@@ -75,10 +76,10 @@ const KINDS = [
 	{ id: 'perks', label: 'Family perks', icon: '✨' },
 	{ id: 'equipment', label: 'Equipment', icon: '⚔️' },
 ] as const;
-type Kind = (typeof KINDS)[number]['id'] | 'players';
+type Kind = (typeof KINDS)[number]['id'] | 'players' | 'site';
 const kindFromUrl = (): Kind => {
 	const t = new URLSearchParams(location.search).get('type');
-	return t === 'players' || KINDS.some((k) => k.id === t) ? (t as Kind) : 'characters';
+	return t === 'players' || t === 'site' || KINDS.some((k) => k.id === t) ? (t as Kind) : 'characters';
 };
 
 const STATUS_LABEL: Record<Status, string> = {
@@ -806,7 +807,7 @@ export default function ReviewDashboard() {
 	if (!all) return <p class="portal-status">Loading submissions…</p>;
 
 	const pendingFamilies = families.filter((f) => f.status === 'pending');
-	const counts: Record<Exclude<Kind, 'players'>, number> = {
+	const counts: Record<Exclude<Kind, 'players' | 'site'>, number> = {
 		characters: all.filter((c) => c.status === 'pending').length,
 		families: pendingFamilies.length,
 		perks: perks.reduce((n, r) => n + r.perks.length, 0),
@@ -835,6 +836,7 @@ export default function ReviewDashboard() {
 				<div class="fm fm-admin-list">{perks.length ? perks.map((r) => <ReviewRequest key={r.id} r={r} onDone={load} />) : <p class="pf-empty">No perks waiting. 🎉</p>}</div>
 			)}
 			{shownKind === 'equipment' && <EquipmentReview requests={equipment} items={craftItems} players={players} onDone={load} />}
+			{shownKind === 'site' && <MaintenancePanel />}
 			{shownKind === 'players' && <PlayersView players={[...players.values()]} focus={focus} focusCharacter={focusChar} onFocus={(id) => (setFocusChar(null), setKind('players', id))} />}
 		</>
 	);
@@ -852,7 +854,10 @@ export default function ReviewDashboard() {
 		<div class="pf rv adm">
 			<AdminRail
 				inbox={KINDS.map((k) => ({ id: k.id, label: k.label, icon: k.icon, count: counts[k.id] }))}
-				tools={[{ id: 'players', label: 'Players & rolls', icon: '🎲' }]}
+				tools={[
+					{ id: 'players', label: 'Players & rolls', icon: '🎲' },
+					{ id: 'site', label: 'Maintenance', icon: '🛠️' },
+				]}
 				active={shownKind}
 				onPick={(k) => setKind(k)}
 			/>

@@ -129,6 +129,9 @@ Read the newest entries first when you start. Claude writes there too, for examp
   - The merged **Admin panel**: a side rail with Inbox (Characters, Families, Perks, Equipment) and Players & rolls, a custom character dropdown, an owner card in review, and staff edit inside Players & rolls.
   - Approved 🔑 requests show as "✅ Approved".
   - Only the prime owner can roll-ban admins.
+  - **Maintenance mode** (Admin panel → Maintenance): non-admins get a "back soon" screen on every page.
+    - The screen's look is in `src/styles/maintenance.css`, and its text is in `src/maintenance-gate.ts`. Restyle freely, but don't change the gate's checks.
+    - Preview it in dev at `/?maintenance=preview`.
 - **Panel rework:** the owner is going through the panels one at a time, approving each in dev. Done: **Admin Review + Rolls**. Next: whichever panel the owner names.
 - **Functional backlog (Claude, not you):**
   - Admin characters: custom traits, no limits other than the trait slots, custom values for any non-S.T.S stat.

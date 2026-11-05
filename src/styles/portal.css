@@ -4831,3 +4831,51 @@ details.pf-live .wk-infobox-img {
 		display: none;
 	}
 }
+
+/* Admin panel → Maintenance. */
+.mnt-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 0.85rem;
+}
+.pf .mnt-panel > * {
+	margin-top: 0;
+}
+.mnt-state {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.75rem 1rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.6rem;
+}
+.mnt-state > div {
+	display: flex;
+	flex-direction: column;
+}
+.pf .mnt-state > div > * {
+	margin-top: 0;
+}
+.mnt-dot {
+	flex: none;
+	width: 0.75rem;
+	height: 0.75rem;
+	border-radius: 50%;
+	background: #3fb950;
+	box-shadow: 0 0 0 4px color-mix(in srgb, #3fb950 25%, transparent);
+}
+.mnt-state.on {
+	border-color: color-mix(in srgb, #f0932b 60%, transparent);
+}
+.mnt-state.on .mnt-dot {
+	background: #f0932b;
+	box-shadow: 0 0 0 4px color-mix(in srgb, #f0932b 25%, transparent);
+}
+.mnt-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+.pf .mnt-actions > * {
+	margin-top: 0;
+}

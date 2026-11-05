@@ -1,0 +1,109 @@
+/* Maintenance mode screen (see src/maintenance-gate.ts). Uses Starlight's colors so it fits both themes. */
+html.mnt-blocked,
+html.mnt-blocked body {
+	overflow: hidden;
+}
+html.mnt-blocked body > :not(#mnt-screen) {
+	display: none !important;
+}
+.mnt-screen {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	display: grid;
+	place-items: center;
+	padding: 1rem;
+	visibility: visible;
+	background:
+		radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--sl-color-accent) 22%, transparent), transparent 60%),
+		var(--sl-color-black);
+	color: var(--sl-color-white);
+}
+.mnt-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.6rem;
+	width: min(32rem, 100%);
+	padding: 2.25rem 1.75rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 1rem;
+	background: var(--sl-color-gray-6);
+	text-align: center;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+.mnt-card > * {
+	margin: 0;
+}
+.mnt-icon {
+	font-size: 2.75rem;
+	line-height: 1;
+	animation: mnt-bob 2.4s ease-in-out infinite;
+}
+@keyframes mnt-bob {
+	50% {
+		transform: translateY(-6px) rotate(-8deg);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.mnt-icon {
+		animation: none;
+	}
+}
+.mnt-kicker {
+	color: var(--sl-color-accent-high, var(--sl-color-accent));
+	font-size: 0.75rem;
+	font-weight: 700;
+	letter-spacing: 0.25em;
+	text-transform: uppercase;
+}
+.mnt-title {
+	font-size: clamp(1.4rem, 5vw, 1.9rem);
+	line-height: 1.2;
+	color: var(--sl-color-white);
+}
+.mnt-message {
+	color: var(--sl-color-gray-2);
+	white-space: pre-line;
+}
+.mnt-soon {
+	font-weight: 600;
+}
+.mnt-note {
+	color: var(--sl-color-gray-3);
+	font-size: 0.85rem;
+}
+.mnt-login {
+	margin-top: 0.75rem;
+	padding: 0.6rem 1.2rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 999px;
+	background: transparent;
+	color: var(--sl-color-gray-2);
+	font: inherit;
+	font-size: 0.85rem;
+	cursor: pointer;
+}
+.mnt-login:hover {
+	border-color: var(--sl-color-accent);
+	color: var(--sl-color-white);
+}
+.mnt-banner {
+	position: fixed;
+	left: 50%;
+	bottom: 1rem;
+	z-index: 1000;
+	max-width: calc(100% - 2rem);
+	padding: 0.5rem 1rem;
+	border: 1px solid var(--sl-color-orange, #f0932b);
+	border-radius: 999px;
+	background: var(--sl-color-black);
+	color: var(--sl-color-white);
+	font-size: 0.85rem;
+	transform: translateX(-50%);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.mnt-banner a {
+	color: var(--sl-color-orange, #f0932b);
+	font-weight: 700;
+}
