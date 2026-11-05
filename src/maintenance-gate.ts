@@ -3,9 +3,15 @@
 // If the check itself fails, the site stays open.
 import { loadMaintenance, MAINTENANCE_KEY } from './lib/maintenance.ts';
 import { logIn, logOut, supabase } from './lib/supabase.ts';
-import './styles/maintenance.css';
+// Imported as text and added as a <style> tag: Astro doesn't bundle CSS imported by an injected
+// page script in production builds, so a plain `import './styles/maintenance.css'` only works in dev.
+import css from './styles/maintenance.css?raw';
 
 const html = document.documentElement;
+const style = document.createElement('style');
+style.dataset.maintenance = '';
+style.textContent = css;
+document.head.append(style);
 const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const remember = (on: boolean) => {
 	try {
