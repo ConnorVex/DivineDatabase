@@ -19,7 +19,7 @@ const traitByName = new Map(traits.map((t) => [t.name, t]));
 const slotsByRarity = new Map(rules.traitSlots.rarities.map((r) => [r.id, r.slots]));
 
 /** 'error' blocks sending for review; 'warning' is shown to player and admins; 'permission' flags a pick that needs an admin's OK. */
-export type IssueLevel = 'error' | 'warning' | 'permission';
+export type IssueLevel = 'error' | 'warning' | 'permission' | 'approved';
 export interface Issue {
 	level: IssueLevel;
 	section: string;
@@ -476,6 +476,13 @@ function checkField(field: Field, value: unknown, where: string, add: (level: Is
 }
 
 export const hasBlockingIssues = (issues: Issue[]) => issues.some((i) => i.level === 'error');
+
+/** "needs permission" items an admin already approved become 'approved' (the message stays the same, so it still matches). */
+export const applyApproved = (issues: Issue[], approved: readonly string[] | undefined) =>
+	approved?.length ? issues.map((i) => (i.level === 'permission' && approved.includes(i.message) ? { ...i, level: 'approved' as const } : i)) : issues;
+
+/** An approved item's text without the "needs permission" part. */
+export const approvedText = (message: string) => message.replace(/ needs? permission\.?/, '');
 
 /** A Heavenly Restriction: granted to the account, only JJK and Cyberpunk, and the stats and fields it sets. */
 function checkHeavenly(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, section: string, message: string) => void, staff: (path: string) => boolean) {

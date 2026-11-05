@@ -927,6 +927,9 @@
 .pf-issue-group.permission {
 	border-left-color: var(--sl-color-blue);
 }
+.pf-issue-group.approved {
+	border-left-color: var(--sl-color-green);
+}
 .pf-issue-section {
 	font-family: var(--pf-mono);
 	font-size: var(--sl-text-xs);
@@ -4455,4 +4458,376 @@ details.pf-live .wk-infobox-img {
 }
 .pf .rv-head-links > * {
 	margin-top: 0;
+}
+
+/* ───────────── Admin panel: side rail + content ───────────── */
+.adm {
+	display: grid;
+	grid-template-columns: 13.5rem minmax(0, 1fr);
+	gap: 1.5rem;
+	align-items: start;
+}
+.pf.adm > *,
+.pf .adm-rail > *,
+.pf .adm-rail ul > *,
+.pf .adm-main > * {
+	margin-top: 0;
+}
+.adm-main {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+	min-width: 0;
+}
+.adm-rail {
+	position: sticky;
+	top: calc(var(--sl-nav-height, 4rem) + 1rem);
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	padding: 0.75rem;
+	border: 1px solid var(--pf-line);
+	border-radius: var(--pf-radius, 0.75rem);
+	background: var(--pf-panel);
+}
+.pf .adm-heading {
+	margin: 0.5rem 0.5rem 0.15rem;
+	color: var(--pf-muted);
+	font-size: var(--sl-text-xs);
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+.pf .adm-heading:first-child {
+	margin-top: 0;
+}
+.pf .adm-rail ul {
+	display: flex;
+	flex-direction: column;
+	gap: 0.15rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.adm-rail button {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	width: 100%;
+	margin: 0;
+	padding: 0.5rem 0.6rem;
+	border: 1px solid transparent;
+	border-radius: 0.5rem;
+	background: none;
+	color: var(--pf-muted);
+	font: inherit;
+	font-size: var(--sl-text-sm);
+	text-align: start;
+	cursor: pointer;
+}
+.adm-rail button:hover {
+	color: var(--pf-text);
+	border-color: var(--pf-line);
+}
+.adm-rail button.active {
+	color: var(--pf-text);
+	border-color: var(--pf-line-strong, var(--pf-line));
+	background: color-mix(in srgb, var(--pf-accent) 16%, transparent);
+	box-shadow: inset 3px 0 0 var(--pf-accent);
+}
+.adm-icon {
+	flex: none;
+	width: 1.4em;
+	text-align: center;
+}
+.adm-label {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.adm-count {
+	flex: none;
+	min-width: 1.6em;
+	padding: 0.05rem 0.45rem;
+	border-radius: 999px;
+	background: var(--pf-field, transparent);
+	color: var(--pf-muted);
+	font-size: var(--sl-text-xs);
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+.adm-count.due {
+	background: var(--pf-accent);
+	color: var(--pf-ink);
+	font-weight: 700;
+}
+/* The Players view sits inside the admin panel now, so its own list doesn't need the wide layout. */
+.adm-main .ov-layout {
+	grid-template-columns: minmax(12rem, 16rem) minmax(0, 1fr);
+}
+@media (max-width: 62rem) {
+	.adm-main .ov-layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+@media (max-width: 52rem) {
+	.adm {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 1rem;
+	}
+	/* The rail becomes one scrolling row of chips. */
+	.adm-rail {
+		position: static;
+		flex-direction: row;
+		align-items: center;
+		padding: 0.4rem;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+	.pf .adm-heading {
+		display: none;
+	}
+	.pf .adm-rail ul {
+		flex-direction: row;
+	}
+	.adm-rail button {
+		width: auto;
+		white-space: nowrap;
+	}
+	.adm-rail button.active {
+		box-shadow: inset 0 -3px 0 var(--pf-accent);
+	}
+	.adm-rail ul + .adm-heading + ul {
+		padding-left: 0.4rem;
+		border-left: 1px solid var(--pf-line);
+	}
+}
+
+/* Owner card inside a character review. */
+.own-card {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+.pf .own-card > * {
+	margin-top: 0;
+}
+.own-head {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+}
+.own-head img,
+.own-avatar {
+	flex: none;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+}
+.own-avatar {
+	display: grid;
+	place-items: center;
+	background: var(--pf-field);
+	font-weight: 700;
+}
+.own-name {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+}
+.pf .own-name > * {
+	margin-top: 0;
+}
+.pf .own-facts {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: var(--sl-text-sm);
+}
+.pf .own-facts li {
+	display: flex;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin: 0;
+}
+.own-facts li > span:first-child {
+	color: var(--pf-muted);
+	white-space: nowrap;
+}
+.own-facts li > span:last-child {
+	text-align: end;
+}
+.own-open {
+	align-self: flex-start;
+}
+
+/* Character picker: a styled dropdown (Players & rolls). */
+.cpk {
+	position: relative;
+	margin-bottom: 0.75rem;
+}
+.pf .cpk > * {
+	margin-top: 0;
+}
+.cpk-button {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	width: 100%;
+	margin: 0;
+	padding: 0.6rem 0.85rem;
+	border: 1px solid var(--pf-line-strong, var(--pf-line));
+	border-radius: 0.6rem;
+	background: var(--pf-field);
+	color: var(--pf-text);
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+.cpk-button:hover,
+.cpk.open .cpk-button {
+	border-color: var(--pf-accent);
+}
+.cpk-label {
+	flex: none;
+	color: var(--pf-muted);
+	font-size: var(--sl-text-xs);
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+.cpk-current {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: 0.5rem;
+	min-width: 0;
+	font-weight: 600;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.cpk-count {
+	flex: none;
+	padding: 0.05rem 0.45rem;
+	border-radius: 999px;
+	background: var(--pf-panel);
+	color: var(--pf-muted);
+	font-size: var(--sl-text-xs);
+}
+.cpk-chevron {
+	flex: none;
+	width: 0.55rem;
+	height: 0.55rem;
+	border-right: 2px solid var(--pf-muted);
+	border-bottom: 2px solid var(--pf-muted);
+	transform: translateY(-25%) rotate(45deg);
+	transition: transform 0.15s;
+}
+.cpk.open .cpk-chevron {
+	transform: translateY(25%) rotate(225deg);
+}
+.cpk-menu {
+	position: absolute;
+	z-index: 20;
+	top: calc(100% + 0.35rem);
+	left: 0;
+	right: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	padding: 0.4rem;
+	border: 1px solid var(--pf-line-strong, var(--pf-line));
+	border-radius: 0.6rem;
+	background: var(--pf-panel);
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}
+.pf .cpk-menu > * {
+	margin-top: 0;
+}
+.pf .cpk-search {
+	width: 100%;
+	margin: 0;
+	padding: 0.45rem 0.65rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.45rem;
+	background: var(--pf-field);
+	color: var(--pf-text);
+	font: inherit;
+	font-size: var(--sl-text-sm);
+}
+.pf .cpk-menu ul {
+	max-height: 16rem;
+	margin: 0;
+	padding: 0;
+	overflow-y: auto;
+	list-style: none;
+	overscroll-behavior: contain;
+}
+.pf .cpk-menu li {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin: 0;
+	padding: 0.5rem 0.65rem;
+	border-radius: 0.4rem;
+	cursor: pointer;
+}
+.cpk-menu li.hover {
+	background: color-mix(in srgb, var(--pf-accent) 14%, transparent);
+}
+.cpk-menu li.selected .cpk-name {
+	color: var(--pf-accent);
+	font-weight: 700;
+}
+.cpk-menu li.selected .cpk-name::before {
+	content: '✓ ';
+}
+.pf .cpk-menu li.cpk-none {
+	color: var(--pf-muted);
+	cursor: default;
+}
+.cpk-name {
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.cpk-pill {
+	flex: none;
+	padding: 0.05rem 0.5rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 999px;
+	color: var(--pf-muted);
+	font-size: var(--sl-text-xs);
+	font-weight: 500;
+	text-transform: capitalize;
+}
+.cpk-pill.ok {
+	border-color: color-mix(in srgb, #3fb950 55%, transparent);
+	color: #3fb950;
+}
+.cpk-pill.info {
+	border-color: color-mix(in srgb, var(--pf-accent) 55%, transparent);
+	color: var(--pf-accent);
+}
+.cpk-pill.warn {
+	border-color: color-mix(in srgb, #d29922 55%, transparent);
+	color: #d29922;
+}
+.cpk-pill.bad {
+	border-color: color-mix(in srgb, #f85149 55%, transparent);
+	color: #f85149;
+}
+@media (max-width: 40rem) {
+	.cpk-label {
+		display: none;
+	}
 }

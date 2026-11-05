@@ -1,7 +1,7 @@
 // The rule checks for a whole character, shared by the form and the evolution page.
 import type { CharacterDraft, ClaimRow, Combo } from './api.ts';
 import type { LinkablePerk } from './families.ts';
-import { checkSheet, type Issue } from './rules.ts';
+import { applyApproved, checkSheet, type Issue } from './rules.ts';
 import { systemById } from './systems.ts';
 
 export interface CheckData {
@@ -26,7 +26,7 @@ export function effectiveClaims(d: CharacterDraft, board: ClaimRow[]): string[] 
 export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[] {
 	const { board, held, combos } = data;
 	const claims = new Map(board.map((r) => [r.id, { name: r.name, usedSlots: r.used_slots, maxUsers: r.max_users, category: r.category }]));
-	const list = checkSheet(draft.sheet, {
+	const list = applyApproved(checkSheet(draft.sheet, {
 		kind: draft.kind,
 		name: draft.name,
 		canonUniverse: draft.canonUniverse,
@@ -45,7 +45,7 @@ export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[]
 		progressed: draft.progressed,
 		adminCharacter: draft.adminCharacter,
 		encryptionRequest: draft.encryptionRequested && !draft.encrypted && !draft.adminCharacter ? { reason: draft.encryptionReason } : null,
-	});
+	}), draft.approvedPermissions);
 	if (draft.kind === 'canon' && draft.canonUniverse && draft.name.trim()) {
 		const taken = board.find((r) => r.claim_type === 'character' && r.universe === draft.canonUniverse && r.name.toLowerCase() === draft.name.trim().toLowerCase());
 		if (taken && !held.has(taken.id) && taken.max_users !== null && taken.used_slots >= taken.max_users) {

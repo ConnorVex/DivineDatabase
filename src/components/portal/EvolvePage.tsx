@@ -12,7 +12,7 @@ import {
 } from '../../lib/portal/api.ts';
 import { characterIssues, type CheckData } from '../../lib/portal/checks.ts';
 import { loadFamilyChoices, loadLinkablePerks } from '../../lib/portal/families.ts';
-import { hasBlockingIssues, rules } from '../../lib/portal/rules.ts';
+import { approvedText, hasBlockingIssues, rules } from '../../lib/portal/rules.ts';
 import { applyTheme, defaultTheme, themeForRole } from '../../lib/portal/theme.ts';
 import { logIn, watchPlayer, type Player } from '../../lib/supabase.ts';
 import { ChangeList, changeCount } from './ChangeList.tsx';
@@ -166,7 +166,8 @@ export default function EvolvePage() {
 		);
 
 	const errors = issues.filter((i) => i.level === 'error');
-	const others = issues.filter((i) => i.level !== 'error');
+	const others = issues.filter((i) => i.level !== 'error' && i.level !== 'approved');
+	const approvedItems = issues.filter((i) => i.level === 'approved');
 	const reviewing = open?.status === 'pending' || c.status === 'pending';
 	const role = rules.roles.find((r) => r.id === c.sheet.role)?.label;
 	const image = /^https:\/\//.test(c.sheet.appearance.image) ? c.sheet.appearance.image : null;
@@ -291,6 +292,18 @@ export default function EvolvePage() {
 									{others.map((i, n) => (
 										<li key={n}>
 											<span class="pf-issue-section">{i.section}</span> {i.message}
+										</li>
+									))}
+								</ul>
+							</div>
+						)}
+						{approvedItems.length > 0 && (
+							<div class="pf-issue-group approved">
+								<h3>✅ Approved by staff ({approvedItems.length})</h3>
+								<ul>
+									{approvedItems.map((i, n) => (
+										<li key={n}>
+											<span class="pf-issue-section">{i.section}</span> {approvedText(i.message)}
 										</li>
 									))}
 								</ul>

@@ -16,6 +16,7 @@ import {
 	loadReviewNotes,
 	setPinnedNotes,
 	setEncryption,
+	rememberPermissions,
 	characterPageHref,
 	loadUniverses,
 	reviewCharacter,
@@ -33,7 +34,6 @@ import {
 	type Universe,
 } from '../../lib/portal/api.ts';
 import { sheetChanges } from '../../lib/portal/diff.ts';
-import { StaffEditor } from './StaffEditor.tsx';
 import { CharacterArticle } from './CharacterArticle.tsx';
 import { PinnedNotesEditor, type PinRequest } from './PinnedNotes.tsx';
 import { STEP_OF_SECTION, type PinnedNote } from '../../lib/portal/pins.ts';
@@ -44,7 +44,10 @@ import { EquipmentReview } from './EquipmentReview.tsx';
 import { loadCraftingItems, loadEquipmentQueue, type CraftingItem, type EquipmentQueueItem } from '../../lib/portal/equipment.ts';
 import { familyHref, loadFamilies, loadMyFamily, loadPerkQueue, type Family, type FamilyCard, type PerkRequest } from '../../lib/families/api.ts';
 import { loadFamilyChoices, loadLinkablePerks, type LinkablePerk } from '../../lib/portal/families.ts';
-import { checkSheet, ENCRYPTION_ITEM, type Issue } from '../../lib/portal/rules.ts';
+import { applyApproved, approvedText, checkSheet, ENCRYPTION_ITEM, type Issue } from '../../lib/portal/rules.ts';
+import { AdminRail } from './AdminRail.tsx';
+import { PlayersView } from './OverridePanel.tsx';
+import { OwnerCard } from './OwnerCard.tsx';
 import { startPortalTheme, themeForRole } from '../../lib/portal/theme.ts';
 import { logIn, watchPlayer, type Player } from '../../lib/supabase.ts';
 
@@ -67,15 +70,15 @@ const TABS: { id: string; label: string; match: (c: AdminCharacter) => boolean }
 
 // What the inbox holds. Family owners only see characters.
 const KINDS = [
-	{ id: 'characters', label: 'Characters' },
-	{ id: 'families', label: 'New families' },
-	{ id: 'perks', label: 'Family perks' },
-	{ id: 'equipment', label: 'Equipment' },
+	{ id: 'characters', label: 'Characters', icon: '👤' },
+	{ id: 'families', label: 'New families', icon: '🏛️' },
+	{ id: 'perks', label: 'Family perks', icon: '✨' },
+	{ id: 'equipment', label: 'Equipment', icon: '⚔️' },
 ] as const;
-type Kind = (typeof KINDS)[number]['id'];
+type Kind = (typeof KINDS)[number]['id'] | 'players';
 const kindFromUrl = (): Kind => {
 	const t = new URLSearchParams(location.search).get('type');
-	return KINDS.some((k) => k.id === t) ? (t as Kind) : 'characters';
+	return t === 'players' || KINDS.some((k) => k.id === t) ? (t as Kind) : 'characters';
 };
 
 const STATUS_LABEL: Record<Status, string> = {
@@ -122,6 +125,7 @@ function IssueList({
 		['error', '⛔ Breaks the rules'],
 		['warning', '⚠️ Warnings'],
 		['permission', '🔑 Needs permission'],
+		['approved', '✅ Already approved'],
 	] as const;
 	return (
 		<>
@@ -137,7 +141,7 @@ function IssueList({
 								const d = decisions?.[i.message];
 								return (
 									<li key={n} class={d ? `rv-perm ${d}` : undefined}>
-										<span class="pf-issue-section">{i.section}</span> {i.message}
+										<span class="pf-issue-section">{i.section}</span> {level === 'approved' ? `${approvedText(i.message)} · approved` : i.message}
 										{onPin && STEP_OF_SECTION[i.section] && (
 											<button type="button" class="pin-add" title="Pin this as a note for the player" aria-label="Pin this as a note for the player" onClick={() => onPin(i)}>
 												📌
@@ -179,6 +183,7 @@ function Detail(props: {
 	admin: boolean;
 	onDecided: () => void;
 	onChanged: () => void;
+	onOpenPlayer?: (id: string, characterId?: string) => void;
 }) {
 	const { c } = props;
 	const [combos, setCombos] = useState<Combo[]>([]);
@@ -236,7 +241,7 @@ function Detail(props: {
 	const openEvolution = evolutions.find((e) => e.status === 'pending' || e.status === 'needs_correction') ?? null;
 	const issues = useMemo(
 		() =>
-			checkSheet(c.sheet, {
+			applyApproved(checkSheet(c.sheet, {
 				kind: c.kind,
 				name: c.name,
 				canonUniverse: c.canon_universe,
@@ -255,7 +260,7 @@ function Detail(props: {
 				progressed: c.progressed,
 				adminCharacter: c.admin_character,
 				encryptionRequest: c.encryption_requested && !c.encrypted ? { reason: c.encryption_reason } : null,
-			}),
+			}), c.approved_permissions),
 		[c, held, combos, props.board, perks, memberOf, heavenlyGrant],
 	);
 	const changes = useMemo(() => (c.approved_sheet ? sheetChanges(c.approved_sheet, c.sheet) : []), [c]);
@@ -293,6 +298,9 @@ function Detail(props: {
 			// Approving the encryption request (and the character) encrypts it. Only admins can.
 			const encryption = issues.find((i) => i.level === 'permission' && i.message.startsWith(ENCRYPTION_ITEM));
 			if (props.admin && outcome === 'approved' && encryption && permissions[encryption.message] === 'approved') await setEncryption(c.id, true);
+			// Approved 🔑 items stay approved, even if the character is sent back for something else.
+			const approvedNow = issues.filter((i) => i.level === 'permission' && permissions[i.message] === 'approved').map((i) => i.message);
+			if (props.admin && outcome !== 'denied' && approvedNow.length) await rememberPermissions(c.id, [...c.approved_permissions, ...approvedNow]);
 			props.onDecided();
 		} catch (e) {
 			setError(messageOf(e));
@@ -356,6 +364,9 @@ function Detail(props: {
 
 			<div class="rv-grid">
 				<div class="rv-side rv-side-top">
+					{props.admin && props.owner && props.onOpenPlayer && (
+						<OwnerCard player={props.owner} characterId={c.id} onOpen={() => props.onOpenPlayer!(props.owner!.id, c.id)} />
+					)}
 					<Block title="Checks">
 						<IssueList
 							issues={issues}
@@ -376,11 +387,6 @@ function Detail(props: {
 						</Block>
 					)}
 
-					{props.admin && !c.approved_at && c.kind === 'oc' && (
-						<Block title="Staff edit">
-							<StaffEditor c={c} onSaved={props.onChanged} />
-						</Block>
-					)}
 
 				</div>
 				<div class="rv-main">
@@ -590,7 +596,7 @@ function Detail(props: {
 	);
 }
 
-function CharacterQueue(props: {
+export function CharacterQueue(props: {
 	all: AdminCharacter[];
 	players: Map<string, PlayerSummary>;
 	board: ClaimRow[];
@@ -598,6 +604,8 @@ function CharacterQueue(props: {
 	families: FamilyCard[];
 	admin: boolean;
 	reload: () => Promise<AdminCharacter[] | null>;
+	/** Admins: open this player in the Players view. */
+	onOpenPlayer?: (id: string, characterId?: string) => void;
 }) {
 	const { all, players } = props;
 	// Family owners only decide new submissions, so they only get the first two queues.
@@ -688,6 +696,7 @@ function CharacterQueue(props: {
 						universes={props.universes}
 						families={props.families}
 						admin={props.admin}
+						onOpenPlayer={props.onOpenPlayer}
 						onChanged={props.reload}
 						onDecided={async () => {
 							const fresh = await props.reload();
@@ -717,6 +726,8 @@ export default function ReviewDashboard() {
 	const [equipment, setEquipment] = useState<EquipmentQueueItem[]>([]);
 	const [craftItems, setCraftItems] = useState<CraftingItem[]>([]);
 	const [kind, setKindState] = useState<Kind>(kindFromUrl);
+	// The player open in the Players view (?player=…).
+	const [focus, setFocusState] = useState<string | null>(() => new URLSearchParams(location.search).get('player'));
 	const [error, setError] = useState('');
 
 	useEffect(() => startPortalTheme(), []);
@@ -725,13 +736,22 @@ export default function ReviewDashboard() {
 	const admin = Boolean(me?.isAdmin);
 	const reviewer = admin || ownFamily?.status === 'approved';
 
-	function setKind(k: Kind) {
+	function setKind(k: Kind, player: string | null = k === 'players' ? focus : null) {
 		setKindState(k);
+		setFocusState(player);
 		const url = new URL(location.href);
 		if (k === 'characters') url.searchParams.delete('type');
 		else url.searchParams.set('type', k);
+		if (player) url.searchParams.set('player', player);
+		else url.searchParams.delete('player');
 		history.replaceState(null, '', url);
 	}
+	// From a review: open the owner in Players & rolls, on the character being reviewed.
+	const [focusChar, setFocusChar] = useState<string | null>(null);
+	const openPlayer = (id: string, characterId?: string) => {
+		setFocusChar(characterId ?? null);
+		setKind('players', id);
+	};
 
 	async function load() {
 		try {
@@ -786,7 +806,7 @@ export default function ReviewDashboard() {
 	if (!all) return <p class="portal-status">Loading submissions…</p>;
 
 	const pendingFamilies = families.filter((f) => f.status === 'pending');
-	const counts: Record<Kind, number> = {
+	const counts: Record<Exclude<Kind, 'players'>, number> = {
 		characters: all.filter((c) => c.status === 'pending').length,
 		families: pendingFamilies.length,
 		perks: perks.reduce((n, r) => n + r.perks.length, 0),
@@ -794,24 +814,11 @@ export default function ReviewDashboard() {
 	};
 	const shownKind: Kind = admin ? kind : 'characters';
 
-	return (
-		<div class="pf rv">
-			{admin ? (
-				<nav class="ms-tabs rv-kinds" aria-label="What to review">
-					{KINDS.map((k) => (
-						<button key={k.id} type="button" aria-pressed={shownKind === k.id} class={shownKind === k.id ? 'active' : undefined} onClick={() => setKind(k.id)}>
-							{k.label} <span class="mc-count">{counts[k.id]}</span>
-						</button>
-					))}
-				</nav>
-			) : (
-				<p class="pf-intro">
-					New characters that picked <a href={familyHref(ownFamily!.slug)}>{ownFamily!.name}</a> wait here for you. Approving accepts the whole character
-					and adds it to your family. Admins can review them too.
-				</p>
+	const content = (
+		<>
+			{shownKind === 'characters' && (
+				<CharacterQueue all={all} players={players} board={board} universes={universes} families={families} admin={admin} reload={load} onOpenPlayer={admin ? openPlayer : undefined} />
 			)}
-
-			{shownKind === 'characters' && <CharacterQueue all={all} players={players} board={board} universes={universes} families={families} admin={admin} reload={load} />}
 			{shownKind === 'families' && (
 				<div class="fm fm-admin-list">
 					{pendingFamilies.length ? (
@@ -828,6 +835,28 @@ export default function ReviewDashboard() {
 				<div class="fm fm-admin-list">{perks.length ? perks.map((r) => <ReviewRequest key={r.id} r={r} onDone={load} />) : <p class="pf-empty">No perks waiting. 🎉</p>}</div>
 			)}
 			{shownKind === 'equipment' && <EquipmentReview requests={equipment} items={craftItems} players={players} onDone={load} />}
+			{shownKind === 'players' && <PlayersView players={[...players.values()]} focus={focus} focusCharacter={focusChar} onFocus={(id) => (setFocusChar(null), setKind('players', id))} />}
+		</>
+	);
+	if (!admin)
+		return (
+			<div class="pf rv">
+				<p class="pf-intro">
+					New characters that picked <a href={familyHref(ownFamily!.slug)}>{ownFamily!.name}</a> wait here for you. Approving accepts the whole character
+					and adds it to your family. Admins can review them too.
+				</p>
+				{content}
+			</div>
+		);
+	return (
+		<div class="pf rv adm">
+			<AdminRail
+				inbox={KINDS.map((k) => ({ id: k.id, label: k.label, icon: k.icon, count: counts[k.id] }))}
+				tools={[{ id: 'players', label: 'Players & rolls', icon: '🎲' }]}
+				active={shownKind}
+				onPick={(k) => setKind(k)}
+			/>
+			<div class="adm-main">{content}</div>
 		</div>
 	);
 }

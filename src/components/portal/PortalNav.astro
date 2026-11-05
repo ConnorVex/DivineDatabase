@@ -6,7 +6,7 @@
 import { WIKI } from '../../lib/links.ts';
 
 interface Props {
-	current?: 'home' | 'submit' | 'mine' | 'families' | 'review' | 'override';
+	current?: 'home' | 'submit' | 'mine' | 'families' | 'review';
 }
 
 const { current } = Astro.props;
@@ -17,7 +17,6 @@ const links = [
 	{ id: 'mine', label: 'My Stuff', href: `${base}characters/` },
 	{ id: 'families', label: 'Families', href: `${base}families/` },
 	{ id: 'review', label: 'Review', href: `${base}admin/review/`, admin: true, reviewer: true },
-	{ id: 'override', label: 'Rolls', href: `${base}admin/override/`, admin: true },
 	{ id: 'wiki', label: 'Rules ↗', href: WIKI },
 ];
 ---

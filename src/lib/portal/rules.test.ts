@@ -1,7 +1,7 @@
 // Run with: node --test src/lib/portal/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cardPath, checkSheet, ENCRYPTION_ITEM, power, ptp, recoil, systemLimit, traitSlots, type Issue } from './rules.ts';
+import { applyApproved, approvedText, cardPath, checkSheet, ENCRYPTION_ITEM, power, ptp, recoil, systemLimit, traitSlots, type Issue } from './rules.ts';
 import { emptySheet, normalizeSheet, type Sheet } from './sheet.ts';
 
 const ocCtx = { kind: 'oc' as const, name: 'Kaito' };
@@ -503,4 +503,15 @@ test('an encryption request needs a reason and permission', () => {
 	const asked = messages(all({ encryptionRequest: { reason: 'Story reasons' } }), 'permission');
 	assert.ok(asked.includes(`${ENCRYPTION_ITEM}: Story reasons`), asked.join('\n'));
 	assert.ok(!messages(all({}), 'permission').some((m) => m.startsWith(ENCRYPTION_ITEM)), 'no request, no item');
+});
+
+test('approved requests show as approved, not as needing permission again', () => {
+	const s = goodSheet();
+	const issues = checkSheet(s, { ...ocCtx, encryptionRequest: { reason: 'Story reasons' } });
+	const item = issues.find((i) => i.message.startsWith(ENCRYPTION_ITEM))!;
+	const after = applyApproved(issues, [item.message]);
+	assert.equal(after.find((i) => i.message === item.message)?.level, 'approved');
+	assert.ok(!after.some((i) => i.level === 'permission' && i.message === item.message));
+	assert.equal(approvedText(item.message), 'Encryption 🔒: Story reasons');
+	assert.deepEqual(applyApproved(issues, []), issues, 'nothing approved, nothing changes');
 });

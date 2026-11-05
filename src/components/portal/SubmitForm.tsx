@@ -24,7 +24,7 @@ import {
 } from '../../lib/portal/api.ts';
 import { loadFamilyChoices, loadLinkablePerks, type FamilyChoices, type LinkablePerk, type MyTryout } from '../../lib/portal/families.ts';
 import { characterIssues, effectiveClaims } from '../../lib/portal/checks.ts';
-import { hasBlockingIssues, rules, type Issue } from '../../lib/portal/rules.ts';
+import { approvedText, hasBlockingIssues, rules, type Issue } from '../../lib/portal/rules.ts';
 import { applyHeavenly, heavenlyEffect, isHeavenly } from '../../lib/portal/heavenly.ts';
 import type { Sheet } from '../../lib/portal/sheet.ts';
 import { systemById } from '../../lib/portal/systems.ts';
@@ -380,6 +380,7 @@ export default function SubmitForm() {
 	const errors = issues.filter((i) => i.level === 'error');
 	const warnings = issues.filter((i) => i.level === 'warning');
 	const permissions = issues.filter((i) => i.level === 'permission');
+	const approvedItems = issues.filter((i) => i.level === 'approved');
 	const status = draft.status ? STATUS_TEXT[draft.status] : null;
 	const oc = draft.kind === 'oc';
 	const index = steps.findIndex((st) => st.id === current);
@@ -391,7 +392,7 @@ export default function SubmitForm() {
 	 * its worst open check, or a tick. A fresh form isn't covered in red marks. */
 	const stepState = (id: string) => {
 		if (id === 'review' || !(visited.has(id) || current === 'review')) return 'todo';
-		const own = issues.filter((i) => STEP_OF[i.section] === id);
+		const own = issues.filter((i) => STEP_OF[i.section] === id && i.level !== 'approved');
 		if (own.some((i) => i.level === 'error')) return 'error';
 		if (own.length > 0) return 'warn';
 		return 'done';
@@ -812,7 +813,7 @@ export default function SubmitForm() {
 								<h2 id="pf-review-title">Review & send</h2>
 							</header>
 							{familyNames.length > 0 && <p class="pf-help">Joining {familyNames.join(', ')}: the family’s owner or an admin reviews it.</p>}
-							{issues.length === 0 ? (
+							{issues.length === approvedItems.length ? (
 								<p class="pf-ok">✅ Everything checks out. You’re ready to send.</p>
 							) : (
 								<>
@@ -836,6 +837,12 @@ export default function SubmitForm() {
 										</div>
 									)}
 								</>
+							)}
+							{approvedItems.length > 0 && (
+								<div class="pf-issue-group approved">
+									<h3>✅ Approved by staff ({approvedItems.length})</h3>
+									<IssueList list={approvedItems.map((i) => ({ ...i, message: approvedText(i.message) }))} />
+								</div>
 							)}
 							<h3 class="pf-subhead pf-review-page">Your page</h3>
 							<p class="pf-help">This is how your character’s page looks to reviewers, and on the database once approved.</p>

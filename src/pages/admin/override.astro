@@ -1,12 +1,16 @@
 ---
-// Admin "Override" panel for Potential / Cursed Energy rolls. The database enforces admin rights.
-import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import PortalNav from '../../components/portal/PortalNav.astro';
-import OverridePanel from '../../components/portal/OverridePanel.tsx';
-import '../../styles/portal.css';
+// Rolls moved into the admin panel (Players & rolls). Old links land there.
+const target = `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}admin/review/?type=players`;
 ---
-
-<StarlightPage frontmatter={{ title: 'Override', description: 'Admin tools for player rolls.', template: 'splash', tableOfContents: false, pagefind: false }}>
-	<PortalNav current="override" />
-	<OverridePanel client:only="preact" />
-</StarlightPage>
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta http-equiv="refresh" content={`0; url=${target}`} />
+		<link rel="canonical" href={target} />
+		<title>Players & rolls</title>
+	</head>
+	<body>
+		<p><a href={target}>Players & rolls moved to the admin panel.</a></p>
+	</body>
+</html>

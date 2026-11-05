@@ -27,6 +27,8 @@ export interface CharacterDraft {
 	pinnedNotes: PinnedNote[];
 	/** An admin's own character: no rule checks, approved as soon as it's sent. */
 	adminCharacter: boolean;
+	/** 🔑 items an admin approved; they show as approved from then on. */
+	approvedPermissions: string[];
 	/** The owner asks staff to encrypt it, and why. */
 	encryptionRequested: boolean;
 	encryptionReason: string;
@@ -84,6 +86,7 @@ export const newDraft = (): CharacterDraft => ({
 	progressed: false,
 	pinnedNotes: [],
 	adminCharacter: false,
+	approvedPermissions: [],
 	encryptionRequested: false,
 	encryptionReason: '',
 	encrypted: false,
@@ -109,6 +112,7 @@ export async function loadCharacter(id: string): Promise<CharacterDraft> {
 		progressed: data.progressed ?? false,
 		pinnedNotes: normalizePins(data.pinned_notes),
 		adminCharacter: data.admin_character ?? false,
+		approvedPermissions: data.approved_permissions ?? [],
 		encryptionRequested: data.encryption_requested ?? false,
 		encryptionReason: data.encryption_reason ?? '',
 		encrypted: data.encrypted ?? false,
@@ -428,6 +432,7 @@ export interface AdminCharacter {
 	encryption_requested: boolean;
 	encryption_reason: string;
 	encrypted: boolean;
+	approved_permissions: string[];
 	requested_claims: string[];
 	sheet: Sheet;
 	approved_sheet: Sheet | null;
@@ -442,17 +447,34 @@ export interface AdminCharacter {
 export async function loadAllCharacters(): Promise<AdminCharacter[]> {
 	const { data, error } = await db()
 		.from('characters')
-		.select(
-			'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, bonus_ptp, staff_overrides, progressed, pinned_notes, admin_character, encryption_requested, encryption_reason, encrypted, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at',
-		)
+		.select(ADMIN_CHARACTER_COLUMNS)
 		.order('submitted_at', { ascending: true, nullsFirst: false });
 	fail(error);
-	return (data ?? []).map((c) => ({
-		...c,
-		sheet: normalizeSheet(c.sheet),
-		pinned_notes: normalizePins(c.pinned_notes),
-		approved_sheet: c.approved_sheet ? normalizeSheet(c.approved_sheet) : null,
-	})) as AdminCharacter[];
+	return (data ?? []).map(toAdminCharacter);
+}
+
+const ADMIN_CHARACTER_COLUMNS =
+	'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, bonus_ptp, staff_overrides, progressed, pinned_notes, admin_character, encryption_requested, encryption_reason, encrypted, approved_permissions, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const toAdminCharacter = (c: any): AdminCharacter => ({
+	...c,
+	approved_permissions: c.approved_permissions ?? [],
+	sheet: normalizeSheet(c.sheet),
+	pinned_notes: normalizePins(c.pinned_notes),
+	approved_sheet: c.approved_sheet ? normalizeSheet(c.approved_sheet) : null,
+});
+
+/** Admins: remember these 🔑 items as approved on the character. */
+export async function rememberPermissions(id: string, approved: string[]) {
+	const { error } = await db().from('characters').update({ approved_permissions: [...new Set(approved)] }).eq('id', id);
+	fail(error);
+}
+
+/** One character with everything the review page and staff tools need (admins). */
+export async function loadAdminCharacter(id: string): Promise<AdminCharacter | null> {
+	const { data, error } = await db().from('characters').select(ADMIN_CHARACTER_COLUMNS).eq('id', id).maybeSingle();
+	fail(error);
+	return data ? toAdminCharacter(data) : null;
 }
 
 export async function reviewCharacter(id: string, outcome: 'approved' | 'needs_correction' | 'denied', note: string) {
