@@ -2,6 +2,7 @@
 import { useEffect, useId, useRef, useState } from 'preact/hooks';
 import { redeemOverride, rollFor, type MyRolls, type RollKind, type RollResult } from '../../lib/portal/api.ts';
 import { rules } from '../../lib/portal/rules.ts';
+import type { EvolutionRoll, EvolutionRollKind } from '../../lib/portal/evolutionRolls.ts';
 
 const DICE: Record<RollKind, { sides: number; name: string; die: string }> = {
 	potential: { sides: 500, name: 'Potential', die: '1d500' },
@@ -73,6 +74,13 @@ export interface Roller {
 	characterRolls: Partial<Record<RollKind, RollResult>>;
 	ensureSaved: () => Promise<string | null>;
 	refresh: () => void;
+	/** Rolls made on a system's own tab after approval (e.g. Quirk Instability). Missing before approval. */
+	evolution?: {
+		rolls: EvolutionRoll[];
+		roll: (card: string, kind: EvolutionRollKind) => Promise<EvolutionRoll>;
+		/** How long one RP lasts for roll cooldowns (the dev preview shortens it). */
+		rpMs?: number;
+	};
 }
 
 interface Props {

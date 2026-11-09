@@ -1,7 +1,6 @@
 // Found a family: the application the admins review. A player can own one family.
 import { useEffect, useState } from 'preact/hooks';
 import { createFamily, familiesBase, familyHref, loadMyFamily, type Family, type FamilyFields } from '../../lib/families/api.ts';
-import { WIKI } from '../../lib/links.ts';
 import { portalConfigured, watchPlayer, type Player } from '../../lib/supabase.ts';
 import { FamilyForm, emptyFamily, familyProblems } from './FamilyForm.tsx';
 import { LoginCard, StatusBanner, messageOf, useFamilyTheme } from './shared.tsx';
@@ -51,8 +50,7 @@ export default function FoundFamily() {
 					<h2>Your family</h2>
 				</header>
 				<p class="pf-intro">
-					Every new family is reviewed by the admins before it appears in the directory. After that you can add divisions, members, relations and perks from your family's page. See{' '}
-					<a href={`${WIKI}rp-systems/families/founding-a-family/`}>Founding a Family</a> for the rules.
+					Every new family is reviewed by the admins before it appears in the directory. After that you can add divisions, members, relations and perks from your family's page.
 				</p>
 				<div class="pf-grid">
 					<FamilyForm value={form} onChange={setForm} />

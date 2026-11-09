@@ -9,6 +9,8 @@ import {
 	loadHeldClaims,
 	loadCharacterRolls,
 	loadMyRolls,
+	loadEvolutionRolls,
+	rollEvolution,
 	loadUniverses,
 	newDraft,
 	publishAdminCharacter,
@@ -21,7 +23,9 @@ import {
 	type RollKind,
 	type RollResult,
 	type Universe,
+	uploadOcularImage,
 } from '../../lib/portal/api.ts';
+import type { EvolutionRoll } from '../../lib/portal/evolutionRolls.ts';
 import { loadFamilyChoices, loadLinkablePerks, type FamilyChoices, type LinkablePerk, type MyTryout } from '../../lib/portal/families.ts';
 import { characterIssues, effectiveClaims } from '../../lib/portal/checks.ts';
 import { approvedText, hasBlockingIssues, rules, type Issue } from '../../lib/portal/rules.ts';
@@ -161,6 +165,11 @@ export default function SubmitForm() {
 
 	const readOnly = draft?.status === 'denied';
 	const isEvolution = Boolean(draft?.approvedAt);
+	// Rolls made on a system's tab after approval (e.g. Quirk Instability).
+	const [evolutionRolls, setEvolutionRolls] = useState<EvolutionRoll[]>([]);
+	useEffect(() => {
+		if (isEvolution && draft?.id) loadEvolutionRolls(draft.id).then(setEvolutionRolls, () => setEvolutionRolls([]));
+	}, [isEvolution, draft?.id]);
 	/** A granted Heavenly Restriction applies to a new OC. */
 	const grantedHeavenly = !isEvolution && draft?.kind === 'oc' && isHeavenly(heavenlyGrant) ? heavenlyGrant : null;
 	/** Starting limits apply to a new character, unless staff marked it as already progressed. */
@@ -295,7 +304,24 @@ export default function SubmitForm() {
 		return result?.id ?? latest.current?.id ?? savedId.current;
 	}
 
-	const roller: Roller = { characterId: draft?.id ?? null, myRolls, characterRolls, ensureSaved, refresh: () => refreshRolls() };
+	const roller: Roller = {
+		characterId: draft?.id ?? null,
+		myRolls,
+		characterRolls,
+		ensureSaved,
+		refresh: () => refreshRolls(),
+		evolution:
+			isEvolution && draft?.id
+				? {
+						rolls: evolutionRolls,
+						roll: async (card, kind) => {
+							const rolled = await rollEvolution(draft.id!, card, kind);
+							setEvolutionRolls((rs) => [...rs, rolled]);
+							return rolled;
+						},
+					}
+				: undefined,
+	};
 
 	// Rolls stick to the character: a Jujutsu Kaisen card added (again) gets the character's
 	// Cursed Energy straight away, without waiting for a save.
@@ -762,12 +788,14 @@ export default function SubmitForm() {
 								<SystemsSection
 									sheet={s}
 									update={updateSheet}
+									uploadImage={uploadOcularImage}
 									requestedClaims={draft.requestedClaims}
 									setRequestedClaims={(ids) => change((d) => void (d.requestedClaims = ids))}
 									claimBoard={board}
 									universes={universes}
 									heldClaims={held}
 									comboSystemLimits={combos.map((c) => c.system_limits ?? {})}
+									combos={combos.map((c) => c.name)}
 									readOnly={readOnly}
 									isEvolution={!startRules}
 									roller={roller}
@@ -777,6 +805,7 @@ export default function SubmitForm() {
 									trackedCards={draft.approvedSheet ? new Set(draft.approvedSheet.systems.map((e) => e.key)) : undefined}
 									heavenlyGrant={heavenlyGrant}
 									staffOverrides={draft.staffOverrides}
+									issues={issues}
 								/>
 							</div>
 							<div class="pf-step" hidden={current !== 'storage'}>

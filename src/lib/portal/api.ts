@@ -4,6 +4,7 @@ import type { Balance, Conversion, Currency, LedgerRow, SkillNode, SkillTree, Un
 import { normalizeSheet, type Sheet } from './sheet.ts';
 import { normalizePins, type PinnedNote } from './pins.ts';
 import type { StaffOverrides } from './rules.ts';
+import type { EvolutionRoll, EvolutionRollKind } from './evolutionRolls.ts';
 
 export type Status = 'draft' | 'pending' | 'approved' | 'needs_correction' | 'denied';
 
@@ -45,7 +46,7 @@ export interface Universe {
 export interface ClaimRow {
 	id: string;
 	universe: string;
-	claim_type: 'character' | 'ability';
+	claim_type: 'character' | 'ability' | 'ocular';
 	category: string;
 	name: string;
 	max_users: number | null;
@@ -739,3 +740,38 @@ export async function stopEncryption(id: string) {
 }
 
 export const characterPageHref = (id: string) => `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}character/?id=${id}`;
+
+// ───────────────────────────── Evolution rolls ─────────────────────────────
+
+/** A card's evolution rolls (e.g. Quirk Instability), oldest first. Staff-reset rolls are left out. */
+export async function loadEvolutionRolls(characterId: string): Promise<EvolutionRoll[]> {
+	const { data, error } = await db()
+		.from('evolution_rolls')
+		.select('id, card_key, kind, sides, roll, result, created_at')
+		.eq('character_id', characterId)
+		.eq('void', false)
+		.order('id');
+	fail(error);
+	return (data ?? []) as EvolutionRoll[];
+}
+
+/** Rolled by the database, which checks the card can roll it and writes it to the evolution log. */
+export async function rollEvolution(characterId: string, card: string, kind: EvolutionRollKind): Promise<EvolutionRoll> {
+	const { data, error } = await db().rpc('roll_evolution', { p_character: characterId, p_card: card, p_kind: kind });
+	fail(error);
+	return data as EvolutionRoll;
+}
+
+/** Uploads a picture of an Ocular's eye into the player's own folder and returns its public link. */
+export async function uploadOcularImage(file: File): Promise<string> {
+	if (!file.type.startsWith('image/')) throw new Error('That isn’t an image.');
+	if (file.size > 5 * 1024 * 1024) throw new Error('Pictures can be up to 5 MB.');
+	const { data: auth } = await db().auth.getSession();
+	const uid = auth.session?.user.id;
+	if (!uid) throw new Error('Sign in to upload a picture.');
+	const ext = (file.name.split('.').pop() ?? 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+	const path = `${uid}/${crypto.randomUUID()}.${ext}`;
+	const { error } = await db().storage.from('ocular-images').upload(path, file, { contentType: file.type, upsert: false });
+	fail(error);
+	return db().storage.from('ocular-images').getPublicUrl(path).data.publicUrl;
+}

@@ -13,6 +13,8 @@ export interface CustomTreeNode {
 	requires: string[];
 	/** Owned from the start, like the root of a wiki tree. */
 	start: boolean;
+	/** One of the character's starting skills: owned once approved, nothing to unlock. */
+	known?: boolean;
 }
 
 export interface CustomCurrency {
@@ -48,9 +50,9 @@ const SYSTEM_CURRENCIES: Record<string, { code: string; when?: (f: SystemEntry['
 		{ code: 'BTUP' },
 	],
 	jojo: [
-		{ code: 'HUP', when: (f) => f.path === 'Hamon' },
-		{ code: 'SUP', when: (f) => f.path === 'Spin' },
-		{ code: 'VUP', when: (f) => f.path === 'Vampire' },
+		{ code: 'HUP', when: (f) => f.hamon === 'Yes' || f.path === 'Hamon' },
+		{ code: 'SUP', when: (f) => f.spin === 'Yes' || f.path === 'Spin' },
+		{ code: 'VUP', when: (f) => f.vampire === 'Yes' || f.path === 'Vampire' },
 	],
 	'fire-force': [
 		{ code: 'SGUP', when: (f) => f.generation === 'Second' },
@@ -123,10 +125,10 @@ export const customTreeNodes = (tree: CustomTree): SkillNode[] =>
 		tree_id: 'custom',
 		id: n.id,
 		label: n.label || 'Unnamed',
-		cost_amount: n.start || !n.cost ? null : n.cost,
-		cost_currency: n.start || !n.cost ? null : tree.currency,
+		cost_amount: n.start || n.known || !n.cost ? null : n.cost,
+		cost_currency: n.start || n.known || !n.cost ? null : tree.currency,
 		requires: n.requires,
-		start: n.start,
+		start: n.start || Boolean(n.known),
 		description: n.description,
 		sort: i,
 	}));

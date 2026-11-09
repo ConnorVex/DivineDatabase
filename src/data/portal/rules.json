@@ -502,7 +502,8 @@
 		"slots": [
 			{
 				"id": "Frontal Cortex",
-				"count": 1
+				"count": 1,
+				"upgradeable": true
 			},
 			{
 				"id": "Ocular",
@@ -526,11 +527,13 @@
 			},
 			{
 				"id": "Hands",
-				"count": 1
+				"count": 1,
+				"upgradeable": true
 			},
 			{
 				"id": "Skeleton",
-				"count": 1
+				"count": 1,
+				"upgradeable": true
 			},
 			{
 				"id": "Face",
@@ -538,11 +541,13 @@
 			},
 			{
 				"id": "Integumentary System",
-				"count": 1
+				"count": 1,
+				"upgradeable": true
 			},
 			{
 				"id": "Circulatory System",
-				"count": 1
+				"count": 1,
+				"upgradeable": true
 			}
 		],
 		"grades": [

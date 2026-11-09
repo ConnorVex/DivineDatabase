@@ -13,7 +13,6 @@ import {
 	type EquipmentRequest,
 } from '../../lib/portal/equipment.ts';
 import { startPortalTheme } from '../../lib/portal/theme.ts';
-import { WIKI } from '../../lib/links.ts';
 import { logIn, watchPlayer, type Player } from '../../lib/supabase.ts';
 import { SelectField, TextArea, TextField } from './fields.tsx';
 import { IngredientPicker } from './IngredientPicker.tsx';
@@ -148,8 +147,7 @@ export default function EquipmentForm() {
 				</header>
 				<p class="pf-intro">
 					Describe the item you want and what it should do. A Gamemaster turns it into a crafting recipe that only this character can use. You still gather the
-					ingredients and craft it yourself; the finished item can be traded like any other.{' '}
-					<a href={`${WIKI}rp-systems/crafting/overview/`}>How crafting works</a>
+					ingredients and craft it yourself; the finished item can be traded like any other.
 				</p>
 				<div class="pf-grid">
 					<SelectField

@@ -5,6 +5,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
 	adminDeleteCharacter,
+	staffEditCharacter,
 	setProgressed,
 	heavenlyGrantFor,
 	discoverCombos,
@@ -44,7 +45,7 @@ import { EquipmentReview } from './EquipmentReview.tsx';
 import { loadCraftingItems, loadEquipmentQueue, type CraftingItem, type EquipmentQueueItem } from '../../lib/portal/equipment.ts';
 import { familyHref, loadFamilies, loadMyFamily, loadPerkQueue, type Family, type FamilyCard, type PerkRequest } from '../../lib/families/api.ts';
 import { loadFamilyChoices, loadLinkablePerks, type LinkablePerk } from '../../lib/portal/families.ts';
-import { applyApproved, approvedText, checkSheet, ENCRYPTION_ITEM, type Issue } from '../../lib/portal/rules.ts';
+import { applyApproved, approvedText, checkSheet, denyStatOverride, ENCRYPTION_ITEM, isStatOverride, type Issue } from '../../lib/portal/rules.ts';
 import { AdminRail } from './AdminRail.tsx';
 import { MaintenancePanel } from './MaintenancePanel.tsx';
 import { PlayersView } from './OverridePanel.tsx';
@@ -58,7 +59,7 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyl
 const ago = (iso: string | null) => {
 	if (!iso) return '';
 	const h = (Date.now() - new Date(iso).getTime()) / 36e5;
-	return h < 1 ? 'just now' : h < 48 ? `${Math.floor(h)}h ago` : `${Math.floor(h / 24)} days ago`;
+	return h < 1 ? 'just now' : h < 48 ? `${Math.floor(h)}h\u00A0ago` : `${Math.floor(h / 24)}\u00A0days\u00A0ago`;
 };
 
 const TABS: { id: string; label: string; match: (c: AdminCharacter) => boolean }[] = [
@@ -250,10 +251,11 @@ function Detail(props: {
 				extraTraitSlots: c.extra_trait_slots,
 				bonusPtp: c.bonus_ptp,
 				approvedSheet: c.approved_sheet,
-				claims: new Map(props.board.map((r) => [r.id, { name: r.name, usedSlots: r.used_slots, maxUsers: r.max_users, category: r.category }])),
+				claims: new Map(props.board.map((r) => [r.id, { name: r.name, usedSlots: r.used_slots, maxUsers: r.max_users, category: r.category, universe: r.universe, claimType: r.claim_type }])),
 				heldClaimIds: held,
 				requestedClaims: c.requested_claims,
 				comboSystemLimits: combos.map((k) => k.system_limits ?? {}),
+				combos: combos.map((k) => k.name),
 				families: [...c.sheet.families, ...memberOf],
 				familyPerks: perks ? new Map(perks.map((p) => [p.id, p])) : undefined,
 				heavenlyGrant,
@@ -293,6 +295,12 @@ function Detail(props: {
 		setBusy(true);
 		setError('');
 		try {
+			// A denied stat override puts the card back to the starting stats before it's approved or sent back.
+			const deniedOverrides = issues.filter((i) => isStatOverride(i) && permissions[i.message] === 'denied');
+			if (props.admin && outcome !== 'denied' && deniedOverrides.length && !openEvolution) {
+				const sheet = deniedOverrides.reduce((sh, i) => denyStatOverride(sh, i.card!, c.staff_overrides ?? {}), c.sheet);
+				await staffEditCharacter(c.id, sheet, c.staff_overrides ?? {});
+			}
 			const full = [permissionNote(), note.trim()].filter(Boolean).join('\n\n');
 			if (openEvolution) await reviewEvolution(openEvolution.id, outcome, full);
 			else await reviewCharacter(c.id, outcome, full);
@@ -518,51 +526,53 @@ function Detail(props: {
 
 					{props.admin && (
 						<Block title="Settings">
-							<div class="ov-row">
-								<label class="pf-check">
-									<input type="checkbox" checked={c.hidden} onChange={(e) => change(() => setCharacterHidden(c.id, e.currentTarget.checked))} />
-									Hide from the gallery
-								</label>
-								<label class="pf-check" title="Only the owner, admins and the players the owner adds can see it.">
-									<input type="checkbox" checked={c.encrypted} onChange={(e) => change(() => setEncryption(c.id, e.currentTarget.checked))} />
-									🔒 Encrypted
-								</label>
-								{c.kind === 'oc' && !c.approved_at && (
-									<label class="pf-check" title="For characters coming in already progressed: the sheet skips every starting limit, like an evolution.">
-										<input type="checkbox" checked={c.progressed} onChange={(e) => change(() => setProgressed(c.id, e.currentTarget.checked))} />
-										Already progressed (skip starting limits)
+							<div class="rv-settings-grid">
+								<div class="rv-settings-checks">
+									<label class="pf-check">
+										<input type="checkbox" checked={c.hidden} onChange={(e) => change(() => setCharacterHidden(c.id, e.currentTarget.checked))} />
+										Hide from the gallery
 									</label>
-								)}
-								{c.kind === 'oc' && (
-									<div class="pf-field rv-slots">
-										<label class="pf-label" for="rv-slots">
-											Extra trait slots
+									<label class="pf-check" title="Only the owner, admins and the players the owner adds can see it.">
+										<input type="checkbox" checked={c.encrypted} onChange={(e) => change(() => setEncryption(c.id, e.currentTarget.checked))} />
+										🔒 Encrypted
+									</label>
+									{c.kind === 'oc' && !c.approved_at && (
+										<label class="pf-check" title="For characters coming in already progressed: the sheet skips every starting limit, like an evolution.">
+											<input type="checkbox" checked={c.progressed} onChange={(e) => change(() => setProgressed(c.id, e.currentTarget.checked))} />
+											Already progressed (skip starting limits)
 										</label>
-										<input
-											id="rv-slots"
-											type="number"
-											min={0}
-											max={20}
-											value={slots}
-											onInput={(e) => setSlots(e.currentTarget.value)}
-											onBlur={() => Number(slots) !== c.extra_trait_slots && change(() => setExtraTraitSlots(c.id, Math.max(0, Math.min(20, Number(slots) || 0))))}
-										/>
-									</div>
-								)}
+									)}
+								</div>
 								{c.kind === 'oc' && (
-									<div class="pf-field rv-slots">
-										<label class="pf-label" for="rv-bonus-ptp">
-											Bonus PTP
-										</label>
-										<input
-											id="rv-bonus-ptp"
-											type="number"
-											min={0}
-											max={200}
-											value={bonus}
-											onInput={(e) => setBonus(e.currentTarget.value)}
-											onBlur={() => Number(bonus) !== c.bonus_ptp && change(() => setBonusPtp(c.id, Math.max(0, Math.min(200, Math.round(Number(bonus)) || 0))))}
-										/>
+									<div class="rv-settings-numbers">
+										<div class="pf-field rv-slots">
+											<label class="pf-label" for="rv-slots">
+												Extra trait slots
+											</label>
+											<input
+												id="rv-slots"
+												type="number"
+												min={0}
+												max={20}
+												value={slots}
+												onInput={(e) => setSlots(e.currentTarget.value)}
+												onBlur={() => Number(slots) !== c.extra_trait_slots && change(() => setExtraTraitSlots(c.id, Math.max(0, Math.min(20, Number(slots) || 0))))}
+											/>
+										</div>
+										<div class="pf-field rv-slots">
+											<label class="pf-label" for="rv-bonus-ptp">
+												Bonus PTP
+											</label>
+											<input
+												id="rv-bonus-ptp"
+												type="number"
+												min={0}
+												max={200}
+												value={bonus}
+												onInput={(e) => setBonus(e.currentTarget.value)}
+												onBlur={() => Number(bonus) !== c.bonus_ptp && change(() => setBonusPtp(c.id, Math.max(0, Math.min(200, Math.round(Number(bonus)) || 0))))}
+											/>
+										</div>
 									</div>
 								)}
 							</div>
@@ -643,7 +653,7 @@ export function CharacterQueue(props: {
 			</nav>
 			<div class="ov-layout">
 				<div class="hud-panel ov-list">
-					<input type="search" class="ov-search" placeholder="Search character or player" value={query} onInput={(e) => setQuery(e.currentTarget.value)} aria-label="Search submissions" />
+					<input type="search" class="ov-search" placeholder="Search characters or players…" value={query} onInput={(e) => setQuery(e.currentTarget.value)} aria-label="Search submissions" />
 					<ul>
 						{shown.map((c) => {
 							const owner = players.get(c.owner_id);

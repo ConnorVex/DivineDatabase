@@ -9,11 +9,13 @@ import preact from '@astrojs/preact';
 const maintenanceGate = {
 	name: 'maintenance-gate',
 	hooks: {
-		'astro:config:setup': ({ injectScript }) => {
-			injectScript(
-				'head-inline',
-				"try{if(localStorage.getItem('dd-maintenance')==='1'){document.documentElement.classList.add('mnt-hold');var s=document.createElement('style');s.textContent='html.mnt-hold body{visibility:hidden}';document.head.appendChild(s);setTimeout(function(){document.documentElement.classList.remove('mnt-hold')},4000)}}catch(e){}",
-			);
+		'astro:config:setup': ({ injectScript, command }) => {
+			if (command !== 'dev') {
+				injectScript(
+					'head-inline',
+					"try{if(localStorage.getItem('dd-maintenance')==='1'){document.documentElement.classList.add('mnt-hold');var s=document.createElement('style');s.textContent='html.mnt-hold body{visibility:hidden}';document.head.appendChild(s);setTimeout(function(){document.documentElement.classList.remove('mnt-hold')},4000)}}catch(e){}",
+				);
+			}
 			injectScript('page', "import '/src/maintenance-gate.ts';");
 		},
 	},

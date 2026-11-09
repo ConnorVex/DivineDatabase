@@ -1,0 +1,92 @@
+{
+	"note": "Canon Conduit powers for the claim board, from the inFAMOUS games (not the Index: staff to review). A card that claims one takes its class and element. Keyed by claim name (case and punctuation ignored).",
+	"conduits": {
+		"Electrokinesis": {
+			"category": "Regular Conduits",
+			"class": "Elemental",
+			"element": "Electricity",
+			"user": "Cole MacGrath",
+			"blurb": "Generates and absorbs electricity: lightning bolts, shockwaves, grinding along power lines and draining any power source."
+		},
+		"Neon": {
+			"category": "Regular Conduits",
+			"class": "Elemental",
+			"element": "Neon",
+			"user": "Abigail “Fetch” Walker",
+			"blurb": "Bends neon light into precise beams and fast light-speed dashes, drawn from neon signs."
+		},
+		"Smoke": {
+			"category": "Regular Conduits",
+			"class": "Elemental",
+			"element": "Smoke",
+			"user": "Hank Daughtery",
+			"blurb": "Turns into smoke to dash through vents, and fires smoke and burning cinder blasts drawn from fires and exhaust."
+		},
+		"Paper": {
+			"category": "Regular Conduits",
+			"class": "Elemental",
+			"element": "Paper",
+			"user": "Celia",
+			"blurb": "Shapes paper into blades, shields and floating paper forms, and can hide inside a paper world."
+		},
+		"Ice": {
+			"category": "Regular Conduits",
+			"class": "Elemental",
+			"element": "Ice",
+			"user": "Lucy Kuo",
+			"blurb": "Creates ice to freeze foes, raise ice pillars and fly on crystals of frost."
+		},
+		"Napalm": {
+			"category": "Regular Conduits",
+			"class": "Elemental",
+			"element": "Napalm (burning oil)",
+			"user": "Nix",
+			"blurb": "Controls black napalm oil: sets it alight, hurls it and drags foes through it with tendrils."
+		},
+		"Video": {
+			"category": "Family Conduits",
+			"class": "Elemental",
+			"element": "Video",
+			"user": "Eugene Sims",
+			"blurb": "Manifests video-game constructs like angels, demons and swords, drawn from screens, and can turn invisible."
+		},
+		"Concrete": {
+			"category": "Family Conduits",
+			"class": "Elemental",
+			"element": "Concrete",
+			"user": "Brooke Augustine",
+			"blurb": "Manipulates concrete and rock: armour, spikes, chains and shrapnel pulled from buildings and streets."
+		},
+		"Telekinesis": {
+			"category": "Psychic Conduits",
+			"class": "Psychic",
+			"user": "Alden Tate",
+			"blurb": "Lifts and hurls debris and wreckage with the mind, building giant constructs out of scrap."
+		},
+		"Black Tar": {
+			"category": "Psychic Conduits",
+			"class": "Psychic",
+			"user": "Sasha",
+			"blurb": "Mind control through a black tar that binds whoever it touches to her will."
+		},
+		"Power Mimicry": {
+			"category": "Meta Conduits",
+			"class": "Meta",
+			"user": "Delsin Rowe",
+			"blurb": "Copies other Conduits’ powers by touch, learning each new element he absorbs."
+		},
+		"Corrupted Transformation": {
+			"category": "Bio-Enhanced Conduits",
+			"class": "Biologically Enhanced",
+			"user": "Joseph Bertrand III",
+			"blurb": "The body mutates into a hulking, monstrous form with immense strength and durability."
+		},
+		"Ray Field": {
+			"category": "Energy Conduits",
+			"class": "Energy",
+			"element": "Ray Field energy",
+			"user": "John White (The Beast)",
+			"blurb": "Generates huge Ray Field energy blasts and shockwaves that can awaken latent Conduits."
+		}
+	}
+}

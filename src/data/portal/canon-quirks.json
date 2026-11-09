@@ -1,0 +1,341 @@
+{
+	"note": "Canon Quirks: their class (and Quirk Factor, when listed) are fixed on a card that claims them. Keyed by claim name (case and punctuation ignored). 'added' ones are new claimables (migration 20261126100000_more_canon_quirks.sql) with a category and slot count staff can change.",
+	"quirks": {
+		"All For One": {
+			"class": "Emitter",
+			"factor": "Hands (touch)"
+		},
+		"One For All": {
+			"class": "Transformation",
+			"factor": "Whole body"
+		},
+		"Warp Gate": {
+			"class": "Mutation",
+			"factor": "Mist body"
+		},
+		"Electrification": {
+			"class": "Emitter",
+			"factor": "Whole body"
+		},
+		"Half Hot Half Cold": {
+			"class": "Emitter",
+			"factor": "Right side (ice) and left side (fire)"
+		},
+		"Chronostasis": {
+			"class": "Emitter",
+			"factor": "Hair (clock hands)"
+		},
+		"Elasticity": {
+			"class": "Emitter",
+			"factor": "Touch"
+		},
+		"Cloud": {
+			"class": "Emitter",
+			"factor": "Head"
+		},
+		"Blood Curdle": {
+			"class": "Emitter",
+			"factor": "Tongue"
+		},
+		"Whirlwind": {
+			"class": "Emitter",
+			"factor": "Whole body"
+		},
+		"New Order": {
+			"class": "Emitter",
+			"factor": "Touch and voice"
+		},
+		"Explosion": {
+			"class": "Emitter",
+			"factor": "Palms (sweat glands)"
+		},
+		"Copy": {
+			"class": "Emitter",
+			"factor": "Touch"
+		},
+		"Hellflame": {
+			"class": "Emitter",
+			"factor": "Whole body"
+		},
+		"Overhaul": {
+			"class": "Emitter",
+			"factor": "Hands"
+		},
+		"Decay": {
+			"class": "Emitter",
+			"factor": "All five fingers"
+		},
+		"Cremation": {
+			"class": "Emitter",
+			"factor": "Whole body"
+		},
+		"Erasure": {
+			"class": "Emitter",
+			"factor": "Eyes"
+		},
+		"Warping": {
+			"class": "Emitter"
+		},
+		"Twin Impact": {
+			"class": "Emitter"
+		},
+		"IQ": {
+			"class": "Emitter"
+		},
+		"Slide and Glide": {
+			"class": "Emitter"
+		},
+		"Binging Ball": {
+			"class": "Emitter"
+		},
+		"Strong Arm": {
+			"class": "Emitter"
+		},
+		"Poltergeist": {
+			"class": "Emitter"
+		},
+		"Overclock": {
+			"class": "Emitter"
+		},
+		"Reflect": {
+			"class": "Emitter"
+		},
+		"Pump Up": {
+			"class": "Emitter"
+		},
+		"Stress": {
+			"class": "Emitter"
+		},
+		"Creation": {
+			"class": "Emitter",
+			"factor": "Skin (uses body lipids)",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Creates any non-living object from the lipids in the body, as long as the user knows its molecular structure."
+		},
+		"Hardening": {
+			"class": "Transformation",
+			"factor": "Skin",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Hardens the skin into a sharp, rock-like armor that blocks attacks and makes every strike a weapon."
+		},
+		"Engine": {
+			"class": "Mutation",
+			"factor": "Calves (engine exhausts)",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Engines in the calves give bursts of incredible running speed."
+		},
+		"Zero Gravity": {
+			"class": "Emitter",
+			"factor": "Fingertip pads",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Touching something with all five fingertips cancels its gravity; too much makes the user nauseous."
+		},
+		"Frog": {
+			"class": "Mutation",
+			"factor": "Whole body",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Does anything a frog can: a long tongue, wall-climbing, leaping, camouflage and toxic mucus."
+		},
+		"Dark Shadow": {
+			"class": "Emitter",
+			"factor": "A sentient shadow living in the body",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "A sentient shadow creature that fights alongside the user, stronger and wilder in the dark."
+		},
+		"Invisibility": {
+			"class": "Mutation",
+			"factor": "Whole body",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "The user's body is permanently invisible and can bend light around it."
+		},
+		"Acid": {
+			"class": "Emitter",
+			"factor": "Skin pores",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Secretes acid from the skin, from corrosive to slippery, and can control how strong it is."
+		},
+		"Tape": {
+			"class": "Mutation",
+			"factor": "Elbows (tape dispensers)",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Shoots and reels in strong tape from the elbows."
+		},
+		"Earphone Jack": {
+			"class": "Mutation",
+			"factor": "Earlobes (jacks)",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Earlobe jacks that send the user's heartbeat as shockwaves and pick up faint sounds."
+		},
+		"Navel Laser": {
+			"class": "Emitter",
+			"factor": "Navel",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Fires a sparkling laser from the navel; overuse upsets the stomach."
+		},
+		"Pop Off": {
+			"class": "Mutation",
+			"factor": "Scalp (sticky spheres)",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Pulls sticky spheres off the scalp that stick to anything but the user."
+		},
+		"Tail": {
+			"class": "Mutation",
+			"factor": "Tail",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "A large, strong tail for martial arts, balance and climbing."
+		},
+		"Anivoice": {
+			"class": "Emitter",
+			"factor": "Voice",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Talks to animals and can ask them for help."
+		},
+		"Dupli-Arms": {
+			"class": "Mutation",
+			"factor": "Arm tentacles",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Tentacles on the arms that can grow copies of any body part."
+		},
+		"Sugar Rush": {
+			"class": "Transformation",
+			"factor": "Whole body (sugar intake)",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Eating sugar multiplies the user's strength for a few minutes, then dulls the mind."
+		},
+		"Steel": {
+			"class": "Transformation",
+			"factor": "Skin",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Turns the body to steel, getting stronger the more iron the user has eaten."
+		},
+		"Vines": {
+			"class": "Mutation",
+			"factor": "Hair (vines)",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Thorny vines for hair that the user controls and can regrow by drinking water and sunbathing."
+		},
+		"Big Fist": {
+			"class": "Transformation",
+			"factor": "Hands",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Enlarges the hands to giant size for powerful strikes and grabs."
+		},
+		"Gigantification": {
+			"class": "Transformation",
+			"factor": "Whole body",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Grows the whole body to giant size, but only to one fixed size."
+		},
+		"Brainwashing": {
+			"class": "Emitter",
+			"factor": "Voice",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Anyone who answers the user is put under mind control until struck hard enough to snap out of it."
+		},
+		"Fat Absorption": {
+			"class": "Transformation",
+			"factor": "Body fat",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Sinks attacks into the user's body fat, then burns the fat for a huge burst of strength."
+		},
+		"Voice": {
+			"class": "Emitter",
+			"factor": "Vocal cords",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "A voice loud enough to deafen and knock back anything in front of the user."
+		},
+		"Lizard": {
+			"class": "Mutation",
+			"factor": "Whole body",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Anything a lizard can do: wall-climbing, a tail and regenerating lost body parts."
+		},
+		"Magnetism": {
+			"class": "Emitter",
+			"factor": "Whole body",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Magnetizes people near the user, pulling or pushing them depending on their sex."
+		},
+		"Compress": {
+			"class": "Emitter",
+			"factor": "Palms",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Compresses anything the user touches into a small marble, and releases it with a snap."
+		},
+		"Muscle Augmentation": {
+			"class": "Transformation",
+			"factor": "Muscle fibers",
+			"added": "Standard",
+			"slots": 3,
+			"blurb": "Grows extra muscle fibers that greatly increase strength, speed and defense."
+		},
+		"Permeation": {
+			"class": "Emitter",
+			"factor": "Whole body",
+			"added": "Permission Based",
+			"slots": 2,
+			"blurb": "Lets the user pass through anything, phasing in and out of solid matter."
+		},
+		"Fierce Wings": {
+			"class": "Mutation",
+			"factor": "Wings (feathers)",
+			"added": "Permission Based",
+			"slots": 2,
+			"blurb": "Large wings of feathers the user can control one by one: flight, blades and rescues at once."
+		},
+		"Foresight": {
+			"class": "Emitter",
+			"factor": "Touch and eye contact",
+			"added": "Permission Based",
+			"slots": 2,
+			"blurb": "After touching someone and meeting their eyes, the user can see their future for an hour."
+		},
+		"Transform": {
+			"class": "Transformation",
+			"factor": "Blood intake",
+			"added": "Permission Based",
+			"slots": 2,
+			"blurb": "Drinking someone's blood lets the user turn into a perfect copy of them."
+		},
+		"Double": {
+			"class": "Emitter",
+			"factor": "Hands (touch)",
+			"added": "Permission Based",
+			"slots": 2,
+			"blurb": "Makes copies of anything the user has measured, people included."
+		},
+		"Rewind": {
+			"class": "Emitter",
+			"factor": "Horn",
+			"added": "Permission Based",
+			"slots": 1,
+			"blurb": "Rewinds a living thing's body to an earlier state, healing it or undoing it completely."
+		}
+	}
+}

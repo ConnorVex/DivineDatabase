@@ -25,7 +25,7 @@ export function effectiveClaims(d: CharacterDraft, board: ClaimRow[]): string[] 
 
 export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[] {
 	const { board, held, combos } = data;
-	const claims = new Map(board.map((r) => [r.id, { name: r.name, usedSlots: r.used_slots, maxUsers: r.max_users, category: r.category }]));
+	const claims = new Map(board.map((r) => [r.id, { name: r.name, usedSlots: r.used_slots, maxUsers: r.max_users, category: r.category, universe: r.universe, claimType: r.claim_type }]));
 	const list = applyApproved(checkSheet(draft.sheet, {
 		kind: draft.kind,
 		name: draft.name,
@@ -38,6 +38,7 @@ export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[]
 		heldClaimIds: held,
 		requestedClaims: effectiveClaims(draft, board),
 		comboSystemLimits: combos.map((c) => c.system_limits ?? {}),
+		combos: combos.map((c) => c.name),
 		families: [...draft.sheet.families, ...data.familyIds],
 		familyPerks: data.familyPerks && new Map(data.familyPerks.map((p) => [p.id, p])),
 		heavenlyGrant: data.heavenlyGrant,

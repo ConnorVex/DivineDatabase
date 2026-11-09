@@ -1,7 +1,12 @@
 // The shape of a character sheet as stored in characters.sheet (jsonb).
+import { ghoulFromOld } from './ghouls.ts';
+import { conduitFromOld } from './conduits.ts';
+import { awakeningsFromOld } from './awakenings.ts';
+import { techniquesFromOld } from './fireforceLogs.ts';
+import { jojoFromPath } from './jojo.ts';
 import type { PerkAccess } from '../families/api.ts';
 import type { CustomTree } from './customTree.ts';
-import { familyScope, memberKeys, systemById, type Fields } from './systems.ts';
+import { barriersFromOld, ocularFromOld, familyScope, memberKeys, systemById, type Fields } from './systems.ts';
 
 export type SkillType = 'passive' | 'standard' | 'ultimate';
 
@@ -10,6 +15,10 @@ export interface Skill {
 	type: SkillType;
 	effect: string;
 	mastery: string;
+	/** The custom skill tree node this skill comes from. */
+	treeNodeId?: string;
+	/** On the tree but not learned yet: past the starting skills, or added after approval. Unlocked with points. */
+	locked?: boolean;
 }
 
 /** A card copied from a family's ability perk. The family's part stays locked; the player adds the rest. */
@@ -44,7 +53,15 @@ export interface SystemEntry {
 	/** The player's own skill tree for this card (optional). */
 	customTree?: CustomTree | null;
 	/** Asks staff to let this new character start past the usual stats (e.g. Cursed Energy Output). */
-	statOverride?: { reason: string } | null;
+	/** A new character asking to start past the usual stats: what they want (stats are set on the card) and why. */
+	statOverride?: {
+		reason: string;
+		ask?: string;
+		/** JJK: why the character should start with Barrier Techniques (set once they ask). */
+		barrier?: string;
+		/** JJK: why the character should start with the Heavenly Restriction they picked (set once they pick one). */
+		heavenly?: string;
+	} | null;
 }
 
 export interface PickedTrait {
@@ -152,7 +169,19 @@ export function normalizeSheet(raw: unknown): Sheet {
 		canon: { ...base.canon, ...s.canon },
 		traits: Array.isArray(s.traits) ? s.traits : [],
 		seenCombos: Array.isArray(s.seenCombos) ? s.seenCombos : [],
-		systems: Array.isArray(s.systems) ? s.systems.map((e: Partial<SystemEntry>) => ({ key: '', system: '', rollProofs: {}, skills: [], description: '', fields: {}, ...e })) : [],
+		systems: Array.isArray(s.systems)
+			? s.systems.map((e: Partial<SystemEntry>) => {
+					const entry: SystemEntry = { key: '', system: '', rollProofs: {}, skills: [], description: '', fields: {}, ...e };
+					// JoJo cards from before the rework had a single path.
+					if (entry.system === 'jojo') return { ...entry, fields: jojoFromPath(entry.fields) };
+					if (entry.system === 'tokyo-ghoul') return { ...entry, fields: ghoulFromOld(entry.fields) };
+					if (entry.system === 'quirk') return { ...entry, fields: awakeningsFromOld(entry.fields) };
+					if (entry.system === 'fire-force') return { ...entry, fields: techniquesFromOld(entry.fields) };
+					if (entry.system === 'jujutsu-kaisen') return { ...entry, fields: ocularFromOld(barriersFromOld(entry.fields)) };
+					if (entry.system === 'infamous') return { ...entry, fields: conduitFromOld(entry.fields) };
+					return entry;
+				})
+			: [],
 		evolutions: Array.isArray(s.evolutions) ? s.evolutions : [],
 		families: Array.isArray(s.families) ? s.families.filter((f): f is string => typeof f === 'string') : [],
 	};

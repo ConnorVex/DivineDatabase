@@ -59,9 +59,15 @@ function banner() {
 
 async function run() {
 	// Dev only: /any-page/?maintenance=preview shows the screen without touching the database.
-	if (import.meta.env.DEV && new URLSearchParams(location.search).get('maintenance') === 'preview') {
+	if (import.meta.env.DEV) {
+		if (new URLSearchParams(location.search).get('maintenance') === 'preview') {
+			html.classList.remove('mnt-hold');
+			return block('New character form coming tonight!', false);
+		}
+		// On the dev server, keep maintenance mode off unless previewing.
+		remember(false);
 		html.classList.remove('mnt-hold');
-		return block('New character form coming tonight!', false);
+		return;
 	}
 	let state;
 	try {

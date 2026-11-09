@@ -1,0 +1,22 @@
+{
+	"note": "Canon Ignitions (Fire Force canon abilities). 'categories' fixes fields for every Ignition in a category: every Pillar has an Adolla Burst (Index: Adolla). 'oneUser' categories hold one character each and get their own section in the claim menu. Each Ignition's 'theme' replaces the card's theme box and 'holder' is who has it in canon (shown when the claim has no note). Add a 'generation' (Second, Third or XO) to lock that too. 'look' is the canon card's effect and two colours (burst, split, spark, rise, fall, swirl, streak, pulse, shimmer).",
+	"categories": {
+		"Pillar": { "adollaBurst": "Yes" }
+	},
+	"oneUser": ["Pillar"],
+	"ignitions": {
+		"Twin Kitsune": { "holder": "Hikage and Hinata", "theme": "Twin foxes: fox-fire that splits in two and fights as a pair", "look": ["swirl", "#ff8a3d", "#ffe0a8"] },
+		"Nekomata": { "holder": "Tamaki Kotatsu", "theme": "Cats: flame cat tails and ears, with a cat's agility and reflexes", "look": ["streak", "#ff7ab8", "#ffd1e6"] },
+		"Sputter and Flair": { "holder": "Maki Oze", "theme": "Taming fire: drawing in existing flames and shaping them into little fire spirits", "look": ["pulse", "#ff9e3d", "#ffd9a0"] },
+		"Iai Hand Sword": { "holder": "Benimaru Shinmon", "theme": "The quick-draw sword: the hand as a blade, cutting with flame", "look": ["streak", "#ff3b2f", "#ffb36b"] },
+		"Excalibur": { "holder": "Arthur Boyle", "theme": "The knight's sword: a plasma blade as strong as his belief that he's a knight", "look": ["spark", "#7fd3ff", "#e8f7ff"] },
+		"Four Card Kind": { "holder": "Joker", "theme": "Cards and smoke: flaming playing cards and smoke tricks", "look": ["swirl", "#b04bff", "#ff5a2a"] },
+		"Buff Stacking": { "theme": "Stacking power: every use builds on the strength of the last", "look": ["rise", "#ffd23f", "#fff2b0"] },
+		"Absorption": { "holder": "Charon", "theme": "Absorb and release: taking in the force of attacks and throwing it back", "look": ["burst", "#4b6bff", "#c0d0ff"] },
+		"Black Smoke": { "holder": "Kurono Yuichiro", "theme": "Black smoke: smoke shaped into blades that wound", "look": ["fall", "#3a3a40", "#9a9aa6"] },
+		"Voltage Nova": { "holder": "Leonard Burns", "theme": "Overwhelming heat: raw, crushing force behind every blow", "look": ["burst", "#ff4a1a", "#ffe14d"] },
+		"Flaming Ink": { "holder": "Ogun Montgomery", "theme": "Living ink: flame tattoos that power up the body", "look": ["rise", "#ff6a1a", "#2a1a10"] },
+		"Arrow": { "holder": "Arrow", "theme": "Archery: a bow and arrows made of fire", "look": ["streak", "#ff8a1f", "#fff0c0"] },
+		"Scale Shield": { "theme": "Scales: overlapping flame scales that guard and cut", "look": ["pulse", "#3dd6a0", "#c6ffe9"] }
+	}
+}

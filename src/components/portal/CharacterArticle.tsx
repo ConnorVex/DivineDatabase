@@ -439,12 +439,24 @@ export function CharacterArticle(props: ArticleProps) {
 														</p>
 													)),
 												)}
+											{(def?.defaultMoves?.(e.fields).length ?? 0) > 0 && (
+												<ul class="wk-skills">
+													{def!.defaultMoves!(e.fields).map((m) => (
+														<li key={m.name} class={m.type}>
+															<strong>{m.name}</strong> <span class="trait-meta">{m.type} · default</span>
+															{m.cost && <span class="trait-meta"> · {m.cost}</span>}
+															<p>{m.effect}</p>
+														</li>
+													))}
+												</ul>
+											)}
 											{e.skills.length > 0 && (
 												<ul class="wk-skills">
 													{e.skills.map((sk, i) => (
 														<li key={i} class={sk.type}>
 															<strong>{sk.name || 'Unnamed'}</strong> <span class="trait-meta">{sk.type}</span>
 															{sk.mastery && <span class="trait-meta"> · {sk.mastery}</span>}
+															{sk.locked && <span class="trait-meta"> · locked (on the skill tree)</span>}
 															{sk.effect && <p>{sk.effect}</p>}
 														</li>
 													))}

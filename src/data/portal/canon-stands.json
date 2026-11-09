@@ -1,0 +1,1743 @@
+{
+	"note": "Canon Stands from Parts 3 to 7 for the claim board. 'stats' are Destructive Power, Speed, Range, Durability, Precision and Developmental Potential, from the JoJo wiki (jojowiki.com/Stand_Stats); ∅ is None and ? is unknown. 'about' is the Stand, 'ability' its Esoteric Ability. Evolved forms (Requiem, later ACTs, C-MOON, Made in Heaven, Love Train) belong to their base Stand. Keyed by claim name (case and punctuation ignored); 'aliases' are other names on the board.",
+	"aliases": {
+		"Golden Experience": "Gold Experience",
+		"D4C": "Dirty Deeds Done Dirt Cheap"
+	},
+	"stands": {
+		"Star Platinum": {
+			"part": "Stardust Crusaders",
+			"user": "Jotaro Kujo",
+			"stats": [
+				"A",
+				"A",
+				"C",
+				"A",
+				"A",
+				"A"
+			],
+			"about": "A towering humanoid fighter with unmatched strength, speed and precision.",
+			"ability": "Star Finger stretches its fingers to strike at range. Later it can stop time for a few seconds (Star Platinum: The World)."
+		},
+		"Magician's Red": {
+			"part": "Stardust Crusaders",
+			"user": "Muhammad Avdol",
+			"stats": [
+				"B",
+				"B",
+				"C",
+				"B",
+				"C",
+				"D"
+			],
+			"about": "A bird-headed humanoid wreathed in flame.",
+			"ability": "Creates and controls fire hot enough to melt steel, shaping it into crosses, ankhs and sensing flames (Life Detector)."
+		},
+		"Hermit Purple": {
+			"part": "Stardust Crusaders",
+			"user": "Joseph Joestar",
+			"stats": [
+				"D",
+				"C",
+				"D",
+				"A",
+				"D",
+				"E"
+			],
+			"about": "Thorny purple vines that grow from the user’s hands.",
+			"ability": "Spirit photography and divination: projects distant images onto cameras, TVs and maps. Can channel Hamon and bind foes."
+		},
+		"Hierophant Green": {
+			"part": "Stardust Crusaders",
+			"user": "Noriaki Kakyoin",
+			"stats": [
+				"C",
+				"B",
+				"A",
+				"B",
+				"C",
+				"D"
+			],
+			"about": "A slender green humanoid that can unravel into long strings.",
+			"ability": "Fires Emerald Splash, a barrage of energy gems. Its body unravels into tendrils to infiltrate and possess others, or set web traps."
+		},
+		"Silver Chariot": {
+			"part": "Stardust Crusaders",
+			"user": "Jean Pierre Polnareff",
+			"stats": [
+				"C",
+				"A",
+				"C",
+				"B",
+				"B",
+				"C"
+			],
+			"about": "A knight in silver armour armed with a rapier.",
+			"ability": "Blinding sword speed. Shedding its armour makes it fast enough to leave afterimages. Its rapier tip can be fired as a projectile."
+		},
+		"The Fool": {
+			"part": "Stardust Crusaders",
+			"user": "Iggy",
+			"stats": [
+				"B",
+				"C",
+				"D",
+				"C",
+				"D",
+				"C"
+			],
+			"about": "A sand-made beast with a mask and wheels for feet.",
+			"ability": "Is made of sand: shapes itself into decoys, gliders and walls, and turns to sand to shrug off physical blows."
+		},
+		"The World": {
+			"part": "Stardust Crusaders",
+			"user": "DIO",
+			"stats": [
+				"A",
+				"A",
+				"C",
+				"A",
+				"B",
+				"B"
+			],
+			"about": "A golden, heart-adorned humanoid with immense power.",
+			"ability": "Stops time for several seconds, letting only the user move. Its duration grows as the user’s body adapts."
+		},
+		"Tower of Gray": {
+			"part": "Stardust Crusaders",
+			"user": "Gray Fly",
+			"stats": [
+				"E",
+				"A",
+				"A",
+				"C",
+				"E",
+				"E"
+			],
+			"about": "A stag-beetle-like insect.",
+			"ability": "Moves faster than the eye can follow and tears out tongues with its needle-like mouth."
+		},
+		"Dark Blue Moon": {
+			"part": "Stardust Crusaders",
+			"user": "Captain Tennille impostor",
+			"stats": [
+				"C",
+				"C",
+				"C",
+				"B",
+				"C",
+				"D"
+			],
+			"about": "An aquatic, fish-like humanoid.",
+			"ability": "Fights underwater: razor-sharp scales, whirlpools, and barnacles that drain the target’s strength."
+		},
+		"Strength": {
+			"part": "Stardust Crusaders",
+			"user": "Forever",
+			"stats": [
+				"B",
+				"D",
+				"D",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A whole cargo ship.",
+			"ability": "Merges with a ship and controls every part of it, trapping its passengers inside."
+		},
+		"Ebony Devil": {
+			"part": "Stardust Crusaders",
+			"user": "Devo",
+			"stats": [
+				"D",
+				"D",
+				"A",
+				"B",
+				"D",
+				"B"
+			],
+			"about": "A small devilish creature that possesses a doll.",
+			"ability": "Its power grows with the user’s grudge: the more he’s hurt, the stronger the doll becomes."
+		},
+		"Yellow Temperance": {
+			"part": "Stardust Crusaders",
+			"user": "Rubber Soul",
+			"stats": [
+				"D",
+				"C",
+				"E",
+				"A",
+				"E",
+				"D"
+			],
+			"about": "A yellow, gelatinous mass worn like armour.",
+			"ability": "Disguises the user as anyone and consumes anything it touches. Absorbs physical attacks harmlessly."
+		},
+		"Hanged Man": {
+			"part": "Stardust Crusaders",
+			"user": "J. Geil",
+			"stats": [
+				"C",
+				"A",
+				"A",
+				"B",
+				"D",
+				"D"
+			],
+			"about": "A mummified figure that exists only in reflections.",
+			"ability": "Lives inside reflections and jumps between reflective surfaces at the speed of light to attack."
+		},
+		"Emperor": {
+			"part": "Stardust Crusaders",
+			"user": "Hol Horse",
+			"stats": [
+				"B",
+				"B",
+				"B",
+				"C",
+				"E",
+				"E"
+			],
+			"about": "A revolver.",
+			"ability": "A gun that fires Stand bullets whose paths the user can steer mid-flight."
+		},
+		"Empress": {
+			"part": "Stardust Crusaders",
+			"user": "Nena",
+			"stats": [
+				"C",
+				"E",
+				"A",
+				"A",
+				"D",
+				"D"
+			],
+			"about": "A growth that emerges on the target’s body.",
+			"ability": "Grows from a drop of blood on the victim into a separate, speaking creature that attacks them from their own body."
+		},
+		"Wheel of Fortune": {
+			"part": "Stardust Crusaders",
+			"user": "ZZ",
+			"stats": [
+				"B",
+				"D",
+				"D",
+				"A",
+				"E",
+				"D"
+			],
+			"about": "A car.",
+			"ability": "Possesses a car and reshapes it: bursts through terrain, fires gasoline and climbs walls."
+		},
+		"Justice": {
+			"part": "Stardust Crusaders",
+			"user": "Enya the Hag",
+			"stats": [
+				"D",
+				"E",
+				"A",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A giant skull-shaped fog.",
+			"ability": "Takes control of anyone with an open wound, puppeting the living and the dead with its fog."
+		},
+		"Lovers": {
+			"part": "Stardust Crusaders",
+			"user": "Steely Dan",
+			"stats": [
+				"E",
+				"D",
+				"A",
+				"A",
+				"D",
+				"E"
+			],
+			"about": "A tiny insect-like Stand.",
+			"ability": "Enters a person’s brain: any pain dealt to the user is multiplied and passed to the victim."
+		},
+		"Sun": {
+			"part": "Stardust Crusaders",
+			"user": "Arabia Fats",
+			"stats": [
+				"B",
+				"E",
+				"A",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A miniature sun.",
+			"ability": "Raises the surrounding temperature to scorching levels and fires heat beams."
+		},
+		"Death Thirteen": {
+			"part": "Stardust Crusaders",
+			"user": "Mannish Boy",
+			"stats": [
+				"C",
+				"C",
+				"E",
+				"B",
+				"D",
+				"B"
+			],
+			"about": "A grim reaper with a scythe.",
+			"ability": "Attacks sleepers inside a dream world it controls. Victims forget everything when they wake."
+		},
+		"Judgement": {
+			"part": "Stardust Crusaders",
+			"user": "Cameo",
+			"stats": [
+				"B",
+				"B",
+				"C",
+				"B",
+				"D",
+				"D"
+			],
+			"about": "A genie-like humanoid.",
+			"ability": "Grants wishes by creating clay copies of people. The copies attack the wisher."
+		},
+		"High Priestess": {
+			"part": "Stardust Crusaders",
+			"user": "Midler",
+			"stats": [
+				"C",
+				"B",
+				"A",
+				"A",
+				"D",
+				"D"
+			],
+			"about": "A creature with a sharp-toothed maw.",
+			"ability": "Turns into any mineral or metal object, from a razor to the sea floor, to attack from within."
+		},
+		"Geb": {
+			"part": "Stardust Crusaders",
+			"user": "N’Doul",
+			"stats": [
+				"C",
+				"B",
+				"A",
+				"B",
+				"D",
+				"D"
+			],
+			"about": "A mass of water shaped like a hand.",
+			"ability": "Controls water as a weapon, slicing at high speed over long range. The user tracks targets by sound."
+		},
+		"Khnum": {
+			"part": "Stardust Crusaders",
+			"user": "Oingo",
+			"stats": [
+				"E",
+				"E",
+				"E",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A face that overlays the user’s.",
+			"ability": "Changes the user’s face and body to look like anyone."
+		},
+		"Tohth": {
+			"part": "Stardust Crusaders",
+			"user": "Boingo",
+			"stats": [
+				"E",
+				"E",
+				"E",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A comic book.",
+			"ability": "Predicts the near future in comic panels. Its predictions always come true, though not always as expected."
+		},
+		"Anubis": {
+			"part": "Stardust Crusaders",
+			"user": "Chaka (the sword’s wielder)",
+			"stats": [
+				"B",
+				"B",
+				"E",
+				"A",
+				"E",
+				"C"
+			],
+			"about": "A cursed sword.",
+			"ability": "Possesses whoever draws it and learns every attack it sees, never losing to the same move twice. Can pass through objects."
+		},
+		"Bastet": {
+			"part": "Stardust Crusaders",
+			"user": "Mariah",
+			"stats": [
+				"E",
+				"E",
+				"B",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "An electrical outlet.",
+			"ability": "Anyone who touches it becomes magnetized, growing stronger until metal objects crush them."
+		},
+		"Sethan": {
+			"part": "Stardust Crusaders",
+			"user": "Alessi",
+			"stats": [
+				"D",
+				"D",
+				"E",
+				"C",
+				"D",
+				"D"
+			],
+			"about": "A shadow.",
+			"ability": "Anyone touched by its shadow regresses in age, losing their body and memories."
+		},
+		"Osiris": {
+			"part": "Stardust Crusaders",
+			"user": "Daniel J. D’Arby",
+			"stats": [
+				"E",
+				"D",
+				"D",
+				"C",
+				"D",
+				"D"
+			],
+			"about": "A humanoid figure.",
+			"ability": "Takes the souls of anyone who loses a bet and admits defeat, sealing them in poker chips."
+		},
+		"Horus": {
+			"part": "Stardust Crusaders",
+			"user": "Pet Shop",
+			"stats": [
+				"B",
+				"B",
+				"D",
+				"C",
+				"E",
+				"C"
+			],
+			"about": "A small bird-like spirit.",
+			"ability": "Freezes moisture into ice projectiles, spikes and walls."
+		},
+		"Atum": {
+			"part": "Stardust Crusaders",
+			"user": "Terence T. D’Arby",
+			"stats": [
+				"D",
+				"C",
+				"D",
+				"B",
+				"D",
+				"D"
+			],
+			"about": "A tall humanoid with an hourglass-like head.",
+			"ability": "Reads a person’s soul to learn their true answer to any yes or no question, and seals lost souls in dolls."
+		},
+		"Tenore Sax": {
+			"part": "Stardust Crusaders",
+			"user": "Kenny G.",
+			"stats": [
+				"E",
+				"E",
+				"D",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "No visible form.",
+			"ability": "Creates convincing illusions, turning a building into a maze."
+		},
+		"Cream": {
+			"part": "Stardust Crusaders",
+			"user": "Vanilla Ice",
+			"stats": [
+				"B",
+				"B",
+				"D",
+				"C",
+				"C",
+				"D"
+			],
+			"about": "A humanoid with a gaping mouth.",
+			"ability": "Swallows itself and the user into a void that erases anything it passes through."
+		},
+		"Crazy Diamond": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Josuke Higashikata",
+			"stats": [
+				"A",
+				"A",
+				"D",
+				"B",
+				"B",
+				"C"
+			],
+			"about": "A powerful humanoid in diamond-heart armour.",
+			"ability": "Restores anything it touches to a prior state, healing wounds and fixing objects. It can’t heal its own user."
+		},
+		"Aqua Necklace": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Anjuro Katagiri",
+			"stats": [
+				"C",
+				"C",
+				"A",
+				"A",
+				"C",
+				"E"
+			],
+			"about": "A liquid Stand.",
+			"ability": "Lives in water and vapour, entering targets through their mouths to attack from inside."
+		},
+		"Bad Company": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Keicho Nijimura",
+			"stats": [
+				"B",
+				"B",
+				"C",
+				"B",
+				"C",
+				"C"
+			],
+			"about": "A miniature army of soldiers, tanks and helicopters.",
+			"ability": "Commands a tiny army that fires real, scaled-down weapons and missiles in coordinated attacks."
+		},
+		"Red Hot Chili Pepper": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Akira Otoishi",
+			"stats": [
+				"A",
+				"A",
+				"A",
+				"A",
+				"C",
+				"A"
+			],
+			"about": "A reptilian humanoid made of electricity.",
+			"ability": "Travels through power lines, absorbing electricity to grow stronger. Can pull targets into the grid."
+		},
+		"The Lock": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Tamami Kobayashi",
+			"stats": [
+				"E",
+				"E",
+				"A",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A padlock.",
+			"ability": "Locks onto a target’s guilt. The heavier the lock grows, the more guilt weighs them down."
+		},
+		"Echoes": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Koichi Hirose",
+			"stats": [
+				"E",
+				"E",
+				"B",
+				"B",
+				"C",
+				"A"
+			],
+			"about": "An ACT Stand that evolves through three forms.",
+			"ability": "ACT 1 makes sound effects stick to surfaces. ACT 2 turns words into physical effects. ACT 3 (Three Freeze) makes targets crushingly heavy."
+		},
+		"Surface": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Toshikazu Hazamada",
+			"stats": [
+				"B",
+				"B",
+				"C",
+				"B",
+				"C",
+				"C"
+			],
+			"about": "A wooden mannequin.",
+			"ability": "Becomes a perfect copy of a person, then forces them to mirror its movements."
+		},
+		"Love Deluxe": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Yukako Yamagishi",
+			"stats": [
+				"B",
+				"B",
+				"C",
+				"A",
+				"E",
+				"B"
+			],
+			"about": "The user’s own hair.",
+			"ability": "Gives the user control over her hair: it grows, binds and strangles."
+		},
+		"Pearl Jam": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Tonio Trussardi",
+			"stats": [
+				"E",
+				"C",
+				"B",
+				"A",
+				"E",
+				"C"
+			],
+			"about": "Tiny Stands that live in food.",
+			"ability": "Hides in cooking and heals ailments in whoever eats it, often violently."
+		},
+		"Achtung Baby": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Shizuka Joestar",
+			"stats": [
+				"E",
+				"E",
+				"∅",
+				"A",
+				"E",
+				"A"
+			],
+			"about": "An invisible baby’s ability.",
+			"ability": "Turns the user and whatever she touches invisible."
+		},
+		"Ratt": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Rat",
+			"stats": [
+				"B",
+				"C",
+				"D",
+				"B",
+				"E",
+				"C"
+			],
+			"about": "A cannon on a rat’s back.",
+			"ability": "Fires darts that melt flesh into a fused, organic mass."
+		},
+		"Heaven's Door": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Rohan Kishibe",
+			"stats": [
+				"D",
+				"B",
+				"B",
+				"B",
+				"C",
+				"A"
+			],
+			"about": "A small humanoid from the user’s manga.",
+			"ability": "Turns people into books: reads their memories and writes commands they must obey."
+		},
+		"The Hand": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Okuyasu Nijimura",
+			"stats": [
+				"B",
+				"B",
+				"D",
+				"C",
+				"C",
+				"C"
+			],
+			"about": "A bulky humanoid with a symbol-marked right hand.",
+			"ability": "Its right hand erases anything it swipes, deleting space itself to pull targets closer."
+		},
+		"Cinderella": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Aya Tsuji",
+			"stats": [
+				"D",
+				"C",
+				"C",
+				"C",
+				"A",
+				"C"
+			],
+			"about": "A humanoid with makeup tools.",
+			"ability": "Changes body parts like faces and lips to change a person’s fate."
+		},
+		"Atom Heart Father": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Yoshihiro Kira",
+			"stats": [
+				"E",
+				"E",
+				"∅",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "The user’s photograph.",
+			"ability": "The user lives inside a photo and can trap others in the photograph’s space."
+		},
+		"Boy II Man": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Ken Oyanagi",
+			"stats": [
+				"C",
+				"B",
+				"C",
+				"A",
+				"C",
+				"C"
+			],
+			"about": "A small humanoid.",
+			"ability": "Steals a third of a target’s Stand with each won game of rock-paper-scissors."
+		},
+		"Earth Wind and Fire": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Mikitaka Hazekura",
+			"stats": [
+				"C",
+				"C",
+				"∅",
+				"A",
+				"C",
+				"C"
+			],
+			"about": "The user’s own body.",
+			"ability": "The user shapeshifts into objects, from dice to a phone."
+		},
+		"Highway Star": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Yuya Fungami",
+			"stats": [
+				"C",
+				"B",
+				"A",
+				"A",
+				"E",
+				"C"
+			],
+			"about": "A humanoid made of footprints.",
+			"ability": "Traps targets in an illusion room, then chases and drains their nutrients to heal the user."
+		},
+		"Stray Cat": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Stray Cat",
+			"stats": [
+				"B",
+				"E",
+				"∅",
+				"A",
+				"E",
+				"C"
+			],
+			"about": "A plant-cat hybrid.",
+			"ability": "Controls the air around it, firing invisible air bubbles and shields."
+		},
+		"Super Fly": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Toyohiro Kanedaichi",
+			"stats": [
+				"E",
+				"E",
+				"∅",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A steel tower.",
+			"ability": "Binds its user to the tower and reflects any attack on it back at the attacker."
+		},
+		"Enigma": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Terunosuke Miyamoto",
+			"stats": [
+				"E",
+				"E",
+				"C",
+				"A",
+				"C",
+				"C"
+			],
+			"about": "Hidden in paper.",
+			"ability": "Spots a target’s tell of fear, then seals them inside paper."
+		},
+		"Cheap Trick": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Masazo Kinoto",
+			"stats": [
+				"E",
+				"E",
+				"E",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A creature on its host’s back.",
+			"ability": "Attaches to a person’s back and talks others into killing them by looking at it."
+		},
+		"Harvest": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Shigekiyo Yangu",
+			"stats": [
+				"E",
+				"B",
+				"A",
+				"A",
+				"E",
+				"C"
+			],
+			"about": "Hundreds of tiny bee-like Stands.",
+			"ability": "Swarms of tiny Stands that gather items and inject substances like alcohol."
+		},
+		"Killer Queen": {
+			"part": "Diamond Is Unbreakable",
+			"user": "Yoshikage Kira",
+			"stats": [
+				"A",
+				"B",
+				"D",
+				"B",
+				"B",
+				"A"
+			],
+			"about": "A cat-eared humanoid.",
+			"ability": "Turns anything it touches into a bomb. Sheer Heart Attack is a heat-seeking bomb; Bites the Dust loops time to kill whoever learns the secret."
+		},
+		"Gold Experience": {
+			"part": "Golden Wind",
+			"user": "Giorno Giovanna",
+			"stats": [
+				"C",
+				"A",
+				"C",
+				"D",
+				"C",
+				"A"
+			],
+			"about": "A golden humanoid with ladybug motifs.",
+			"ability": "Gives life to objects, turning them into plants and animals, and makes body parts. Requiem returns any action to zero."
+		},
+		"Sticky Fingers": {
+			"part": "Golden Wind",
+			"user": "Bruno Bucciarati",
+			"stats": [
+				"A",
+				"A",
+				"C",
+				"D",
+				"C",
+				"D"
+			],
+			"about": "A blue-and-white humanoid with zipper motifs.",
+			"ability": "Places zippers on any surface to open, split or hide things inside, including the user’s own body."
+		},
+		"Moody Blues": {
+			"part": "Golden Wind",
+			"user": "Leone Abbacchio",
+			"stats": [
+				"C",
+				"C",
+				"A",
+				"A",
+				"C",
+				"C"
+			],
+			"about": "A humanoid with a digital timer.",
+			"ability": "Replays past events, re-enacting anyone’s actions within the scene."
+		},
+		"Sex Pistols": {
+			"part": "Golden Wind",
+			"user": "Guido Mista",
+			"stats": [
+				"E",
+				"C",
+				"B",
+				"A",
+				"A",
+				"B"
+			],
+			"about": "Six tiny bullet-riding Stands.",
+			"ability": "Six little Stands that ride and redirect the user’s bullets mid-flight."
+		},
+		"Aerosmith": {
+			"part": "Golden Wind",
+			"user": "Narancia Ghirga",
+			"stats": [
+				"B",
+				"B",
+				"B",
+				"C",
+				"E",
+				"C"
+			],
+			"about": "A miniature fighter plane.",
+			"ability": "A machine-gun plane with a CO2 radar that tracks breathing targets."
+		},
+		"Purple Haze": {
+			"part": "Golden Wind",
+			"user": "Pannacotta Fugo",
+			"stats": [
+				"A",
+				"B",
+				"C",
+				"E",
+				"E",
+				"B"
+			],
+			"about": "A feral humanoid with capsule-studded fists.",
+			"ability": "Its fists hold capsules of a flesh-eating virus that kills within seconds when released."
+		},
+		"Spice Girl": {
+			"part": "Golden Wind",
+			"user": "Trish Una",
+			"stats": [
+				"A",
+				"A",
+				"C",
+				"B",
+				"D",
+				"C"
+			],
+			"about": "A sleek feminine humanoid.",
+			"ability": "Makes anything it touches soft and elastic, then unbreakable."
+		},
+		"King Crimson": {
+			"part": "Golden Wind",
+			"user": "Diavolo",
+			"stats": [
+				"A",
+				"A",
+				"E",
+				"E",
+				"?",
+				"?"
+			],
+			"about": "A red humanoid with a second face (Epitaph).",
+			"ability": "Erases time so only the user moves through it, and Epitaph shows him the near future."
+		},
+		"Black Sabbath": {
+			"part": "Golden Wind",
+			"user": "Polpo",
+			"stats": [
+				"E",
+				"A",
+				"A",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A shadow-dwelling Stand.",
+			"ability": "Pierces anyone in its shadow with an Arrow; those without the will to survive die."
+		},
+		"Soft Machine": {
+			"part": "Golden Wind",
+			"user": "Mario Zucchero",
+			"stats": [
+				"A",
+				"C",
+				"E",
+				"A",
+				"D",
+				"E"
+			],
+			"about": "A humanoid with a rapier.",
+			"ability": "Deflates anything it stabs, including people."
+		},
+		"Kraft Work": {
+			"part": "Golden Wind",
+			"user": "Sale",
+			"stats": [
+				"A",
+				"A",
+				"E",
+				"C",
+				"E",
+				"E"
+			],
+			"about": "A humanoid with fast hands.",
+			"ability": "Fixes anything it touches in place, stopping bullets mid-air."
+		},
+		"Little Feet": {
+			"part": "Golden Wind",
+			"user": "Formaggio",
+			"stats": [
+				"D",
+				"B",
+				"E",
+				"A",
+				"D",
+				"C"
+			],
+			"about": "A small humanoid.",
+			"ability": "Shrinks whatever it cuts, including the user."
+		},
+		"Man in the Mirror": {
+			"part": "Golden Wind",
+			"user": "Illuso",
+			"stats": [
+				"C",
+				"C",
+				"B",
+				"D",
+				"C",
+				"E"
+			],
+			"about": "A humanoid that lives in mirrors.",
+			"ability": "Pulls people into a mirror world, letting in only what the user allows."
+		},
+		"Mr. President": {
+			"part": "Golden Wind",
+			"user": "Coco Jumbo",
+			"stats": [
+				"E",
+				"E",
+				"E",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A turtle with a key.",
+			"ability": "The turtle’s key opens a hidden room inside its shell."
+		},
+		"The Grateful Dead": {
+			"part": "Golden Wind",
+			"user": "Prosciutto",
+			"stats": [
+				"B",
+				"E",
+				"B",
+				"A",
+				"E",
+				"C"
+			],
+			"about": "A many-eyed humanoid.",
+			"ability": "Releases a gas that ages anyone whose body is warm."
+		},
+		"Beach Boy": {
+			"part": "Golden Wind",
+			"user": "Pesci",
+			"stats": [
+				"C",
+				"B",
+				"B",
+				"C",
+				"C",
+				"A"
+			],
+			"about": "A fishing rod.",
+			"ability": "Its line passes through walls and hooks anything it catches."
+		},
+		"White Album": {
+			"part": "Golden Wind",
+			"user": "Ghiaccio",
+			"stats": [
+				"A",
+				"C",
+				"C",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "Wearable armour.",
+			"ability": "Freezes everything around it, down to absolute zero."
+		},
+		"Metallica": {
+			"part": "Golden Wind",
+			"user": "Risotto Nero",
+			"stats": [
+				"C",
+				"C",
+				"C",
+				"A",
+				"C",
+				"C"
+			],
+			"about": "Tiny Stands inside the user’s body.",
+			"ability": "Controls the iron in blood, forming razors and needles inside the victim’s body."
+		},
+		"Clash": {
+			"part": "Golden Wind",
+			"user": "Squalo",
+			"stats": [
+				"D",
+				"A",
+				"B",
+				"A",
+				"A",
+				"C"
+			],
+			"about": "A shark that lives in liquid.",
+			"ability": "Moves through any liquid to attack from within it."
+		},
+		"Talking Head": {
+			"part": "Golden Wind",
+			"user": "Tiziano",
+			"stats": [
+				"E",
+				"E",
+				"B",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A tongue-attached Stand.",
+			"ability": "Makes the target say the opposite of what they mean."
+		},
+		"Notorious B.I.G": {
+			"part": "Golden Wind",
+			"user": "Carne",
+			"stats": [
+				"A",
+				"∞",
+				"∞",
+				"∞",
+				"E",
+				"A"
+			],
+			"about": "A blob-like Stand.",
+			"ability": "Activates when the user dies, chasing and consuming anything that moves fastest."
+		},
+		"Baby Face": {
+			"part": "Golden Wind",
+			"user": "Melone",
+			"stats": [
+				"A",
+				"B",
+				"A",
+				"A",
+				"?",
+				"?"
+			],
+			"about": "A humanoid child raised by the user.",
+			"ability": "Takes apart matter and rebuilds it into new forms. Its personality depends on how it was raised."
+		},
+		"Green Day": {
+			"part": "Golden Wind",
+			"user": "Cioccolata",
+			"stats": [
+				"A",
+				"C",
+				"A",
+				"A",
+				"E",
+				"A"
+			],
+			"about": "A humanoid that releases mould.",
+			"ability": "Spreads a flesh-eating mould onto anyone who moves to a lower height."
+		},
+		"Oasis": {
+			"part": "Golden Wind",
+			"user": "Secco",
+			"stats": [
+				"A",
+				"A",
+				"B",
+				"A",
+				"E",
+				"C"
+			],
+			"about": "A suit worn by the user.",
+			"ability": "Liquefies earth and solid matter so the user can swim through it."
+		},
+		"Rolling Stones": {
+			"part": "Golden Wind",
+			"user": "Scolippi",
+			"stats": [
+				"∅",
+				"B",
+				"A",
+				"A",
+				"E",
+				"∅"
+			],
+			"about": "A stone statue.",
+			"ability": "Senses who is fated to die soon and tries to give them a painless death."
+		},
+		"Stone Free": {
+			"part": "Stone Ocean",
+			"user": "Jolyne Cujoh",
+			"stats": [
+				"A",
+				"B",
+				"C",
+				"A",
+				"C",
+				"A"
+			],
+			"about": "A blue humanoid made of string.",
+			"ability": "Unravels the user’s body into strings to bind, sense and fight at range."
+		},
+		"Goo Goo Dolls": {
+			"part": "Stone Ocean",
+			"user": "Gwess",
+			"stats": [
+				"D",
+				"C",
+				"B",
+				"D",
+				"B",
+				"B"
+			],
+			"about": "A tiny bird-like Stand.",
+			"ability": "Shrinks people to the size of a doll."
+		},
+		"Whitesnake": {
+			"part": "Stone Ocean",
+			"user": "Enrico Pucci",
+			"stats": [
+				"?",
+				"D",
+				"?",
+				"A",
+				"?",
+				"?"
+			],
+			"about": "A humanoid covered in DNA-like markings.",
+			"ability": "Strips Stands and memories into discs and creates illusions. Evolves into C-MOON (inverts gravity) and Made in Heaven (accelerates time)."
+		},
+		"Marilyn Manson": {
+			"part": "Stone Ocean",
+			"user": "Miraschon",
+			"stats": [
+				"E",
+				"A",
+				"A",
+				"A",
+				"A",
+				"C"
+			],
+			"about": "A debt-collecting humanoid.",
+			"ability": "Collects any debt a person owes after losing a bet, taking body parts if needed."
+		},
+		"Jail House Lock": {
+			"part": "Stone Ocean",
+			"user": "Miuccia Miuller",
+			"stats": [
+				"∅",
+				"C",
+				"B",
+				"A",
+				"∅",
+				"∅"
+			],
+			"about": "A prison-wide Stand.",
+			"ability": "Limits whoever is affected to remembering only three new things at a time."
+		},
+		"Foo Fighters": {
+			"part": "Stone Ocean",
+			"user": "F.F.",
+			"stats": [
+				"B",
+				"A",
+				"C",
+				"A",
+				"C",
+				"B"
+			],
+			"about": "A colony of intelligent plankton.",
+			"ability": "Controls and inhabits bodies with plankton, firing bullets made of plankton."
+		},
+		"Weather Report": {
+			"part": "Stone Ocean",
+			"user": "Weather Report",
+			"stats": [
+				"A",
+				"B",
+				"C",
+				"A",
+				"E",
+				"A"
+			],
+			"about": "A cloud-like humanoid.",
+			"ability": "Controls weather. Heavy Weather twists rainbows to turn people into snails."
+		},
+		"Kiss": {
+			"part": "Stone Ocean",
+			"user": "Ermes Costello",
+			"stats": [
+				"A",
+				"A",
+				"A",
+				"A",
+				"C",
+				"A"
+			],
+			"about": "A humanoid that makes stickers.",
+			"ability": "Its stickers create a copy of whatever they’re on. Peeling the sticker smashes the copies back together."
+		},
+		"Burning Down the House": {
+			"part": "Stone Ocean",
+			"user": "Emporio Alniño",
+			"stats": [
+				"∅",
+				"∅",
+				"∅",
+				"∅",
+				"∅",
+				"∅"
+			],
+			"about": "A ghost room.",
+			"ability": "Manifests the ghosts of objects, creating a hidden room only the user can find."
+		},
+		"Bohemian Rhapsody": {
+			"part": "Stone Ocean",
+			"user": "Ungalo",
+			"stats": [
+				"∅",
+				"∅",
+				"∞",
+				"A",
+				"∅",
+				"∅"
+			],
+			"about": "A world-wide Stand.",
+			"ability": "Brings fictional characters into reality, forcing people into their stories."
+		},
+		"Sky High": {
+			"part": "Stone Ocean",
+			"user": "Rikiel",
+			"stats": [
+				"∅",
+				"∅",
+				"B",
+				"C",
+				"∅",
+				"∅"
+			],
+			"about": "Creatures called Rods.",
+			"ability": "Commands Rods, flying creatures that steal body heat."
+		},
+		"Under World": {
+			"part": "Stone Ocean",
+			"user": "Donatello Versus",
+			"stats": [
+				"∅",
+				"C",
+				"A",
+				"C",
+				"∅",
+				"∅"
+			],
+			"about": "A hole in the ground.",
+			"ability": "Digs up the memories of the earth, replaying past events around its victims."
+		},
+		"Manhattan Transfer": {
+			"part": "Stone Ocean",
+			"user": "Johngalli A.",
+			"stats": [
+				"E",
+				"E",
+				"A",
+				"A",
+				"A",
+				"C"
+			],
+			"about": "A drone-like Stand.",
+			"ability": "A floating relay that redirects the user’s bullets and senses air currents."
+		},
+		"Highway to Hell": {
+			"part": "Stone Ocean",
+			"user": "Thunder McQueen",
+			"stats": [
+				"C",
+				"C",
+				"A",
+				"C",
+				"C",
+				"C"
+			],
+			"about": "A suicide-sharing Stand.",
+			"ability": "When the user tries to kill himself, he takes another person with him."
+		},
+		"Diver Down": {
+			"part": "Stone Ocean",
+			"user": "Narciso Anasui",
+			"stats": [
+				"A",
+				"A",
+				"E",
+				"C",
+				"B",
+				"B"
+			],
+			"about": "A humanoid that dives into objects.",
+			"ability": "Phases into objects and people to store kinetic energy or alter their insides."
+		},
+		"Yo-Yo Ma": {
+			"part": "Stone Ocean",
+			"user": "D an G",
+			"stats": [
+				"C",
+				"D",
+				"A",
+				"A",
+				"D",
+				"C"
+			],
+			"about": "A servile humanoid.",
+			"ability": "A friendly butler that secretly drips acid on its target."
+		},
+		"Green, Green Grass of Home": {
+			"part": "Stone Ocean",
+			"stats": [
+				"?",
+				"?",
+				"?",
+				"?",
+				"?",
+				"?"
+			],
+			"about": "A Stand made of space.",
+			"ability": "Shrinks space, making a target tiny whenever they approach the user."
+		},
+		"Jumpin' Jack Flash": {
+			"part": "Stone Ocean",
+			"user": "Lang Rangler",
+			"stats": [
+				"B",
+				"C",
+				"B",
+				"A",
+				"D",
+				"E"
+			],
+			"about": "A spinning Stand.",
+			"ability": "Removes gravity in an area and turns objects into projectiles."
+		},
+		"Limp Bizkit": {
+			"part": "Stone Ocean",
+			"user": "Sports Maxx",
+			"stats": [
+				"∅",
+				"B",
+				"B",
+				"A",
+				"C",
+				"E"
+			],
+			"about": "An invisible Stand.",
+			"ability": "Raises the dead as invisible zombies."
+		},
+		"Survivor": {
+			"part": "Stone Ocean",
+			"stats": [
+				"E",
+				"E",
+				"E",
+				"C",
+				"E",
+				"E"
+			],
+			"about": "Spread through water.",
+			"ability": "Makes people extremely aggressive and shows them where their opponents are strongest."
+		},
+		"Planet Waves": {
+			"part": "Stone Ocean",
+			"user": "Viviano Westwood",
+			"stats": [
+				"A",
+				"B",
+				"A",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A meteor-calling Stand.",
+			"ability": "Pulls meteors from the sky to strike the user’s enemies."
+		},
+		"Dragon's Dream": {
+			"part": "Stone Ocean",
+			"user": "Kenzou",
+			"stats": [
+				"∅",
+				"∅",
+				"∅",
+				"A",
+				"∅",
+				"∅"
+			],
+			"about": "A neutral dragon-like Stand.",
+			"ability": "Shows the most fortunate and unlucky directions for anyone, using feng shui."
+		},
+		"Tusk": {
+			"part": "Steel Ball Run",
+			"user": "Johnny Joestar",
+			"stats": [
+				"E",
+				"E",
+				"E",
+				"B",
+				"E",
+				"A"
+			],
+			"about": "An ACT Stand that evolves through four forms.",
+			"ability": "Spins the user’s fingernails into bullets. Later ACTs fire spinning holes and, at ACT 4, infinite rotation."
+		},
+		"Scary Monsters": {
+			"part": "Steel Ball Run",
+			"user": "Diego Brando",
+			"stats": [
+				"B",
+				"B",
+				"D",
+				"A",
+				"C",
+				"B"
+			],
+			"about": "Dinosaur transformation.",
+			"ability": "Turns the user and others into dinosaurs, spreading the virus to anyone wounded."
+		},
+		"Dirty Deeds Done Dirt Cheap": {
+			"part": "Steel Ball Run",
+			"user": "Funny Valentine",
+			"stats": [
+				"A",
+				"A",
+				"C",
+				"A",
+				"A",
+				"A"
+			],
+			"about": "A humanoid with rabbit-like ears.",
+			"ability": "Travels between parallel worlds by getting caught between objects. Love Train deflects misfortune onto others."
+		},
+		"Mandom": {
+			"part": "Steel Ball Run",
+			"user": "Ringo Roadagain",
+			"stats": [
+				"∅",
+				"A",
+				"∅",
+				"E",
+				"∅",
+				"C"
+			],
+			"about": "A watch.",
+			"ability": "Rewinds time by six seconds when the user turns the watch."
+		},
+		"Oh! Lonesome Me": {
+			"part": "Steel Ball Run",
+			"user": "Mountain Tim",
+			"stats": [
+				"E",
+				"C",
+				"C",
+				"B",
+				"C",
+				"D"
+			],
+			"about": "A rope Stand.",
+			"ability": "Splits the user’s body along a rope and moves it along the line."
+		},
+		"Wired": {
+			"part": "Steel Ball Run",
+			"user": "Pork Pie Hat Kid",
+			"stats": [
+				"D",
+				"B",
+				"B",
+				"B",
+				"D",
+				"D"
+			],
+			"about": "A hook-and-wire Stand.",
+			"ability": "Hooks spread out like fishing lines to reel in and wound targets."
+		},
+		"Tomb of the Boom 1 2 3": {
+			"part": "Steel Ball Run",
+			"user": "Boom Boom Family",
+			"stats": [
+				"D",
+				"C",
+				"C",
+				"B",
+				"C",
+				"C"
+			],
+			"about": "A magnetism Stand shared by a family.",
+			"ability": "Turns iron in the body into magnets that tear people apart."
+		},
+		"Hey Ya!": {
+			"part": "Steel Ball Run",
+			"user": "Pocoloco",
+			"stats": [
+				"E",
+				"E",
+				"E",
+				"B",
+				"E",
+				"E"
+			],
+			"about": "A cheerful encouraging Stand.",
+			"ability": "Points out the user’s luck and gives him the confidence to seize it."
+		},
+		"In a Silent Way": {
+			"part": "Steel Ball Run",
+			"user": "Sandman",
+			"stats": [
+				"C",
+				"C",
+				"D",
+				"A",
+				"D",
+				"B"
+			],
+			"about": "A sound-shaping Stand.",
+			"ability": "Turns onomatopoeia into physical objects that trigger when touched."
+		},
+		"Ball Breaker": {
+			"part": "Steel Ball Run",
+			"user": "Gyro Zeppeli",
+			"stats": [
+				"A",
+				"A",
+				"D",
+				"B",
+				"C",
+				"B"
+			],
+			"about": "A spin-powered Stand.",
+			"ability": "Ages and withers anything the Golden Spin of a Steel Ball strikes."
+		},
+		"Cream Starter": {
+			"part": "Steel Ball Run",
+			"user": "Hot Pants",
+			"stats": [
+				"D",
+				"C",
+				"C",
+				"A",
+				"E",
+				"B"
+			],
+			"about": "A spray canister.",
+			"ability": "Sprays flesh to heal wounds, disguise faces or suffocate."
+		},
+		"Catch the Rainbow": {
+			"part": "Steel Ball Run",
+			"user": "Blackmore",
+			"stats": [
+				"C",
+				"C",
+				"B",
+				"B",
+				"D",
+				"D"
+			],
+			"about": "A raindrop-based Stand.",
+			"ability": "Stops raindrops in mid-air to walk on them or slice targets."
+		},
+		"Tubular Bells": {
+			"part": "Steel Ball Run",
+			"user": "Mike O.",
+			"stats": [
+				"D",
+				"D",
+				"D",
+				"A",
+				"E",
+				"B"
+			],
+			"about": "Metal balloon animals.",
+			"ability": "Turns metal into balloon animals that home in on targets."
+		},
+		"20th Century BOY": {
+			"part": "Steel Ball Run",
+			"user": "Magent Magent",
+			"stats": [
+				"∅",
+				"C",
+				"∅",
+				"A",
+				"D",
+				"C"
+			],
+			"about": "Defensive armour.",
+			"ability": "Makes the user invulnerable while he stays still."
+		},
+		"Civil War": {
+			"part": "Steel Ball Run",
+			"user": "Axl RO",
+			"stats": [
+				"∅",
+				"C",
+				"C",
+				"B",
+				"C",
+				"∅"
+			],
+			"about": "A guilt-based Stand.",
+			"ability": "Brings back what people abandoned in the past to torment them."
+		},
+		"Chocolate Disco": {
+			"part": "Steel Ball Run",
+			"user": "D-I-S-C-O",
+			"stats": [
+				"∅",
+				"C",
+				"C",
+				"B",
+				"A",
+				"D"
+			],
+			"about": "A grid-based Stand.",
+			"ability": "Lays a grid on the ground and teleports anything to any square."
+		},
+		"Boku no Rhythm wo Kiitekure": {
+			"part": "Steel Ball Run",
+			"user": "Oyecomova",
+			"stats": [
+				"B",
+				"C",
+				"C",
+				"B",
+				"E",
+				"C"
+			],
+			"about": "A pin-based Stand.",
+			"ability": "Turns objects into bombs set off by a pin."
+		},
+		"Sugar Mountain": {
+			"part": "Steel Ball Run",
+			"user": "Sugar Mountain",
+			"stats": [
+				"E",
+				"E",
+				"E",
+				"A",
+				"E",
+				"E"
+			],
+			"about": "A spring tree.",
+			"ability": "A tree that grants riches to those who spend them within a day."
+		},
+		"Ticket to Ride": {
+			"part": "Steel Ball Run",
+			"user": "Lucy Steel",
+			"stats": [
+				"E",
+				"E",
+				"E",
+				"C",
+				"E",
+				"C"
+			],
+			"about": "A luck-based Stand.",
+			"ability": "Twists fate to protect the user from harm."
+		},
+		"TATOO YOU!": {
+			"part": "Steel Ball Run",
+			"user": "Eleven Men",
+			"stats": [
+				"∅",
+				"E",
+				"C",
+				"B",
+				"E",
+				"E"
+			],
+			"about": "A tattoo Stand.",
+			"ability": "Lets the users pass through one another’s tattoos."
+		}
+	}
+}
