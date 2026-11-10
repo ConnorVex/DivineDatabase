@@ -94,19 +94,46 @@ export interface StandingNote {
 	note: string;
 }
 
-/** What a built perk holds. A Family ability is a power-system card; a Family trait names a trait. */
 /** How a custom trait changes the Physical Points staff give on a member's training log. */
 export interface TrainingEffect {
+	/** Which of the four kinds it is (older perks without one are read from the numbers). */
+	mode?: TrainingMode;
 	/** A percent of the points staff give, e.g. 50 or -25. */
 	percent: number;
 	/** A flat number of points added or taken away. */
 	flat: number;
+	/** Multiplier/Divider: the points are multiplied (or divided) by this, e.g. 2. */
+	factor?: number;
+	divide?: boolean;
 }
 
-/** "+50%", "-2", "+25% +3" */
-export const trainingText = (t: TrainingEffect) =>
-	[t.percent ? `${t.percent > 0 ? '+' : ''}${t.percent}%` : '', t.flat ? `${t.flat > 0 ? '+' : ''}${t.flat}` : ''].filter(Boolean).join(' ');
+export type TrainingMode = 'increase' | 'decrease' | 'flat' | 'multiply';
 
+export const TRAINING_MODES: { id: TrainingMode; label: string }[] = [
+	{ id: 'increase', label: '% increase' },
+	{ id: 'decrease', label: '% decrease' },
+	{ id: 'flat', label: 'Flat addition or subtraction' },
+	{ id: 'multiply', label: 'Flat multiplier or divider' },
+];
+
+/** The effect's kind, for perks saved before there was a choice. */
+export const trainingMode = (t: TrainingEffect): TrainingMode =>
+	t.mode ?? (t.factor ? 'multiply' : t.percent > 0 ? 'increase' : t.percent < 0 ? 'decrease' : 'flat');
+
+/** "+50%", "-25%", "+3", "×2", "÷2" (older perks can have a percent and a flat together). */
+export const trainingText = (t: TrainingEffect) =>
+	[
+		t.percent ? `${t.percent > 0 ? '+' : ''}${t.percent}%` : '',
+		t.factor && t.factor !== 1 ? `${t.divide ? '÷' : '×'}${t.factor}` : '',
+		t.flat ? `${t.flat > 0 ? '+' : ''}${t.flat}` : '',
+	]
+		.filter(Boolean)
+		.join(' ');
+
+/** Does the effect change anything? */
+export const trainingSet = (t: TrainingEffect) => Boolean(t.percent || t.flat || (t.factor && t.factor !== 1));
+
+/** What a built perk holds. A Family ability is a power-system card; a Family trait names a trait. */
 export interface PerkDetails {
 	/** `system` is a power system id; perks from before it existed are Abilities cards. */
 	ability?: { system?: string; fields: Fields; skills: Skill[]; parts?: string[] };

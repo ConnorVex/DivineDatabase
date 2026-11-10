@@ -55,7 +55,7 @@ export function TextArea(props: Base & { value: string; onInput: (v: string) => 
 	);
 }
 
-export function NumberField(props: Base & { value: number | undefined; onInput: (v: number) => void; min?: number }) {
+export function NumberField(props: Base & { value: number | undefined; onInput: (v: number) => void; min?: number; max?: number; step?: number }) {
 	const id = useId();
 	return (
 		<div class="pf-field">
@@ -65,6 +65,8 @@ export function NumberField(props: Base & { value: number | undefined; onInput: 
 				type="number"
 				inputMode="decimal"
 				min={props.min}
+				max={props.max}
+				step={props.step}
 				value={props.value ?? ''}
 				disabled={props.disabled}
 				onInput={(e) => props.onInput(Number(e.currentTarget.value) || 0)}

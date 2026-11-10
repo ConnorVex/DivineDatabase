@@ -5,7 +5,7 @@
 // read-only summary shown on the family page and in the admin review.
 import { Fragment } from 'preact';
 import { useId, useState } from 'preact/hooks';
-import { trainingText, type PerkDetails, type PerkKind } from '../../lib/families/api.ts';
+import { TRAINING_MODES, trainingMode, trainingSet, trainingText, type PerkDetails, type PerkKind, type TrainingEffect, type TrainingMode } from '../../lib/families/api.ts';
 import { rankInfo, ranks, rules, traits } from '../../lib/portal/rules.ts';
 import { abilitySystem, familyScope, groupedFields, systemById, systems, visibleFields, type Field, type FieldValue } from '../../lib/portal/systems.ts';
 import { NumberField, SelectField, TextArea, TextField } from '../portal/fields.tsx';
@@ -49,9 +49,12 @@ export function detailProblems(kind: PerkKind, details: PerkDetails, title: stri
 		if (!details.customTrait.category || !details.customTrait.effect) out.push(`${name}: pick the custom trait’s type and effect.`);
 		const t = details.customTrait.training;
 		if (t) {
-			if (!t.percent && !t.flat) out.push(`${name}: give the training effect a percent or a flat amount, or untick it.`);
-			if (t.percent < -100 || t.percent > 500) out.push(`${name}: the training percent has to be from -100 to 500.`);
-			if (t.flat < -100 || t.flat > 100) out.push(`${name}: the flat training amount has to be from -100 to 100.`);
+			const mode = trainingMode(t);
+			if (!trainingSet(t)) out.push(`${name}: give the training effect an amount, or untick it.`);
+			if (mode === 'increase' && (t.percent < 0 || t.percent > 500)) out.push(`${name}: the training increase has to be from 1 to 500%.`);
+			if (mode === 'decrease' && (t.percent > 0 || t.percent < -100)) out.push(`${name}: the training decrease has to be from 1 to 100%.`);
+			if (mode === 'flat' && (t.flat < -100 || t.flat > 100)) out.push(`${name}: the flat training amount has to be from -100 to 100.`);
+			if (mode === 'multiply' && t.factor !== undefined && (t.factor <= 1 || t.factor > 10)) out.push(`${name}: the training multiplier or divider has to be more than 1 and at most 10.`);
 		}
 		return out;
 	}
@@ -342,33 +345,56 @@ export function TraitPicker({ value, onChange }: { value: PerkDetails; onChange:
 							<input
 								type="checkbox"
 								checked={!!custom.training}
-								onChange={(e) => setCustom({ training: e.currentTarget.checked ? { percent: 0, flat: 0 } : undefined })}
+								onChange={(e) => setCustom({ training: e.currentTarget.checked ? { mode: 'increase', percent: 0, flat: 0 } : undefined })}
 							/>
 							Changes the Physical Points from training
 						</label>
-						{custom.training && (
-							<div class="perk-training-row">
-								<NumberField
-									label="Percent"
-									min={-100}
-									value={custom.training.percent}
-									help="Of the points staff give. -25 takes a quarter away."
-									onInput={(n) => setCustom({ training: { ...custom.training!, percent: Math.round(n) || 0 } })}
-								/>
-								<NumberField
-									label="Flat"
-									min={-100}
-									value={custom.training.flat}
-									help="Added after the percent. Can be negative."
-									onInput={(n) => setCustom({ training: { ...custom.training!, flat: Math.round(n) || 0 } })}
-								/>
-							</div>
-						)}
+						{custom.training && <TrainingEditor value={custom.training} onChange={(training) => setCustom({ training })} />}
 						<p class="pf-help">Members’ training logs count it by itself, like the staff’s trait rules.</p>
 					</fieldset>
 				</>
 			)}
 		</>
+	);
+}
+
+/** The training effect: one of four kinds, then its amount. */
+function TrainingEditor({ value, onChange }: { value: TrainingEffect; onChange: (t: TrainingEffect) => void }) {
+	const mode = trainingMode(value);
+	const pick = (m: TrainingMode) => onChange(m === 'multiply' ? { mode: m, percent: 0, flat: 0, factor: 2, divide: false } : { mode: m, percent: 0, flat: 0 });
+	const amount =
+		mode === 'increase' ? (
+			<NumberField label="Increase (%)" min={0} max={500} value={value.percent} help="Of the points staff give. 50 gives half again." onInput={(n) => onChange({ ...value, percent: Math.max(0, Math.round(n) || 0) })} />
+		) : mode === 'decrease' ? (
+			<NumberField label="Decrease (%)" min={0} max={100} value={-value.percent} help="Of the points staff give. 25 takes a quarter away." onInput={(n) => onChange({ ...value, percent: -Math.max(0, Math.round(n) || 0) })} />
+		) : mode === 'flat' ? (
+			<NumberField label="Points" min={-100} max={100} value={value.flat} help="Added to the points staff give. Negative takes them away." onInput={(n) => onChange({ ...value, flat: Math.round(n) || 0 })} />
+		) : (
+			<div class="pf-field">
+				<span class="pf-label">Multiply or divide</span>
+				<div class="pil-spectrum perk-train-op" role="group" aria-label="Multiply or divide">
+					{[false, true].map((divide) => (
+						<button type="button" key={String(divide)} class={!!value.divide === divide ? 'on' : undefined} aria-pressed={!!value.divide === divide} onClick={() => onChange({ ...value, divide })}>
+							{divide ? '÷ Divide' : '× Multiply'}
+						</button>
+					))}
+				</div>
+				<NumberField
+					label={value.divide ? 'Divided by' : 'Multiplied by'}
+					min={1}
+					max={10}
+					step={0.5}
+					value={value.factor ?? 2}
+					help={value.divide ? 'e.g. 2 halves the points.' : 'e.g. 2 doubles the points.'}
+					onInput={(n) => onChange({ ...value, factor: Math.round((n || 0) * 100) / 100 })}
+				/>
+			</div>
+		);
+	return (
+		<div class="perk-training-row">
+			<SelectField label="How it changes them" value={mode} options={TRAINING_MODES.map((m) => ({ value: m.id, label: m.label }))} onChange={(m) => pick(m as TrainingMode)} />
+			{amount}
+		</div>
 	);
 }
 
@@ -388,7 +414,7 @@ export function PerkBuilt({ kind, details }: { kind: PerkKind | null; details: P
 				<span class="fm-chip">{custom ? 'Custom trait' : 'Trait'}</span> <strong>{details.trait}</strong>
 				{info && !custom && <span class="pf-help"> · {cap(info.rarity)} {info.category} {info.effect}</span>}
 				{custom && <span class="pf-help"> · {custom.category} {custom.effect}</span>}
-				{custom?.training && (custom.training.percent || custom.training.flat) ? (
+				{custom?.training && trainingSet(custom.training) ? (
 					<span class="fm-chip perk-training-chip" title="Counted on members’ training logs">
 						🏋️ Training {trainingText(custom.training)}
 					</span>
