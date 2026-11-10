@@ -816,6 +816,21 @@ test('a canon Quirk keeps its canon class and Quirk Factor', async () => {
 	assert.doesNotMatch(messages(checkSheet(s, { ...ocCtx, claims, requestedClaims: ['c'] }), 'error').join(), /Creation/);
 });
 
+test('a canon Quirk stays on the card it was picked on', () => {
+	const s = goodSheet();
+	const claims = new Map([['iq', { name: 'IQ', usedSlots: 0, maxUsers: 3, universe: 'my-hero-academia', claimType: 'ability', category: 'Standard' }]]);
+	const quirk = (key: string, type: string, canonClaim?: string) => ({ key, system: 'quirk', fields: { name: key, type, power: 'Little', range: 'Physical' }, description: '', skills: [], rollProofs: {}, ...(canonClaim ? { canonClaim } : {}) });
+	const iqErrors = () => messages(checkSheet(s, { ...ocCtx, claims, requestedClaims: ['iq'] }), 'error').filter((m) => /IQ/.test(m));
+	// Picked on the second Quirk: the second card is the canon Emitter, the first keeps its own class.
+	s.systems = [quirk('first', 'Mutation'), quirk('second', 'Emitter', 'iq')];
+	assert.deepEqual(iqErrors(), []);
+	s.systems = [quirk('first', 'Emitter'), quirk('second', 'Mutation', 'iq')];
+	assert.match(iqErrors().join(), /IQ is a canon Emitter Quirk/);
+	// Sheets from before cards remembered it: the series' first card holds it.
+	s.systems = [quirk('first', 'Emitter'), quirk('second', 'Mutation')];
+	assert.deepEqual(iqErrors(), []);
+});
+
 test('Awakenings are a log: old counts convert, and each entry says what it gave', async () => {
 	const { awakeningsFromOld, withAwakenings, newAwakening } = await import('./awakenings.ts');
 	const old = awakeningsFromOld({ awakenings: 2, rolledAwakenings: 1, awakeningGains: 'Higher power' });

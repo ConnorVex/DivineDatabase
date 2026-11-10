@@ -8,7 +8,7 @@ import rulesData from '../../data/portal/rules.json' with { type: 'json' };
 import traitsData from '../../data/portal/traits.json' with { type: 'json' };
 import type { LinkablePerk } from './families.ts';
 import { PROOF_LABEL, familyCardChanged, type PickedTrait, type Sheet, type SystemEntry } from './sheet.ts';
-import { BARRIER_KEYS, barrierUnlocked, barrierUsed, abilitySystem, countsTowardLimit, pastStart, startText, systemById, visibleFields, type Field, type Fields } from './systems.ts';
+import { BARRIER_KEYS, barrierUnlocked, barrierUsed, canonHolder, abilitySystem, countsTowardLimit, pastStart, startText, systemById, visibleFields, type Field, type Fields } from './systems.ts';
 import { potentialChanged, potentialCtxOf, potentialsFor } from './potentials.ts';
 import { DEVIL_CLASSES, FEAR_KEYS, TANK_MAX } from './devils.ts';
 import { AFFINITY_TRAIT } from './ghouls.ts';
@@ -21,10 +21,10 @@ import { techniqueLog } from './fireforceLogs.ts';
 import { HAMON_TRACKS, SPIN_TRACKS, hasStand, trackLevel } from './jojo.ts';
 import { ADAPTATION_TRAIT, TECHNIQUE_COST, TEPHROSIS, pointsOf } from './fireforce.ts';
 
-/** What the picked canon Ignition fixes on the first Fire Force card ({} when none is picked). */
-const fireClaimFixed = (ctx: { requestedClaims?: string[]; claims?: Map<string, { name: string; category?: string; universe?: string; claimType?: string }> }) => {
-	const claim = (ctx.requestedClaims ?? []).map((id) => ctx.claims?.get(id)).find((c) => c?.universe === 'fire-force' && c.claimType === 'ability');
-	return canonIgnition(claim);
+/** The picked canon Ignition's id and what it fixes on the card holding it ({} when none is picked). */
+const fireClaim = (ctx: { requestedClaims?: string[]; claims?: Map<string, { name: string; category?: string; universe?: string; claimType?: string }> }) => {
+	const id = (ctx.requestedClaims ?? []).find((x) => ctx.claims?.get(x)?.universe === 'fire-force' && ctx.claims?.get(x)?.claimType === 'ability');
+	return { id, fixed: canonIgnition(id ? ctx.claims?.get(id) : undefined) };
 };
 
 export const ranks = ranksData.ranks;
@@ -381,16 +381,18 @@ export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 		else if (!ctx.heldClaimIds?.has(id) && claim.maxUsers !== null && claim.usedSlots >= claim.maxUsers) {
 			add('error', 'Systems', claim.claimType === 'ocular' ? 'All Ocular Spots are taken: remove your Ocular.' : `${claim.name} is already full (${claim.usedSlots}/${claim.maxUsers}).`);
 		}
-		// A canon Quirk's class and Quirk Factor are fixed (on the first Quirk card, which holds the claim).
+		// The card holding the canon ability: the one it was picked on.
+		const holder = claim?.claimType === 'ability' ? canonHolder(sheet.systems, claim.universe, id) : undefined;
+		// A canon Quirk's class and Quirk Factor are fixed.
 		const q = claim?.universe === 'my-hero-academia' && claim.claimType === 'ability' ? canonQuirk(claim.name) : undefined;
-		const card = q ? sheet.systems.find((e) => e.system === 'quirk' && !e.familyLink) : undefined;
+		const card = q ? holder : undefined;
 		if (q && card) {
 			if (card.fields.type !== q.class) add('error', 'Systems', `${claim!.name} is a canon ${q.class} Quirk: set its class back.`);
 			if (q.factor && String(card.fields.factor ?? '') !== q.factor) add('error', 'Systems', `${claim!.name}’s Quirk Factor is ${q.factor}: set it back.`);
 		}
 		// A canon Ignition (a Pillar's) fixes its Adolla Burst, and its Generation when that's listed.
 		const ig = claim?.universe === 'fire-force' && claim.claimType === 'ability' ? canonIgnition(claim) : {};
-		const fire = Object.keys(ig).length ? sheet.systems.find((e) => e.system === 'fire-force' && !e.familyLink) : undefined;
+		const fire = Object.keys(ig).length ? holder : undefined;
 		if (fire) {
 			for (const [k, v] of Object.entries(ig)) {
 				if (String(fire.fields[k] ?? '') !== String(v))
@@ -405,14 +407,14 @@ export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 					);
 			}
 		}
-		// A canon Conduit keeps its class and element (on the first inFAMOUS card, which holds the claim).
+		// A canon Conduit keeps its class and element.
 		const cond = claim?.universe === 'infamous' && claim.claimType === 'ability' ? canonConduitFields(claim.name) : {};
-		const conduit = Object.keys(cond).length ? sheet.systems.find((e) => e.system === 'infamous' && !e.familyLink) : undefined;
+		const conduit = Object.keys(cond).length ? holder : undefined;
 		if (conduit && Object.entries(cond).some(([k, v]) => String(conduit.fields[k] ?? '') !== String(v)))
 			add('error', 'Systems', `${claim!.name} is a canon ${String(cond.class)} Conduit${cond.element ? ` (${String(cond.element)})` : ''}: set it back.`);
-		// A canon Stand keeps its canon stats (on the first JoJo card, which holds the claim).
+		// A canon Stand keeps its canon stats.
 		const stand = claim?.universe === 'jojo' && claim.claimType === 'ability' ? canonStandFields(claim.name) : {};
-		const jojo = Object.keys(stand).length ? sheet.systems.find((e) => e.system === 'jojo' && !e.familyLink) : undefined;
+		const jojo = Object.keys(stand).length ? holder : undefined;
 		if (jojo) {
 			const off = Object.entries(stand).filter(([k, v]) => String(jojo.fields[k] ?? '') !== String(v));
 			if (off.length || jojo.fields.canonStand !== claim!.name) add('error', 'Systems', `${claim!.name} keeps its canon stats: pick it again to set them back.`);
@@ -687,7 +689,8 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 		// What the system grows into (e.g. Quirk Awakenings): locked for new characters, and checked against its requirements after.
 		const defaults: Fields = Object.fromEntries(def.fields.map((x) => [x.key, x.default]));
 		// A claimed canon Ignition brings what it fixes (a Pillar's Adolla Burst): its claim is the permission.
-		const fixedByClaim = entry.system === 'fire-force' && sheet.systems.find((e) => e.system === 'fire-force' && !e.familyLink)?.key === entry.key ? fireClaimFixed(ctx) : {};
+		const fire = entry.system === 'fire-force' ? fireClaim(ctx) : undefined;
+		const fixedByClaim = fire && canonHolder(sheet.systems, 'fire-force', fire.id)?.key === entry.key ? fire.fixed : {};
 		for (const p of potentialsFor(entry.system)) {
 			if (p.keys.some((k) => staff(cardPath(entry.key, k)) || k in fixedByClaim)) continue;
 			const evolving = ctx.isEvolution || ctx.progressed;

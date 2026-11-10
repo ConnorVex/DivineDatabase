@@ -26,7 +26,7 @@ import { deriveDevil } from '../../lib/portal/devils.ts';
 import { piecesOf, slotsOf } from '../../lib/portal/cyberware.ts';
 import { VARIANT_OF, quirkRollStage, type EvolutionRoll } from '../../lib/portal/evolutionRolls.ts';
 import { potentialCtxOf, potentialState, potentialsFor, type PotentialDef, type PotentialState } from '../../lib/portal/potentials.ts';
-import { abilitySystem, type MoveLimits, type DefaultMove, countsTowardLimit, familyScope, groupedFields, memberKeys, pastStart, startText, systemById, systems, visibleFields, type Field, type Fields, type FieldValue, type Option, type SystemDef, EXTRAS_GROUP, EXTRAS_KEY, barrierUnlocked, BARRIER_GROUP, BARRIER_KINDS, BARRIER_KEYS, OCULAR_GROUP, OCULAR_KEYS } from '../../lib/portal/systems.ts';
+import { abilitySystem, canonHolder, type MoveLimits, type DefaultMove, countsTowardLimit, familyScope, groupedFields, memberKeys, pastStart, startText, systemById, systems, visibleFields, type Field, type Fields, type FieldValue, type Option, type SystemDef, EXTRAS_GROUP, EXTRAS_KEY, barrierUnlocked, BARRIER_GROUP, BARRIER_KINDS, BARRIER_KEYS, OCULAR_GROUP, OCULAR_KEYS } from '../../lib/portal/systems.ts';
 import { CheckboxGroup, NumberField, Section, SelectField, TextArea, TextField } from './fields.tsx';
 import { RollPanel, type Roller } from './RollPanel.tsx';
 import { PinBoxes } from './PinnedNotes.tsx';
@@ -84,13 +84,17 @@ const canonTheme = (name: string, universe?: string) =>
 	CANON_THEMES[blurbKey(name)] ??
 	(canonQuirk(name) ? CANON_THEMES.halfhothalfcold : universe === 'fire-force' ? CANON_THEMES.hellflame : { fx: 'shimmer' as const, a: 'var(--sl-color-text-accent)', b: 'var(--sl-color-text-accent)' });
 
-/** A canon claim belongs to the first card of its system's series (a character holds one per series). */
+/** The series' canon ability the character picked (one per series), wherever it sits. */
+function seriesClaim(universe: string | undefined, requested: string[], board: ClaimRow[]): ClaimRow | undefined {
+	if (!universe) return undefined;
+	return requested.map((id) => board.find((r) => r.id === id)).find((r) => r?.universe === universe && r?.claim_type === 'ability');
+}
+
+/** A canon claim belongs to the card it was picked on (a character holds one per series). */
 function canonClaimFor(sheet: Sheet, entry: SystemEntry, requested: string[], board: ClaimRow[]): ClaimRow | undefined {
 	const universe = systemById.get(entry.system)?.universe;
-	if (!universe) return undefined;
-	const first = sheet.systems.find((e) => systemById.get(e.system)?.universe === universe);
-	if (first?.key !== entry.key) return undefined;
-	return requested.map((id) => board.find((r) => r.id === id)).find((r) => r?.universe === universe && r?.claim_type === 'ability');
+	const claim = seriesClaim(universe, requested, board);
+	return claim && canonHolder(sheet.systems, universe, claim.id)?.key === entry.key ? claim : undefined;
 }
 import type { PinnedNote } from '../../lib/portal/pins.ts';
 
@@ -740,7 +744,18 @@ export function SkillsEditor({
 	);
 }
 
-function ClaimPicker(props: { universe: string; label: string; board: ClaimRow[]; picked: string[]; held: Set<string>; onChange: (ids: string[]) => void; disabled: boolean; free?: boolean }) {
+function ClaimPicker(props: {
+	universe: string;
+	label: string;
+	board: ClaimRow[];
+	picked: string[];
+	held: Set<string>;
+	onChange: (ids: string[]) => void;
+	disabled: boolean;
+	free?: boolean;
+	/** The card holding the series' canon ability, when it's another card: its title. */
+	elsewhere?: string;
+}) {
 	// One-user categories (Pillars) come first, in their own section, and hold one character each.
 	const oneUser = (r: ClaimRow) => props.universe === 'fire-force' && ONE_USER_CATEGORIES.includes(r.category);
 	const rows = props.board
@@ -749,7 +764,9 @@ function ClaimPicker(props: { universe: string; label: string; board: ClaimRow[]
 		.sort((a, b) => Number(oneUser(b)) - Number(oneUser(a)));
 	const groupOf = (r: ClaimRow) => (oneUser(r) ? `${r.category}s · one user each` : props.universe === 'fire-force' ? 'Canon Ignitions' : r.category || 'Other');
 	const holder = (r: ClaimRow) => r.note || (props.universe === 'fire-force' ? ignitionInfo(r.name)?.holder : props.universe === 'jojo' ? canonStand(r.name)?.user : props.universe === 'infamous' ? canonConduit(r.name)?.user : '') || '';
-	const mine = rows.filter((r) => props.picked.includes(r.id));
+	// The canon ability shows on the card it was picked on; other cards of the series just say where it is.
+	const picked = rows.filter((r) => props.picked.includes(r.id));
+	const mine = props.elsewhere ? [] : picked;
 	// One canon ability per series: picking another swaps it.
 	const others = props.picked.filter((id) => !rows.some((r) => r.id === id));
 	const full = (r: ClaimRow) => !props.free && r.max_users !== null && r.used_slots >= r.max_users && !props.held.has(r.id);
@@ -795,9 +812,14 @@ function ClaimPicker(props: { universe: string; label: string; board: ClaimRow[]
 					</div>
 				);
 			})}
+			{props.elsewhere && picked[0] && (
+				<p class="pf-help">
+					Your {props.label.toLowerCase()} <strong>{picked[0].name}</strong> is on your <strong>{props.elsewhere}</strong> card. You can hold one per series{props.disabled ? '' : ', so picking one here moves it to this card'}.
+				</p>
+			)}
 			{!props.disabled && (
 				<SelectField
-					label={mine.length ? `Swap for another ${props.label.toLowerCase()}` : `Claim a ${props.label.toLowerCase()}`}
+					label={picked.length ? `Swap for another ${props.label.toLowerCase()}` : `Claim a ${props.label.toLowerCase()}`}
 					value=""
 					placeholder="Pick from the canon list…"
 					options={rows
@@ -1571,8 +1593,25 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 							held={props.heldClaims}
 							free={free}
 							disabled={readOnly}
+							elsewhere={(() => {
+								const held = seriesClaim(def.universe, props.requestedClaims, props.claimBoard);
+								const on = held ? canonHolder(sheet.systems, def.universe, held.id) : undefined;
+								if (!on || on.key === entry.key) return undefined;
+								// "My Hero Academia #1": its name is the canon ability's, so number it instead.
+								const same = sheet.systems.filter((x) => x.system === on.system);
+								return `${getSystemDisplayName(on.system)}${same.length > 1 ? ` #${same.indexOf(on) + 1}` : ''}`;
+							})()}
 							onChange={(ids) => {
 								props.setRequestedClaims(ids);
+								// Remember which card holds the series' canon ability: this one, when one is picked here.
+								const picked = props.claimBoard.find((r) => ids.includes(r.id) && r.universe === def.universe && r.claim_type === 'ability');
+								update((s) => {
+									for (const e of s.systems) {
+										if (systemById.get(e.system)?.universe !== def.universe) continue;
+										if (picked && e.key === entry.key) e.canonClaim = picked.id;
+										else delete e.canonClaim;
+									}
+								});
 								// A canon ability goes by its canon name.
 								const canon = props.claimBoard.find((r) => ids.includes(r.id) && r.universe === def.universe && r.claim_type === 'ability');
 								if (canon)

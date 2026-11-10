@@ -11,7 +11,7 @@ import type { LinkablePerk } from '../../lib/portal/families.ts';
 import { heavenlyOf } from '../../lib/portal/heavenly.ts';
 import { power, ptp, rankInfo, recoil, rules, traits, traitSlots, type StaffOverrides } from '../../lib/portal/rules.ts';
 import { PROOF_LABEL, familyCardChanged, hasFullSheet, type Sheet } from '../../lib/portal/sheet.ts';
-import { systemById, visibleFields } from '../../lib/portal/systems.ts';
+import { canonHolder, systemById, visibleFields } from '../../lib/portal/systems.ts';
 import { SkillTreeView } from './SkillTreeView.tsx';
 import { PillarCard } from './PillarSheet.tsx';
 import type { Pillar } from '../../lib/portal/pillars.ts';
@@ -297,7 +297,8 @@ function AbilityTabs(props: ArticleProps) {
 	const extras = [
 		...(e.fields.ceLevel ? [{ label: 'CE level', value: String(e.fields.ceLevel) }] : []),
 		...(props.claims ?? [])
-			.filter((b) => b.universe === def?.universe)
+			// A canon ability shows on the card it was picked on.
+			.filter((b) => b.universe === def?.universe && (b.claim_type !== 'ability' || canonHolder(s.systems, b.universe, b.id)?.key === e.key))
 			.map((b) => ({ label: 'Canon claim', value: `${b.name} (${b.category || 'canon'} · ${b.max_users === null ? 'no limit' : `${b.used_slots}/${b.max_users}`})` })),
 	];
 	const texts = (def?.fields ?? []).filter((f) => f.type === 'textarea' && String(e.fields[f.key] ?? '').trim());

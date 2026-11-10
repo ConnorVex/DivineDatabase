@@ -52,6 +52,8 @@ export interface SystemEntry {
 	familyLink?: FamilyLink;
 	/** The player's own skill tree for this card (optional). */
 	customTree?: CustomTree | null;
+	/** The canon ability (claim id) picked on this card, so it stays on the card it was picked on. */
+	canonClaim?: string | null;
 	/** Asks staff to let this new character start past the usual stats (e.g. Cursed Energy Output). */
 	/** A new character asking to start past the usual stats: what they want (stats are set on the card) and why. */
 	statOverride?: {

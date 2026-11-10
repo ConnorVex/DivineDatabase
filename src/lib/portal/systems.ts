@@ -947,6 +947,18 @@ for (const def of systems) {
 
 export const systemById = new Map(systems.map((s) => [s.id, s]));
 
+/** The card a series' canon ability sits on: the one it was picked on, or (sheets from before cards
+ * remembered it) that series' first card. Family ability cards never hold one. */
+export function canonHolder<E extends { key: string; system: string; familyLink?: unknown; canonClaim?: string | null }>(
+	systems: E[],
+	universe: string | undefined,
+	claimId: string | undefined,
+): E | undefined {
+	if (!universe || !claimId) return undefined;
+	const cards = systems.filter((e) => !e.familyLink && systemById.get(e.system)?.universe === universe);
+	return cards.find((e) => e.canonClaim === claimId) ?? cards[0];
+}
+
 /** Whether a showIf condition holds; a multiselect matches when any of its picks is listed. */
 const shownBy = (cond: { in: string[] }, value: FieldValue | undefined) =>
 	Array.isArray(value) ? value.some((v) => typeof v === 'string' && cond.in.includes(v)) : cond.in.includes(String(value ?? ''));
