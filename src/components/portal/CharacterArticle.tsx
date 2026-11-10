@@ -16,6 +16,7 @@ import { SkillTreeView } from './SkillTreeView.tsx';
 import { PillarCard } from './PillarSheet.tsx';
 import type { Pillar } from '../../lib/portal/pillars.ts';
 import { richText } from './TraitsSection.tsx';
+import { MafoSummary } from './MafoSheet.tsx';
 import { PinBoxes } from './PinnedNotes.tsx';
 import type { PinnedNote } from '../../lib/portal/pins.ts';
 
@@ -122,6 +123,8 @@ export interface ArticleProps {
 	hideErrors?: boolean;
 	/** Fire Force Pillar status, shown on the first Fire Force card. */
 	pillar?: Pillar | null;
+	/** The saved character, so an M:AFO card can show its storage. */
+	characterId?: string | null;
 }
 
 /** Red boxes and 📌 buttons for pinned review notes. */
@@ -366,6 +369,8 @@ function AbilityTabs(props: ArticleProps) {
 						)}
 					</div>
 				)}
+				{e.powerLink?.powerId === 'mafo' && props.characterId && <MafoSummary characterId={props.characterId} cardKey={e.key} />}
+				{e.mafoGift && <p class="wk-sub-label">Given by {e.mafoGift.from} (Maximum: All For One)</p>}
 				{e.description && <Prose value={e.description} />}
 
 				{(factGroups.length > 0 || extras.length > 0) && (

@@ -48,6 +48,8 @@ import { loadFamilyChoices, loadLinkablePerks, type LinkablePerk } from '../../l
 import { applyApproved, approvedText, checkSheet, denyStatOverride, ENCRYPTION_ITEM, isStatOverride, type Issue } from '../../lib/portal/rules.ts';
 import { AdminRail } from './AdminRail.tsx';
 import { PowersPanel } from './PowersPanel.tsx';
+import { MafoQueue } from './MafoSheet.tsx';
+import { loadMafoQueue, type MafoQueueItem } from '../../lib/portal/mafo.ts';
 import { grantsWithPowers, type MyPowerGrant } from '../../lib/portal/powers.ts';
 import { MaintenancePanel } from './MaintenancePanel.tsx';
 import { ClaimsPanel } from './ClaimsPanel.tsx';
@@ -79,6 +81,7 @@ const KINDS = [
 	{ id: 'families', label: 'New families', icon: '🏛️' },
 	{ id: 'perks', label: 'Family perks', icon: '✨' },
 	{ id: 'equipment', label: 'Equipment', icon: '⚔️' },
+	{ id: 'mafo', label: 'M:AFO', icon: '🌀' },
 ] as const;
 type Kind = (typeof KINDS)[number]['id'] | 'players' | 'claims' | 'powers' | 'site';
 const kindFromUrl = (): Kind => {
@@ -745,6 +748,7 @@ export default function ReviewDashboard() {
 	const [perks, setPerks] = useState<PerkRequest[]>([]);
 	const [equipment, setEquipment] = useState<EquipmentQueueItem[]>([]);
 	const [craftItems, setCraftItems] = useState<CraftingItem[]>([]);
+	const [mafo, setMafo] = useState<MafoQueueItem[]>([]);
 	const [kind, setKindState] = useState<Kind>(kindFromUrl);
 	// The player open in the Players view (?player=…).
 	const [focus, setFocusState] = useState<string | null>(() => new URLSearchParams(location.search).get('player'));
@@ -776,7 +780,7 @@ export default function ReviewDashboard() {
 
 	async function load() {
 		try {
-			const [chars, ps, b, u, f, pr, eq, ci] = await Promise.all([
+			const [chars, ps, b, u, f, pr, eq, ci, mq] = await Promise.all([
 				loadAllCharacters(),
 				listPlayers(),
 				loadClaimBoard(),
@@ -785,6 +789,7 @@ export default function ReviewDashboard() {
 				admin ? loadPerkQueue().catch(() => [] as PerkRequest[]) : Promise.resolve([] as PerkRequest[]),
 				admin ? loadEquipmentQueue().catch(() => [] as EquipmentQueueItem[]) : Promise.resolve([] as EquipmentQueueItem[]),
 				admin ? loadCraftingItems().catch(() => [] as CraftingItem[]) : Promise.resolve([] as CraftingItem[]),
+				admin ? loadMafoQueue().catch(() => [] as MafoQueueItem[]) : Promise.resolve([] as MafoQueueItem[]),
 			]);
 			// Row-level security also returns the reviewer's own characters; those aren't theirs to review.
 			const queue = admin ? chars : chars.filter((c) => c.owner_id !== me?.id);
@@ -796,6 +801,7 @@ export default function ReviewDashboard() {
 			setPerks(pr);
 			setEquipment(eq);
 			setCraftItems(ci);
+			setMafo(mq);
 			return queue;
 		} catch (e) {
 			setError(messageOf(e));
@@ -832,6 +838,7 @@ export default function ReviewDashboard() {
 		families: pendingFamilies.length,
 		perks: perks.reduce((n, r) => n + r.perks.length, 0),
 		equipment: equipment.filter((r) => r.status === 'pending').length,
+		mafo: mafo.length,
 	};
 	const shownKind: Kind = admin ? kind : 'characters';
 
@@ -856,6 +863,7 @@ export default function ReviewDashboard() {
 				<div class="fm fm-admin-list">{perks.length ? perks.map((r) => <ReviewRequest key={r.id} r={r} onDone={load} />) : <p class="pf-empty">No perks waiting. 🎉</p>}</div>
 			)}
 			{shownKind === 'equipment' && <EquipmentReview requests={equipment} items={craftItems} players={players} onDone={load} />}
+			{shownKind === 'mafo' && <MafoQueue items={mafo} onDone={load} />}
 			{shownKind === 'claims' && <ClaimsPanel universes={universes} onChanged={load} />}
 			{shownKind === 'powers' && <PowersPanel players={[...players.values()]} characters={all} onChanged={load} />}
 			{shownKind === 'site' && <MaintenancePanel />}

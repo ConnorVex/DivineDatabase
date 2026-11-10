@@ -87,6 +87,7 @@ export default function CharacterPage() {
 				adminCharacter={page.admin_character}
 				hideErrors={!admin}
 				pillar={pillar}
+				characterId={page.id}
 			/>
 			{page.encrypted && (page.mine || admin) && (
 				<section class="hud-panel cp-viewers">

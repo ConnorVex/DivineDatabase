@@ -852,6 +852,41 @@ test('a granted power is on top of the card limit and must still be granted', as
 	assert.match(messages(checkSheet(s, { ...ocCtx, powerGrants: [changed] }), 'warning').join(), /changed this power since/);
 });
 
+test('an M:AFO card and the powers it gives are on top of the card limit', async () => {
+	const { mafoCard } = await import('./mafoCards.ts');
+	const s = goodSheet();
+	// Quirks have no limit; a Conduit does (one), so a given Conduit shows it.
+	const own = { key: 'mine', system: 'infamous', fields: { class: 'Elemental' }, description: '', skills: [], rollProofs: {} };
+	const gift = { ...own, key: 'gift', fields: { class: 'Psychic' }, mafoGift: { from: 'Holder', at: '2026-11-10' } };
+	s.systems = [own, mafoCard(false, 'mafo'), gift];
+	s.prioritySystem = 'mine';
+	const errors = (sheet: typeof s) => messages(checkSheet(sheet, { ...ocCtx, powerGrants: [] }), 'error').join(' | ');
+	assert.doesNotMatch(errors(s), /You can only have/);
+	// No grant to look up: Tatsuya's grant lives in the M:AFO tables, not power_grants.
+	assert.doesNotMatch(errors(s), /isn’t granted/);
+	s.systems = [own, { ...gift, mafoGift: undefined }];
+	assert.match(errors(s), /You can only have/);
+});
+
+test('M:AFO storage: slots, Singularity and decay', async () => {
+	const { mafoUsage, inSingularity, decayLeft, mafoCard, isMafoCard } = await import('./mafoCards.ts');
+	const cap = { quirk: 100, ability: 50, conduit: 86, unlimited: false, decayRp: 3, stableSince: null, conduitTransfer: false };
+	const item = (kind: 'quirk' | 'ability' | 'conduit', slots: number, extra = {}) => ({ kind, slots, status: 'stored' as const, decayed: false, ...extra });
+	const items = [item('quirk', 50), item('quirk', 3), item('ability', 1, { decayed: true }), item('conduit', 73), item('conduit', 8), item('conduit', 4, { status: 'transferred' })];
+	const u = mafoUsage({ items, capacity: cap } as never);
+	assert.deepEqual(u.map((x) => [x.id, x.used, x.over]), [['quirk', 53, false], ['ability', 0, false], ['conduit', 81, false]]);
+	assert.equal(inSingularity({ items: [...items, item('conduit', 8)], capacity: cap } as never), true);
+	assert.equal(inSingularity({ items: [...items, item('conduit', 8)], capacity: { ...cap, unlimited: true } } as never), false);
+	const now = Date.parse('2026-11-10T00:00:00Z');
+	const ab = { kind: 'ability' as const, status: 'stored' as const, decayed: false, stolen_at: '2026-11-08T00:00:00Z', decays_at: '2026-11-11T12:00:00Z' };
+	assert.equal(decayLeft(ab, cap, now), '2 RP left');
+	assert.equal(decayLeft({ ...ab, decays_at: '2026-11-10T06:00:00Z' }, cap, now), 'less than 1 RP left');
+	assert.equal(decayLeft(ab, { stableSince: '2026-11-09T00:00:00Z' }, now), null);
+	assert.equal(decayLeft({ ...ab, kind: 'quirk' }, cap, now), null);
+	assert.equal(mafoCard(true).fields.mafo, 'Weaker');
+	assert.ok(isMafoCard(mafoCard(false)) && !isMafoCard({ fields: {} }));
+});
+
 test('Awakenings are a log: old counts convert, and each entry says what it gave', async () => {
 	const { awakeningsFromOld, withAwakenings, newAwakening } = await import('./awakenings.ts');
 	const old = awakeningsFromOld({ awakenings: 2, rolledAwakenings: 1, awakeningGains: 'Higher power' });

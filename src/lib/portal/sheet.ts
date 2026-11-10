@@ -65,6 +65,8 @@ export interface SystemEntry {
 	rollProofs: Record<string, string>;
 	familyLink?: FamilyLink;
 	powerLink?: PowerLink;
+	/** Given by a Maximum All For One holder: on top of the usual card limit. */
+	mafoGift?: { from: string; at: string };
 	/** The player's own skill tree for this card (optional). */
 	customTree?: CustomTree | null;
 	/** The canon ability (claim id) picked on this card, so it stays on the card it was picked on. */

@@ -2,6 +2,7 @@
 // override code or a hand-set value, the roll ban, grants, and the history. The database checks
 // admin rights on every action.
 import { PillarAdmin } from './PillarSheet.tsx';
+import { MafoAdmin } from './MafoSheet.tsx';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
 	adminSetRoll,
@@ -328,6 +329,8 @@ function PlayerDetail({ player, players, initialCharacter }: { player: PlayerSum
 									<StaffEditPanel characterId={c.id} />
 									{/* Tatsuya and Minako only (the panel hides itself for everyone else). */}
 									{(c.systems ?? []).some((x) => x.system === 'fire-force') && <PillarAdmin characterId={c.id} />}
+									{/* Tatsuya only. */}
+									{c.status !== 'denied' && <MafoAdmin characterId={c.id} />}
 								</div>
 							);
 						})}

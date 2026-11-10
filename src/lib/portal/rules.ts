@@ -462,7 +462,7 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 	const counts = new Map<string, number>();
 	for (const e of entries) {
 		// A power an admin granted is on top of the usual limit.
-		if (!e.powerLink && countsTowardLimit(systemById.get(e.system), e.fields)) counts.set(e.system, (counts.get(e.system) ?? 0) + 1);
+		if (!e.powerLink && !e.mafoGift && countsTowardLimit(systemById.get(e.system), e.fields)) counts.set(e.system, (counts.get(e.system) ?? 0) + 1);
 	}
 	for (const [system, count] of counts) {
 		const limit = systemLimit(sheet, system, ctx.comboSystemLimits);

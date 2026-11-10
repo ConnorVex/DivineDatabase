@@ -37,6 +37,7 @@ import { canonStand, canonStandFields, STAND_STAT_LABELS, STAND_STAT_SHORT } fro
 import { BarrierList, type BarrierEntry } from './BarrierSheet.tsx';
 import { OcularPanel, ocularSpots } from './OcularSheet.tsx';
 import { PillarCard, usePillar } from './PillarSheet.tsx';
+import { MafoPanel } from './MafoSheet.tsx';
 import { richText } from './TraitsSection.tsx';
 import { cardFromPower, powerCardChanged, refreshPowerCard, type CustomPower, type MyPowerGrant } from '../../lib/portal/powers.ts';
 import { ADAPTATION_TRAIT } from '../../lib/portal/fireforce.ts';
@@ -966,7 +967,7 @@ function PowerSource(props: { entry: SystemEntry; grants?: MyPowerGrant[]; disab
 	return (
 		<div class="pf-wide ab-source pw-source">
 			<p class="pf-help">
-				<strong>Granted power.</strong> An admin designed it and granted it to you. Its stats{link.ownSkills ? '' : ', skills'} and skill tree are set; {link.own.length || link.ownSkills ? 'fill in the parts left open and ' : ''}describe how your character uses it below.
+				<strong>Granted power.</strong> {link.powerId === 'mafo' ? 'Tatsuya granted it to you.' : 'An admin designed it and granted it to you.'} Its stats{link.ownSkills ? '' : ', skills'} and skill tree are set; {link.own.length || link.ownSkills ? 'fill in the parts left open and ' : ''}describe how your character uses it below.
 			</p>
 			{link.about.trim() && <div class="pw-about" dangerouslySetInnerHTML={richText(link.about)} />}
 			{link.drawbacks.trim() && (
@@ -1115,7 +1116,9 @@ type Block =
 	| { kind: 'tephrosisClock' }
 	| { kind: 'ocular' }
 	/** Fire Force: the character's Pillar and its Adolla Burst perks (only Pillars get the tab). */
-	| { kind: 'pillar' };
+	| { kind: 'pillar' }
+	/** Maximum All For One: storage, steals and gives (only on an M:AFO Quirk card). */
+	| { kind: 'mafo' };
 
 interface PanelTab {
 	id: string;
@@ -1176,7 +1179,9 @@ const PANELS: Record<string, PanelDef> = {
 			{ id: 'main', label: 'Quirk', blocks: [{ kind: 'intro' }, { kind: 'claim' }, { kind: 'group', label: 'Quirk' }, { kind: 'override' }, { kind: 'description' }] },
 			SKILLS_TAB,
 			{ id: 'awakening', label: 'Awakenings', potential: 'awakening', blocks: [{ kind: 'potential', id: 'awakening' }, { kind: 'awakenings' }] },
-			potentialTab('variant', 'Instability & Variant'),
+			// M:AFO is already the Maximum Variant and never goes through Instability.
+			{ ...potentialTab('variant', 'Instability & Variant'), when: (f) => !f.mafo },
+			{ id: 'mafo', label: 'M:AFO Storage', when: (f) => f.mafo === 'Full' || f.mafo === 'Weaker', blocks: [{ kind: 'mafo' }] },
 			TREE_TAB,
 		],
 	},
@@ -1932,6 +1937,8 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 				);
 			case 'pillar':
 				return pillar ? <PillarCard key={i} pillar={pillar} /> : null;
+			case 'mafo':
+				return <MafoPanel key={i} characterId={props.roller.characterId} cardKey={entry.key} weaker={f.mafo === 'Weaker'} />;
 			case 'ocular':
 				return (
 					<OcularPanel
@@ -2372,6 +2379,7 @@ export function SystemsSection(props: Props) {
 								</div>
 								{currentEntry.familyLink && <span class="df-tag family">Family ability</span>}
 								{currentEntry.powerLink && <span class="df-tag family">Granted power</span>}
+								{currentEntry.mafoGift && <span class="df-tag family" title="On top of the usual card limit.">Given by {currentEntry.mafoGift.from}</span>}
 								{priorityKey === currentEntry.key ? (
 									<span class="df-tag priority">Priority</span>
 								) : (
