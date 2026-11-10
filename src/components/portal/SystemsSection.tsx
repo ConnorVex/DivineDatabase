@@ -37,6 +37,8 @@ import { canonStand, canonStandFields, STAND_STAT_LABELS, STAND_STAT_SHORT } fro
 import { BarrierList, type BarrierEntry } from './BarrierSheet.tsx';
 import { OcularPanel, ocularSpots } from './OcularSheet.tsx';
 import { PillarCard, usePillar } from './PillarSheet.tsx';
+import { richText } from './TraitsSection.tsx';
+import { cardFromPower, powerCardChanged, refreshPowerCard, type CustomPower, type MyPowerGrant } from '../../lib/portal/powers.ts';
 import { ADAPTATION_TRAIT } from '../../lib/portal/fireforce.ts';
 import { withTechniques, type LinkEntry } from '../../lib/portal/fireforceLogs.ts';
 
@@ -100,6 +102,8 @@ import type { PinnedNote } from '../../lib/portal/pins.ts';
 
 interface Props {
 	sheet: Sheet;
+	/** Powers admins granted to the player's account (and the cards they're on). */
+	powerGrants?: MyPowerGrant[];
 	/** Staff marked the character as already progressed: Barrier Techniques are open. */
 	progressed?: boolean;
 	/** The approved version, for an evolution: cards that already had Barrier Techniques keep them. */
@@ -954,6 +958,63 @@ function AbilitySource(props: {
 	);
 }
 
+/** The top of a granted power's card: what the power is, its drawbacks, and an update when the admin changed it. */
+function PowerSource(props: { entry: SystemEntry; grants?: MyPowerGrant[]; disabled: boolean; onRefresh: (p: CustomPower) => void }) {
+	const link = props.entry.powerLink!;
+	const grant = props.grants?.find((g) => g.id === link.grantId);
+	const changed = grant && powerCardChanged(props.entry, grant.power);
+	return (
+		<div class="pf-wide ab-source pw-source">
+			<p class="pf-help">
+				<strong>Granted power.</strong> An admin designed it and granted it to you. Its stats{link.ownSkills ? '' : ', skills'} and skill tree are set; {link.own.length || link.ownSkills ? 'fill in the parts left open and ' : ''}describe how your character uses it below.
+			</p>
+			{link.about.trim() && <div class="pw-about" dangerouslySetInnerHTML={richText(link.about)} />}
+			{link.drawbacks.trim() && (
+				<div class="pw-drawbacks">
+					<p class="pw-label">Drawbacks</p>
+					<div dangerouslySetInnerHTML={richText(link.drawbacks)} />
+				</div>
+			)}
+			{props.grants && link.grantId !== null && !grant && <p class="pf-wide roll-note bad">This power isn’t granted to you any more. Remove the card.</p>}
+			{changed && !props.disabled && (
+				<p class="pf-wide roll-note">
+					An admin has changed this power since it was put on the card.{' '}
+					<button type="button" class="pf-button" onClick={() => props.onRefresh(grant!.power)}>
+						Update the card
+					</button>
+				</p>
+			)}
+		</div>
+	);
+}
+
+/** Powers waiting on the account, to add as a card. A grant already on this sheet, or on another character, isn't offered. */
+function GrantedPowers(props: { sheet: Sheet; grants?: MyPowerGrant[]; characterId?: string | null; disabled: boolean; onAdd: (g: MyPowerGrant) => void }) {
+	const onSheet = new Set(props.sheet.systems.map((e) => e.powerLink?.grantId).filter((id): id is number => typeof id === 'number'));
+	const open = (props.grants ?? []).filter((g) => !onSheet.has(g.id) && (!g.character_id || g.character_id === props.characterId));
+	if (!open.length) return null;
+	return (
+		<section class="sh-block pw-granted" aria-label="Granted powers">
+			<h3 class="sh-heading">Granted to you</h3>
+			<p class="pf-help">Powers an admin granted to your account. Add one as a card; approving the character uses it up.</p>
+			<ul class="pw-list">
+				{open.map((g) => (
+					<li key={g.id} class="pw-item">
+						<div>
+							<strong>{g.power.name}</strong>
+							<span class="sh-card-system">{getSystemDisplayName(g.power.system, systemById.get(g.power.system)?.label)} System</span>
+							{g.note && <span class="pf-help">{g.note}</span>}
+						</div>
+						<button type="button" class="pf-button primary" disabled={props.disabled} onClick={() => props.onAdd(g)}>
+							Add as a card
+						</button>
+					</li>
+				))}
+			</ul>
+		</section>
+	);
+}
+
 /**
  * A new character asking staff to start past the usual stats. Starting stats and points are held
  * until the player presses Request override on the card's top bar: that unlocks every option on the
@@ -1286,7 +1347,7 @@ const isUpgradeField = (f: Field) => f.key.toLowerCase().includes('upgradepoints
 /** The open card: the system's own tabs, each built from blocks. */
 /** The Jujutsu Kaisen card that carries the character's Ocular: the one already describing it, or the first. */
 export function ocularCardKey(sheet: Sheet): string | undefined {
-	const jjk = sheet.systems.filter((e) => e.system === 'jujutsu-kaisen' && !e.familyLink);
+	const jjk = sheet.systems.filter((e) => e.system === 'jujutsu-kaisen' && !e.familyLink && !e.powerLink);
 	return (jjk.find((e) => OCULAR_KEYS.some((k) => String(e.fields[k] ?? '').trim())) ?? jjk[0])?.key;
 }
 
@@ -1310,9 +1371,11 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	const unlockedText = free ? 'Open on an admin character.' : 'Unlocked for testing.';
 
 	// Locks, as on every card: family abilities, wallet-tracked points, a Heavenly Restriction, staff values.
-	const linked = Boolean(entry.familyLink);
+	// A family ability or a power an admin granted: its stats stay locked, the player fills in the rest.
+	const power = entry.powerLink;
+	const linked = Boolean(entry.familyLink || power);
 	const linkedAbility = entry.familyLink && props.familyAbilities?.find((p) => p.id === entry.familyLink!.perkId)?.details.ability;
-	const own = linkedAbility ? memberKeys(def, linkedAbility) : [];
+	const own = power ? power.own : linkedAbility ? memberKeys(def, linkedAbility) : [];
 	const tracked = (key: string) => Boolean(props.trackedCards?.has(entry.key)) && isTrackedField(entry.system, key);
 	const effect = entry.system === 'jujutsu-kaisen' ? heavenlyEffect(f.heavenlyRestriction, f) : null;
 	// With a stat override (and no restriction granted to the account), a Heavenly Restriction can be asked for here.
@@ -1336,7 +1399,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	})();
 	const canonHelp = def.id === 'fire-force' ? 'Set by your canon Ignition.' : def.id === 'jojo' ? 'Set by your canon Stand.' : def.id === 'infamous' ? 'Set by your canon Conduit.' : 'Set by your canon Quirk.';
 	const fieldLocked = (key: string) => key in canonFixed || setByRoll(key) || readOnly || (linked && !own.includes(key)) || tracked(key) || heavenlyLocked(key) || staffSet(key);
-	const skillsLocked = readOnly || (linked && (!linkedAbility || familyScope(def, linkedAbility).skills));
+	const skillsLocked = readOnly || (power ? !power.ownSkills : linked && (!linkedAbility || familyScope(def, linkedAbility).skills));
 	const canOverride = !props.isEvolution && !linked;
 	// How the character's traits change this system's start, shown above the tabs.
 	const traitEffects = linked ? [] : traitEffectsFor(sheet, entry.system, props.combos);
@@ -1582,7 +1645,8 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 				);
 			}
 			case 'claim':
-				if (!claimable) return null;
+				// A family ability or granted power is its own thing, not a canon one.
+				if (!claimable || linked) return null;
 				return (
 					<div class="pf-wide" key={i}>
 						<ClaimPicker
@@ -1676,7 +1740,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 					<div class="pf-wide" key={i}>
 						<TextArea
 							label={linked ? 'How your character uses this ability' : panel.describe.label}
-							help={linked ? 'Your character’s take on the family ability, in your own words.' : panel.describe.help}
+							help={power ? 'Your character’s take on the granted power, in your own words.' : linked ? 'Your character’s take on the family ability, in your own words.' : panel.describe.help}
 							rows={4}
 							value={entry.description}
 							disabled={readOnly}
@@ -1957,11 +2021,11 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 								<div class="sp-fields">{upgrades.map(fieldInput)}</div>
 							</div>
 						)}
-						{(!readOnly || entry.customTree) && (
+						{(!(readOnly || power) || entry.customTree) && (
 							<div class="pf-wide">
 								<CustomTreeBuilder
 									entry={entry}
-									disabled={readOnly}
+									disabled={readOnly || Boolean(power)}
 									onChange={(tree) =>
 										setEntry((e) => {
 											const prevTree = e.customTree;
@@ -1982,7 +2046,8 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	return (
 		<>
 			<PinBoxes notes={(props.pins ?? []).filter((n) => n.step === 'systems' && n.target === `card:${entry.key}`)} sheet={sheet} />
-			<AbilitySource
+			{power && <PowerSource entry={entry} grants={props.powerGrants} disabled={readOnly} onRefresh={(p) => setEntry((e) => refreshPowerCard(e, p))} />}
+			{!power && <AbilitySource
 				entry={entry}
 				abilities={props.familyAbilities && props.familyAbilities.filter((p) => p.details.ability && abilitySystem(p.details.ability) === entry.system)}
 				familyName={props.familyName}
@@ -2007,7 +2072,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 					})
 				}
 				onProof={(v) => setEntry((e) => void (e.familyLink && (e.familyLink.proof = v)))}
-			/>
+			/>}
 			{traitEffects.length > 0 && (
 				<div class="tr-effects">
 					<span class="tr-effects-head">From your traits</span>
@@ -2157,6 +2222,7 @@ export function getSystemDisplayName(systemId: string, fallback?: string): strin
 function getAbilityTitle(entry: SystemEntry, defaultLabel: string, canonTitle?: string): string {
 	const f = entry.fields;
 	if (entry.familyLink?.title) return entry.familyLink.title;
+	if (entry.powerLink?.title) return entry.powerLink.title;
 	if (canonTitle) return canonTitle;
 	for (const key of ['name', 'ctName', 'standName']) {
 		const v = f[key];
@@ -2252,6 +2318,15 @@ export function SystemsSection(props: Props) {
 		open(key);
 	};
 
+	const addPower = (g: MyPowerGrant) => {
+		const card = cardFromPower(g.power, g.id);
+		update((s) => {
+			s.systems.push(card);
+			if (s.systems.length === 1) s.prioritySystem = card.key;
+		});
+		open(card.key);
+	};
+
 	/** Why a system can't be added right now, or null. */
 	const cantAdd = (id: string): string | null => {
 		const sys = systemById.get(id)!;
@@ -2279,9 +2354,9 @@ export function SystemsSection(props: Props) {
 
 	if (currentEntry && currentDef) {
 		const sysName = getSystemDisplayName(currentEntry.system);
-		const budget = !props.isEvolution && !currentEntry.familyLink ? systemBudget(sheet, currentEntry) : null;
+		const budget = !props.isEvolution && !currentEntry.familyLink && !currentEntry.powerLink ? systemBudget(sheet, currentEntry) : null;
 		// A new character's own card can ask to start past the usual stats.
-		const canAsk = !readOnly && !props.isEvolution && !currentEntry.familyLink;
+		const canAsk = !readOnly && !props.isEvolution && !currentEntry.familyLink && !currentEntry.powerLink;
 		return (
 			<Section id="systems" title="Power systems">
 				<div class="df-forum pf-wide">
@@ -2296,6 +2371,7 @@ export function SystemsSection(props: Props) {
 									<span class="df-post-system">{sysName} System</span>
 								</div>
 								{currentEntry.familyLink && <span class="df-tag family">Family ability</span>}
+								{currentEntry.powerLink && <span class="df-tag family">Granted power</span>}
 								{priorityKey === currentEntry.key ? (
 									<span class="df-tag priority">Priority</span>
 								) : (
@@ -2353,6 +2429,8 @@ export function SystemsSection(props: Props) {
 					</div>
 				)}
 
+				<GrantedPowers sheet={sheet} grants={props.powerGrants} characterId={props.roller.characterId} disabled={readOnly} onAdd={addPower} />
+
 				{sheet.systems.length > 0 && (
 					<section class="sh-block" aria-label="Your systems">
 						<h3 class="sh-heading">Your systems</h3>
@@ -2385,6 +2463,7 @@ export function SystemsSection(props: Props) {
 											{usable} skill{usable === 1 ? '' : 's'}
 											{entry.customTree ? ' · Skill Tree' : ''}
 											{entry.familyLink ? ' · Family ability' : ''}
+											{entry.powerLink ? ' · Granted power' : ''}
 										</p>
 										<div class="sh-card-foot">
 											<span class={`sh-status ${status.tone}`}>{status.text}</span>

@@ -7,6 +7,7 @@ import ranksData from '../../data/portal/ranks.json' with { type: 'json' };
 import rulesData from '../../data/portal/rules.json' with { type: 'json' };
 import traitsData from '../../data/portal/traits.json' with { type: 'json' };
 import type { LinkablePerk } from './families.ts';
+import { powerCardChanged, type MyPowerGrant } from './powerCards.ts';
 import { PROOF_LABEL, familyCardChanged, type PickedTrait, type Sheet, type SystemEntry } from './sheet.ts';
 import { BARRIER_KEYS, barrierUnlocked, barrierUsed, canonHolder, abilitySystem, countsTowardLimit, pastStart, startText, systemById, visibleFields, type Field, type Fields } from './systems.ts';
 import { potentialChanged, potentialCtxOf, potentialsFor } from './potentials.ts';
@@ -85,6 +86,10 @@ export interface CheckContext {
 	inheritedPerks?: Set<string>;
 	/** The family perks the player can link, by id. Without it, linked cards aren't checked against their perk. */
 	familyPerks?: Map<string, LinkablePerk>;
+	/** The owner's granted powers (when loaded): a granted card must use one of them. */
+	powerGrants?: MyPowerGrant[];
+	/** The character being checked, so a grant it already uses still counts as its own. */
+	characterId?: string | null;
 }
 
 export const rankValue = (rank: string) => rankByName.get(rank)?.value;
@@ -422,7 +427,7 @@ export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 		// An Ocular spot: the JJK card says which eye and what it does, and staff approve it.
 		if (claim?.claimType === 'ocular') {
 			// The card describing the Ocular, or the first Jujutsu Kaisen card (as the form shows it).
-			const jjk = sheet.systems.filter((e) => e.system === 'jujutsu-kaisen' && !e.familyLink);
+			const jjk = sheet.systems.filter((e) => e.system === 'jujutsu-kaisen' && !e.familyLink && !e.powerLink);
 			const card = jjk.find((e) => ['ocular', 'ocularImage', 'ocularAbility'].some((k) => String(e.fields[k] ?? '').trim())) ?? jjk[0];
 			if (!card) add('error', 'Systems', 'An Ocular needs a Jujutsu Kaisen card: add one, or remove the Ocular.');
 			else {
@@ -456,7 +461,8 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 	checkHeavenly(sheet, ctx, add, staff);
 	const counts = new Map<string, number>();
 	for (const e of entries) {
-		if (countsTowardLimit(systemById.get(e.system), e.fields)) counts.set(e.system, (counts.get(e.system) ?? 0) + 1);
+		// A power an admin granted is on top of the usual limit.
+		if (!e.powerLink && countsTowardLimit(systemById.get(e.system), e.fields)) counts.set(e.system, (counts.get(e.system) ?? 0) + 1);
 	}
 	for (const [system, count] of counts) {
 		const limit = systemLimit(sheet, system, ctx.comboSystemLimits);
@@ -474,6 +480,11 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 			continue;
 		}
 		const link = entry.familyLink;
+		if (entry.powerLink) {
+			// A granted power is the admin's design: check the grant, not the build.
+			checkPowerLink(entry, ctx, `${def.label} (${entry.powerLink.title})`, addHere);
+			continue;
+		}
 		const where = link ? `${def.label} (${link.title})` : def.label;
 		if (entry.customTree) {
 			for (const problem of treeProblems(entry.customTree, entry)) addHere('error', 'Systems', `${where}: ${problem}`);
@@ -725,6 +736,18 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 			if (skill.type === 'passive') addHere('permission', 'Systems', `${where}: custom passive “${skill.name || 'unnamed'}” needs permission.`);
 		}
 	}
+}
+
+function checkPowerLink(entry: SystemEntry, ctx: CheckContext, where: string, add: (level: IssueLevel, section: string, message: string) => void) {
+	const link = entry.powerLink!;
+	if (!ctx.powerGrants || link.grantId === null) return;
+	const grant = ctx.powerGrants.find((g) => g.id === link.grantId);
+	if (!grant || grant.power_id !== link.powerId) {
+		add('error', 'Systems', `${where}: this power isn’t granted to this player any more. Remove the card.`);
+		return;
+	}
+	if (grant.character_id && grant.character_id !== ctx.characterId) add('error', 'Systems', `${where}: this grant is already used by another character.`);
+	if (powerCardChanged(entry, grant.power)) add('warning', 'Systems', `${where}: an admin has changed this power since it was put on the card. Update the card.`);
 }
 
 function checkFamilyLink(entry: SystemEntry, ctx: CheckContext, where: string, add: (level: IssueLevel, section: string, message: string) => void) {

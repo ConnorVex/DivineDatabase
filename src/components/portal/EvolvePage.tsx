@@ -1,4 +1,5 @@
 // Evolving an approved character: see what changed on the sheet, describe how it was earned, and send.
+import { grantsWithPowers } from '../../lib/portal/powers.ts';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
 	discoverCombos,
@@ -69,19 +70,20 @@ export default function EvolvePage() {
 			const character = await loadCharacter(id);
 			setC(character);
 			applyTheme(character.kind === 'oc' && character.sheet.role ? themeForRole(character.sheet.role) : defaultTheme);
-			const [evolutions, board, held, combos, families] = await Promise.all([
+			const [evolutions, board, held, combos, families, powerGrants] = await Promise.all([
 				loadEvolutions([id]).catch(() => []),
 				loadClaimBoard(),
 				loadHeldClaims(id),
 				discoverCombos(id).catch(() => []),
 				loadFamilyChoices(id).catch(() => null),
+				grantsWithPowers(player!.id).catch(() => undefined),
 			]);
 			const current = evolutions.find((r) => r.status === 'pending' || r.status === 'needs_correction') ?? null;
 			setOpen(current);
 			setWriteUp(readStored(id) ?? (current ? { summary: current.summary, earned: current.earned, links: current.links } : blank));
 			const familyIds = families?.memberships.map((m) => m.family_id) ?? [];
 			const familyPerks = await loadLinkablePerks([...new Set([...character.sheet.families, ...familyIds])]).catch(() => undefined);
-			setChecks({ board, held, combos, familyIds, familyPerks });
+			setChecks({ board, held, combos, familyIds, familyPerks, powerGrants });
 		})().catch((e) => setError(messageOf(e)));
 	}, [player?.id, id]);
 

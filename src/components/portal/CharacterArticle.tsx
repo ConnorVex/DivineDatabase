@@ -275,7 +275,7 @@ function AbilityTabs(props: ArticleProps) {
 	const priority = s.systems.length > 1 ? s.prioritySystem : undefined;
 	const [openKey, setOpen] = useState<string | undefined>(undefined);
 	const open = s.systems.find((e) => e.key === openKey) ?? s.systems.find((e) => e.key === priority) ?? s.systems[0];
-	const titleOf = (e: (typeof s.systems)[number]) => String(e.fields.name ?? '').trim() || systemById.get(e.system)?.label || e.system;
+	const titleOf = (e: (typeof s.systems)[number]) => e.powerLink?.title || String(e.fields.name ?? '').trim() || systemById.get(e.system)?.label || e.system;
 
 	const e = open;
 	const def = systemById.get(e.system);
@@ -353,6 +353,18 @@ function AbilityTabs(props: ArticleProps) {
 						proof={e.familyLink.proof}
 						families={families}
 					/>
+				)}
+				{e.powerLink && (
+					<div class="wk-power">
+						<p class="wk-sub-label">Granted power</p>
+						{e.powerLink.about.trim() && <div class="wk-prose" dangerouslySetInnerHTML={richText(e.powerLink.about)} />}
+						{e.powerLink.drawbacks.trim() && (
+							<>
+								<p class="wk-sub-label">Drawbacks</p>
+								<div class="wk-prose" dangerouslySetInnerHTML={richText(e.powerLink.drawbacks)} />
+							</>
+						)}
+					</div>
 				)}
 				{e.description && <Prose value={e.description} />}
 

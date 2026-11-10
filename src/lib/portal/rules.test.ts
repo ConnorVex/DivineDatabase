@@ -831,6 +831,27 @@ test('a canon Quirk stays on the card it was picked on', () => {
 	assert.deepEqual(iqErrors(), []);
 });
 
+test('a granted power is on top of the card limit and must still be granted', async () => {
+	const { cardFromPower } = await import('./powerCards.ts');
+	const power = { id: 'pw', name: 'Gravity Well', system: 'quirk', ability: { system: 'quirk', fields: { name: 'Gravity Well', type: 'Emitter', power: 'Little', range: 'Physical' }, skills: [] }, description: 'Pulls things in.', drawbacks: '', tree: null, created_at: '', updated_at: '' };
+	const grant = { id: 9, power_id: 'pw', profile_id: 'me', character_id: null, card_key: null, used_at: null, note: '', granted_at: '', power };
+	const s = goodSheet();
+	const own = { key: 'mine', system: 'quirk', fields: { name: 'Mine', type: 'Mutation', power: 'Little', range: 'Physical' }, description: '', skills: [], rollProofs: {} };
+	const card = cardFromPower(power, 9);
+	s.systems = [own, card];
+	s.prioritySystem = 'mine';
+	const errors = (ctx: object) => messages(checkSheet(s, { ...ocCtx, ...ctx }), 'error').join(' | ');
+	// Two Quirks, but the granted one doesn't count towards the one-Quirk limit.
+	assert.doesNotMatch(errors({ powerGrants: [grant] }), /You can only have/);
+	assert.doesNotMatch(errors({ powerGrants: [grant] }), /Gravity Well/);
+	// Taken back, or used by another character.
+	assert.match(errors({ powerGrants: [] }), /Gravity Well\): this power isn’t granted to this player any more/);
+	assert.match(errors({ powerGrants: [{ ...grant, character_id: 'other' }], characterId: 'me' }), /already used by another character/);
+	// The admin changed it since: a warning to update the card.
+	const changed = { ...grant, power: { ...power, ability: { ...power.ability, fields: { ...power.ability.fields, power: 'Average' } } } };
+	assert.match(messages(checkSheet(s, { ...ocCtx, powerGrants: [changed] }), 'warning').join(), /changed this power since/);
+});
+
 test('Awakenings are a log: old counts convert, and each entry says what it gave', async () => {
 	const { awakeningsFromOld, withAwakenings, newAwakening } = await import('./awakenings.ts');
 	const old = awakeningsFromOld({ awakenings: 2, rolledAwakenings: 1, awakeningGains: 'Higher power' });

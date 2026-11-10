@@ -40,6 +40,20 @@ export const PROOF_LABEL: Record<PerkAccess, string | null> = {
 	taught: 'Link to the RP where a member taught it',
 };
 
+/** A card from a power an admin designed and granted. Its stats stay locked; `own` are the fields the player fills in. */
+export interface PowerLink {
+	powerId: string;
+	/** The grant it uses (null until an admin's direct grant is saved). */
+	grantId: number | null;
+	title: string;
+	own: string[];
+	/** The player writes the skills (the power leaves them open). */
+	ownSkills: boolean;
+	/** What the power is, and its drawbacks, as the admin wrote them. */
+	about: string;
+	drawbacks: string;
+}
+
 export interface SystemEntry {
 	/** Stable id within the sheet, so priority can point at it. */
 	key: string;
@@ -50,6 +64,7 @@ export interface SystemEntry {
 	/** Rolls for this system's rolled fields: field key → Discord message link. */
 	rollProofs: Record<string, string>;
 	familyLink?: FamilyLink;
+	powerLink?: PowerLink;
 	/** The player's own skill tree for this card (optional). */
 	customTree?: CustomTree | null;
 	/** The canon ability (claim id) picked on this card, so it stays on the card it was picked on. */

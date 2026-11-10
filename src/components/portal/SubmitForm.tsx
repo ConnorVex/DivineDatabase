@@ -41,6 +41,7 @@ import { Section, SelectField, TextArea, TextField } from './fields.tsx';
 import { StatsSection } from './StatsSection.tsx';
 import { defaults, SystemsSection } from './SystemsSection.tsx';
 import type { Roller } from './RollPanel.tsx';
+import { grantsWithPowers, type MyPowerGrant } from '../../lib/portal/powers.ts';
 import { ComboReveal, TraitsSection } from './TraitsSection.tsx';
 import { PinBoxes } from './PinnedNotes.tsx';
 import { CharacterArticle, CharacterInfobox } from './CharacterArticle.tsx';
@@ -134,6 +135,7 @@ export default function SubmitForm() {
 	const [retry, setRetry] = useState(0);
 	/** The Heavenly Restriction this account may use here (undefined until known, or if it can't be checked). */
 	const [heavenlyGrant, setHeavenlyGrant] = useState<string | null | undefined>(undefined);
+	const [powerGrants, setPowerGrants] = useState<MyPowerGrant[] | undefined>(undefined);
 	latest.current = draft;
 
 	useEffect(() => watchPlayer((p, error) => (error ? setLoadError(messageOf(error)) : setPlayer(p))), []);
@@ -154,6 +156,7 @@ export default function SubmitForm() {
 				setDraft(c);
 				refreshRolls(c.id);
 				heavenlyGrantFor(player.id, c.id).then(setHeavenlyGrant, () => setHeavenlyGrant(undefined));
+				grantsWithPowers(player.id).then(setPowerGrants, () => setPowerGrants(undefined));
 				loadFamilyChoices(c.id).then(setFamilyChoices, () => setFamilyChoices({ families: [], memberships: [] }));
 				if (c.id) {
 					// A saved character has been through the form before: show every step's state.
@@ -295,10 +298,11 @@ export default function SubmitForm() {
 						familyIds: familyChoices?.memberships.map((m) => m.family_id) ?? [],
 						familyPerks: familyPerks ?? undefined,
 						heavenlyGrant,
+						powerGrants,
 						inheritance: inheritance && { familyName: inheritance.family.name, perks: inheritance.family.perks, rolls: inheritance.rolls },
 					})
 				: [],
-		[draft, board, held, combos, familyChoices, familyPerks, heavenlyGrant, inheritance],
+		[draft, board, held, combos, familyChoices, familyPerks, heavenlyGrant, powerGrants, inheritance],
 	);
 
 	// The steps this character has, and moving between them (the step lives in the URL hash).
@@ -821,6 +825,7 @@ export default function SubmitForm() {
 								{stepPins('systems')}
 								<SystemsSection
 									sheet={s}
+									powerGrants={powerGrants}
 									update={updateSheet}
 									uploadImage={uploadOcularImage}
 									requestedClaims={draft.requestedClaims}

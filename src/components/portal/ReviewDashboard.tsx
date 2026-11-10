@@ -47,6 +47,8 @@ import { familyHref, loadFamilies, loadMyFamily, loadPerkQueue, type Family, typ
 import { loadFamilyChoices, loadLinkablePerks, type LinkablePerk } from '../../lib/portal/families.ts';
 import { applyApproved, approvedText, checkSheet, denyStatOverride, ENCRYPTION_ITEM, isStatOverride, type Issue } from '../../lib/portal/rules.ts';
 import { AdminRail } from './AdminRail.tsx';
+import { PowersPanel } from './PowersPanel.tsx';
+import { grantsWithPowers, type MyPowerGrant } from '../../lib/portal/powers.ts';
 import { MaintenancePanel } from './MaintenancePanel.tsx';
 import { ClaimsPanel } from './ClaimsPanel.tsx';
 import { PlayersView } from './OverridePanel.tsx';
@@ -78,10 +80,10 @@ const KINDS = [
 	{ id: 'perks', label: 'Family perks', icon: '✨' },
 	{ id: 'equipment', label: 'Equipment', icon: '⚔️' },
 ] as const;
-type Kind = (typeof KINDS)[number]['id'] | 'players' | 'claims' | 'site';
+type Kind = (typeof KINDS)[number]['id'] | 'players' | 'claims' | 'powers' | 'site';
 const kindFromUrl = (): Kind => {
 	const t = new URLSearchParams(location.search).get('type');
-	return t === 'players' || t === 'claims' || t === 'site' || KINDS.some((k) => k.id === t) ? (t as Kind) : 'characters';
+	return t === 'players' || t === 'claims' || t === 'powers' || t === 'site' || KINDS.some((k) => k.id === t) ? (t as Kind) : 'characters';
 };
 
 const STATUS_LABEL: Record<Status, string> = {
@@ -195,6 +197,7 @@ function Detail(props: {
 	const [evolutions, setEvolutions] = useState<EvolutionRequest[]>([]);
 	const [perks, setPerks] = useState<LinkablePerk[] | null>(null);
 	const [heavenlyGrant, setHeavenlyGrant] = useState<string | null | undefined>(undefined);
+	const [powerGrants, setPowerGrants] = useState<MyPowerGrant[] | undefined>(undefined);
 	const [memberOf, setMemberOf] = useState<string[]>([]);
 	const [note, setNote] = useState('');
 	const [permissions, setPermissions] = useState<Record<string, PermissionDecision>>({});
@@ -228,6 +231,9 @@ function Detail(props: {
 		// The Heavenly Restriction this character may use (left unknown if it can't be loaded).
 		setHeavenlyGrant(undefined);
 		heavenlyGrantFor(c.owner_id, c.id).then(setHeavenlyGrant, () => setHeavenlyGrant(undefined));
+		// Granted powers are only readable by admins; family reviewers skip that check.
+		setPowerGrants(undefined);
+		if (props.admin) grantsWithPowers(c.owner_id).then(setPowerGrants, () => setPowerGrants(undefined));
 		Promise.all([discoverCombos(c.id), loadHeldClaims(c.id), loadReviewNotes([c.id]), c.approved_at ? loadEvolutions([c.id]).catch(() => []) : Promise.resolve([])]).then(
 			([k, h, n, e]) => {
 				setCombos(k);
@@ -260,12 +266,14 @@ function Detail(props: {
 				families: [...c.sheet.families, ...memberOf],
 				familyPerks: perks ? new Map(perks.map((p) => [p.id, p])) : undefined,
 				heavenlyGrant,
+				powerGrants,
+				characterId: c.id,
 				staffOverrides: c.staff_overrides,
 				progressed: c.progressed,
 				adminCharacter: c.admin_character,
 				encryptionRequest: c.encryption_requested && !c.encrypted ? { reason: c.encryption_reason } : null,
 			}), c.approved_permissions),
-		[c, held, combos, props.board, perks, memberOf, heavenlyGrant],
+		[c, held, combos, props.board, perks, memberOf, heavenlyGrant, powerGrants],
 	);
 	const changes = useMemo(() => (c.approved_sheet ? sheetChanges(c.approved_sheet, c.sheet) : []), [c]);
 	const errors = issues.filter((i) => i.level === 'error').length;
@@ -819,7 +827,7 @@ export default function ReviewDashboard() {
 	if (!all) return <p class="portal-status">Loading submissions…</p>;
 
 	const pendingFamilies = families.filter((f) => f.status === 'pending');
-	const counts: Record<Exclude<Kind, 'players' | 'claims' | 'site'>, number> = {
+	const counts: Record<Exclude<Kind, 'players' | 'claims' | 'powers' | 'site'>, number> = {
 		characters: all.filter((c) => c.status === 'pending').length,
 		families: pendingFamilies.length,
 		perks: perks.reduce((n, r) => n + r.perks.length, 0),
@@ -849,6 +857,7 @@ export default function ReviewDashboard() {
 			)}
 			{shownKind === 'equipment' && <EquipmentReview requests={equipment} items={craftItems} players={players} onDone={load} />}
 			{shownKind === 'claims' && <ClaimsPanel universes={universes} onChanged={load} />}
+			{shownKind === 'powers' && <PowersPanel players={[...players.values()]} characters={all} onChanged={load} />}
 			{shownKind === 'site' && <MaintenancePanel />}
 			{shownKind === 'players' && <PlayersView players={[...players.values()]} focus={focus} focusCharacter={focusChar} onFocus={(id) => (setFocusChar(null), setKind('players', id))} />}
 		</>
@@ -870,6 +879,7 @@ export default function ReviewDashboard() {
 				tools={[
 					{ id: 'players', label: 'Players & rolls', icon: '🎲' },
 					{ id: 'claims', label: 'Claims', icon: '📌' },
+					{ id: 'powers', label: 'Powers', icon: '🔮' },
 					{ id: 'site', label: 'Maintenance', icon: '🛠️' },
 				]}
 				active={shownKind}

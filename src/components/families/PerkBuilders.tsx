@@ -78,8 +78,9 @@ export function detailProblems(kind: PerkKind, details: PerkDetails, title: stri
 	return [];
 }
 
-export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) => void; description: string; onDescription: (v: string) => void }) {
+export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) => void; description: string; onDescription: (v: string) => void; forPower?: boolean }) {
 	const { value, onChange } = props;
+	const power = Boolean(props.forPower);
 	const system = abilitySystem(value);
 	const def = systemById.get(system)!;
 	const budget = def.budget ? { total: def.budget.total(value.fields), spent: def.budget.spent(value.fields) } : null;
@@ -107,7 +108,9 @@ export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) =
 				)}
 			</header>
 			<p class="pf-help">
-				Built the same way as a character’s card, but these are the family’s own starting stats instead of the usual defaults. Members who link it get this card on their sheet; the admins judge anything over the usual limits.
+				{power
+					? 'Built the same way as a character’s card, but with the power’s own stats. Whoever it’s granted to gets this card with these stats locked; anything you leave open, they fill in. Granted powers don’t count towards the card limits.'
+					: 'Built the same way as a character’s card, but these are the family’s own starting stats instead of the usual defaults. Members who link it get this card on their sheet; the admins judge anything over the usual limits.'}
 			</p>
 			{/* Keyed by system, so custom-value pickers start fresh when the system changes. */}
 			<div class="pf-grid" key={system}>
@@ -124,14 +127,14 @@ export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) =
 						/>
 						{def.familyParts && (
 							<fieldset class="pf-field pf-checks pf-wide perk-parts">
-								<legend class="pf-label">What the family gives</legend>
+								<legend class="pf-label">{power ? 'What the power sets' : 'What the family gives'}</legend>
 								{def.familyParts.map((p) => (
 									<label class="pf-check" key={p.label}>
 										<input type="checkbox" checked={parts.includes(p.label)} onChange={() => togglePart(p.label)} />
 										{p.label}
 									</label>
 								))}
-								<p class="pf-help">Members fill in the parts left unticked themselves.</p>
+								<p class="pf-help">{power ? 'The player fills in the parts left unticked.' : 'Members fill in the parts left unticked themselves.'}</p>
 							</fieldset>
 						)}
 						{def.notes?.map((n) => (
@@ -145,10 +148,10 @@ export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) =
 					<legend>Description</legend>
 					<div class="pf-grid">
 						<TextArea
-							label="What the ability is"
+							label={power ? 'What the power is' : 'What the ability is'}
 							rows={4}
 							value={props.description}
-							placeholder="What it does and how it works in the family. **bold** and *italic* work."
+							placeholder={power ? 'What it does and how it works. **bold** and _italic_ work.' : 'What it does and how it works in the family. **bold** and *italic* work.'}
 							onInput={props.onDescription}
 						/>
 					</div>
@@ -160,7 +163,7 @@ export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) =
 							{group.fields.map((field) => (
 								<Fragment key={field.key}>
 									<CustomField
-										field={field.rolled ? { ...field, required: false, help: 'Leave empty to have each member roll it.' } : field}
+										field={field.rolled ? { ...field, required: false, help: power ? 'Leave empty to have the player roll it.' : 'Leave empty to have each member roll it.' } : field}
 										value={value.fields[field.key]}
 										onChange={(v) => setField(field.key, v)}
 									/>

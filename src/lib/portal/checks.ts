@@ -5,6 +5,7 @@ import type { BoardPerk } from '../families/api.ts';
 import { inheritanceEffects, inheritanceIssues, inheritedOptions, inheritedPerks, type InheritanceRoll } from './inheritance.ts';
 import { applyApproved, checkSheet, type Issue } from './rules.ts';
 import { systemById } from './systems.ts';
+import type { MyPowerGrant } from './powerCards.ts';
 
 export interface CheckData {
 	board: ClaimRow[];
@@ -19,6 +20,8 @@ export interface CheckData {
 	heavenlyGrant?: string | null;
 	/** For a character made in a family's Inheritance: the family's perks and the owner's rolls. */
 	inheritance?: { familyName: string; perks: BoardPerk[]; rolls: InheritanceRoll[] } | null;
+	/** The owner's granted powers, for checking granted cards (undefined: not known). */
+	powerGrants?: MyPowerGrant[];
 }
 
 /** Canon picks only count for systems the character still has. */
@@ -51,6 +54,8 @@ export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[]
 		families: [...draft.sheet.families, ...data.familyIds],
 		familyPerks: data.familyPerks && new Map(data.familyPerks.map((p) => [p.id, p])),
 		heavenlyGrant: data.heavenlyGrant,
+		powerGrants: data.powerGrants,
+		characterId: draft.id,
 		staffOverrides: { ...effects.overrides, ...draft.staffOverrides },
 		progressed: draft.progressed,
 		adminCharacter: draft.adminCharacter,

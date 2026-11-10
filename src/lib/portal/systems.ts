@@ -913,13 +913,14 @@ export function barriersFromOld(fields: Fields): Fields {
  */
 export function barrierUnlocked(
 	sheet: { traits: { name: string }[] },
-	entry: { key: string; fields: Fields; familyLink?: unknown },
+	entry: { key: string; fields: Fields; familyLink?: unknown; powerLink?: unknown },
 	ctx: { progressed?: boolean; staffOverrides?: Record<string, unknown>; approvedFields?: Fields },
 ): string | null {
 	if (ctx.progressed) return 'Staff marked this character as already progressed.';
 	if (ctx.approvedFields && BARRIER_FIELDS.some((x) => barrierUsed(x, barriersFromOld(ctx.approvedFields!)[x.key]))) return 'Already on your approved character. Learn more with BTUP.';
 	if (sheet.traits.some((t) => t.name === 'Barrier Prodigy')) return 'Unlocked by your Barrier Prodigy trait.';
 	if (entry.familyLink && barrierUsed(BARRIER_FIELDS[0], barriersFromOld(entry.fields).barrierTechniques)) return 'Unlocked by your family ability.';
+	if (entry.powerLink && barrierUsed(BARRIER_FIELDS[0], barriersFromOld(entry.fields).barrierTechniques)) return 'Unlocked by your granted power.';
 	if (BARRIER_KEYS.some((k) => ctx.staffOverrides?.[`card:${entry.key}.${k}`])) return 'Unlocked by staff.';
 	return null;
 }
@@ -949,13 +950,13 @@ export const systemById = new Map(systems.map((s) => [s.id, s]));
 
 /** The card a series' canon ability sits on: the one it was picked on, or (sheets from before cards
  * remembered it) that series' first card. Family ability cards never hold one. */
-export function canonHolder<E extends { key: string; system: string; familyLink?: unknown; canonClaim?: string | null }>(
+export function canonHolder<E extends { key: string; system: string; familyLink?: unknown; powerLink?: unknown; canonClaim?: string | null }>(
 	systems: E[],
 	universe: string | undefined,
 	claimId: string | undefined,
 ): E | undefined {
 	if (!universe || !claimId) return undefined;
-	const cards = systems.filter((e) => !e.familyLink && systemById.get(e.system)?.universe === universe);
+	const cards = systems.filter((e) => !e.familyLink && !e.powerLink && systemById.get(e.system)?.universe === universe);
 	return cards.find((e) => e.canonClaim === claimId) ?? cards[0];
 }
 
