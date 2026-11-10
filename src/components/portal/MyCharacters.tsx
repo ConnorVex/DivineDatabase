@@ -62,7 +62,9 @@ function CharacterCard({
 	const [error, setError] = useState('');
 	const status = STATUS[c.status];
 	// An approved character with unsent, pending or sent-back changes is an evolution in progress.
-	const evolving = Boolean(c.approved_at) && c.status !== 'approved' && c.status !== 'denied';
+	// Admin characters skip evolutions: edits go live from the form as soon as they're published.
+	const admin = c.admin_character;
+	const evolving = !admin && Boolean(c.approved_at) && c.status !== 'approved' && c.status !== 'denied';
 	const approvedEvolutions = evolutions.filter((e) => e.status === 'approved').length;
 	const evolutionStatus =
 		c.status === 'pending' ? 'Evolution in review' : c.status === 'needs_correction' ? 'Evolution needs correction' : 'Approved · changes not sent';
@@ -98,7 +100,9 @@ function CharacterCard({
 					{` · updated ${when(c.updated_at)}`}
 				</p>
 				<p class="mc-help">
-					{evolving
+					{admin && c.approved_at
+						? 'Admin character: your edits go live as soon as you publish them. No review, announcement or evolution log.'
+						: evolving
 						? c.status === 'needs_correction'
 							? 'An admin sent the evolution back. Fix it and send it again; the approved version stays public meanwhile.'
 							: 'The approved version stays public until the evolution is approved.'
@@ -132,9 +136,11 @@ function CharacterCard({
 				)}
 
 				<div class="mc-actions">
-					<a class="pf-button primary" href={c.approved_at && c.status !== 'denied' ? `${base}evolve/?id=${c.id}` : editHref}>
+					<a class="pf-button primary" href={c.approved_at && c.status !== 'denied' && !admin ? `${base}evolve/?id=${c.id}` : editHref}>
 						{c.status === 'denied'
 							? 'View'
+							: admin && c.approved_at
+								? 'Edit'
 							: c.approved_at
 								? c.status === 'approved'
 									? 'Submit evolution'

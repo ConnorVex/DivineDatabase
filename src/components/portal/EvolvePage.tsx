@@ -68,6 +68,8 @@ export default function EvolvePage() {
 		if (!player || !id) return;
 		(async () => {
 			const character = await loadCharacter(id);
+			// Admin characters don't evolve through review: their edits are published from the form.
+			if (character.adminCharacter) return location.replace(location.pathname.replace(/evolve\/?$/, `submit/?id=${id}`));
 			setC(character);
 			applyTheme(character.kind === 'oc' && character.sheet.role ? themeForRole(character.sheet.role) : defaultTheme);
 			const [evolutions, board, held, combos, families, powerGrants] = await Promise.all([

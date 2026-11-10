@@ -469,6 +469,7 @@ export interface CharacterSummary {
 	encrypted: boolean;
 	role: string | null;
 	potential: string | null;
+	admin_character: boolean;
 }
 
 export interface ReviewNote {
@@ -488,7 +489,7 @@ export async function loadMyCharacters(): Promise<CharacterSummary[]> {
 	const { data, error } = await db()
 		.from('characters')
 		.select(
-			'id, name, kind, canon_universe, status, encrypted, approved_at, submitted_at, updated_at, created_at, image:sheet->appearance->>image, role:sheet->>role, potential:sheet->potential->>grade',
+			'id, name, kind, canon_universe, status, encrypted, admin_character, approved_at, submitted_at, updated_at, created_at, image:sheet->appearance->>image, role:sheet->>role, potential:sheet->potential->>grade',
 		)
 		.eq('owner_id', uid)
 		.order('updated_at', { ascending: false });
