@@ -289,12 +289,13 @@ export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 		if (blank(sheet.canon.portrayal)) add('error', 'Tryout', 'Explain how you’ll portray this character.');
 		if (blank(sheet.canon.sample)) add('error', 'Tryout', 'Add a short roleplay sample.');
 	}
-	if (!oc) return issues; // canon tryouts use the lighter sheet
+	// Canon tryouts use the lighter sheet. Once approved, a canon can add any system and evolve.
+	if (!oc && !ctx.isEvolution) return issues;
 
 	// ── S.T.S stats ──
 	const s = sheet.stats;
 	for (const stat of ['strength', 'speed', 'defense', 'stamina'] as const) {
-		if (blank(s[stat])) add('error', 'Stats', `Pick a rank for ${stat[0].toUpperCase() + stat.slice(1)}.`);
+		if (oc && blank(s[stat])) add('error', 'Stats', `Pick a rank for ${stat[0].toUpperCase() + stat.slice(1)}.`);
 	}
 	const phase = rules.stats.phases.find((p) => p.phase === s.phase);
 	for (const stat of ['strength', 'speed', 'defense', 'stamina'] as const) {
@@ -309,7 +310,7 @@ export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 
 	const potential = rules.potentials.find((p) => p.id === sheet.potential.grade);
 	if (!potential) {
-		if (!staff('potential.grade')) add('error', 'Traits', 'Roll your Potential.');
+		if (oc && !staff('potential.grade')) add('error', 'Traits', 'Roll your Potential.');
 	}
 	else {
 		if ('rolled' in potential && potential.rolled) add('permission', 'Traits', `${potential.label} Potential is rolled by staff.`);

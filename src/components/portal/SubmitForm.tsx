@@ -302,7 +302,8 @@ export default function SubmitForm() {
 	);
 
 	// The steps this character has, and moving between them (the step lives in the URL hash).
-	const steps = STEPS.filter((st) => draft?.kind !== 'canon' || !st.ocOnly);
+	// Canon tryouts are the lighter sheet; once approved, a canon gets every step to grow into.
+	const steps = STEPS.filter((st) => draft?.kind !== 'canon' || isEvolution || !st.ocOnly);
 	const current = steps.some((st) => st.id === step) ? step : 'basics';
 	function setStep(id: string) {
 		setVisited((v) => new Set(v).add(current));
@@ -753,7 +754,7 @@ export default function SubmitForm() {
 						)}
 					</div>
 
-					{oc && (
+					{(oc || isEvolution) && (
 						<>
 							<div class="pf-step" hidden={current !== 'stats'}>
 								{stepPins('stats')}

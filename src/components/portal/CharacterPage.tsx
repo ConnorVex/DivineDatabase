@@ -7,6 +7,7 @@ import { logIn, watchPlayer, type Player } from '../../lib/supabase.ts';
 import { CharacterArticle } from './CharacterArticle.tsx';
 import { EncryptedScreen } from './EncryptedScreen.tsx';
 import { ViewerPanel } from './ViewerPanel.tsx';
+import { usePillar } from './PillarSheet.tsx';
 
 const messageOf = (e: unknown) => (e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e));
 const portal = import.meta.env.BASE_URL.replace(/\/?$/, '/');
@@ -16,6 +17,7 @@ export default function CharacterPage() {
 	const [player, setPlayer] = useState<Player | null | undefined>(undefined);
 	const [page, setPage] = useState<CharacterPageData | null | undefined>(undefined);
 	const [error, setError] = useState('');
+	const pillar = usePillar(page?.allowed ? page.id : null);
 
 	useEffect(() => startPortalTheme(), []);
 	useEffect(() => watchPlayer((p, e) => (e ? setError(messageOf(e)) : setPlayer(p))), []);
@@ -84,6 +86,7 @@ export default function CharacterPage() {
 				sheet={page.sheet!}
 				adminCharacter={page.admin_character}
 				hideErrors={!admin}
+				pillar={pillar}
 			/>
 			{page.encrypted && (page.mine || admin) && (
 				<section class="hud-panel cp-viewers">

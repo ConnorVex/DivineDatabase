@@ -10,9 +10,11 @@ import { CUSTOM, customTreeNodes, treeCurrencyLabel } from '../../lib/portal/cus
 import type { LinkablePerk } from '../../lib/portal/families.ts';
 import { heavenlyOf } from '../../lib/portal/heavenly.ts';
 import { power, ptp, rankInfo, recoil, rules, traits, traitSlots, type StaffOverrides } from '../../lib/portal/rules.ts';
-import { PROOF_LABEL, familyCardChanged, type Sheet } from '../../lib/portal/sheet.ts';
+import { PROOF_LABEL, familyCardChanged, hasFullSheet, type Sheet } from '../../lib/portal/sheet.ts';
 import { systemById, visibleFields } from '../../lib/portal/systems.ts';
 import { SkillTreeView } from './SkillTreeView.tsx';
+import { PillarCard } from './PillarSheet.tsx';
+import type { Pillar } from '../../lib/portal/pillars.ts';
 import { richText } from './TraitsSection.tsx';
 import { PinBoxes } from './PinnedNotes.tsx';
 import type { PinnedNote } from '../../lib/portal/pins.ts';
@@ -118,6 +120,8 @@ export interface ArticleProps {
 	adminCharacter?: boolean;
 	/** Viewers who aren't allowed past Error Tiers see ERROR instead of those stats. */
 	hideErrors?: boolean;
+	/** Fire Force Pillar status, shown on the first Fire Force card. */
+	pillar?: Pillar | null;
 }
 
 /** Red boxes and 📌 buttons for pinned review notes. */
@@ -135,6 +139,8 @@ function pinHelpers(props: ArticleProps) {
 export function CharacterInfobox(props: ArticleProps) {
 	const s = props.sheet;
 	const oc = props.kind === 'oc';
+	// Approved canons can grow a full sheet: show it once there's something in it.
+	const full = oc || hasFullSheet(s);
 	const staff = props.staffOverrides ?? {};
 	const { boxes, pinTo } = pinHelpers(props);
 	const budget = ptp(s, props.bonusPtp ?? 0, props.progressed ? undefined : staff);
@@ -165,7 +171,7 @@ export function CharacterInfobox(props: ArticleProps) {
 				</tbody>
 			</table>
 			{boxes('basics')}
-			{oc && (
+			{full && (
 				<>
 					<p class="wk-infobox-head">
 						S.T.S stats
@@ -439,6 +445,12 @@ function AbilityTabs(props: ArticleProps) {
 						</ul>
 					</div>
 				)}
+				{props.pillar && e.system === 'fire-force' && s.systems.find((x) => x.system === 'fire-force')?.key === e.key && (
+					<div class="wk-sub">
+						<p class="wk-sub-label">Pillar</p>
+						<PillarCard pillar={props.pillar} />
+					</div>
+				)}
 				{e.customTree && (
 					<details class="pts-tree rv-custom-tree">
 						<summary>
@@ -477,6 +489,7 @@ function AbilityTabs(props: ArticleProps) {
 export function CharacterArticle(props: ArticleProps) {
 	const s = props.sheet;
 	const oc = props.kind === 'oc';
+	const full = oc || hasFullSheet(s);
 	const staff = props.staffOverrides ?? {};
 	const perkById = new Map((props.perks ?? []).map((p) => [p.id, p]));
 	const families = props.families ?? [];
@@ -493,7 +506,7 @@ export function CharacterArticle(props: ArticleProps) {
 			<header class="wk-title">
 				<h2>{props.name || 'Unnamed character'}</h2>
 				<p class="wk-tagline">
-					{oc ? `Original character${role ? ` · ${role.label}` : ''}` : `Canon tryout · ${props.universeName ?? 'unknown series'}`}
+					{oc ? `Original character${role ? ` · ${role.label}` : ''}` : `${full ? 'Canon character' : 'Canon tryout'} · ${props.universeName ?? 'unknown series'}`}
 					{props.progressed && <span class="wk-staff"> already progressed</span>}
 					{props.adminCharacter && <span class="wk-admin"> admin character</span>}
 				</p>
@@ -549,7 +562,7 @@ export function CharacterArticle(props: ArticleProps) {
 					</>
 				)}
 
-				{oc && (
+				{full && (
 					<>
 						<Section title={`Traits · ${slots.used}/${slots.total} slots`} pin={<PinButton onPin={pinTo('traits')} what="Traits" />}>
 							{boxes('traits')}

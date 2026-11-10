@@ -92,7 +92,6 @@ export const FIRE_FORCE_FIELDS: Field[] = [
 	{ key: 'stigma', label: 'Stigma', type: 'select', options: [{ value: '' , label: 'None' }, { value: 'Yes', label: 'Scarred by an Adolla Link' }] },
 	{ key: 'stigmaMark', label: 'Where the Stigma is', type: 'text', showIf: { key: 'stigma', in: ['Yes'] } },
 	{ key: 'adollaBurst', label: 'Adolla Burst', type: 'select', options: [{ value: '', label: 'None' }, { value: 'Yes', label: 'Has an Adolla Burst' }] },
-	{ key: 'pillar', label: 'Pillar emotion (if a Pillar)', type: 'text', showIf: { key: 'adollaBurst', in: ['Yes'] } },
 	{ key: 'adollaEntity', label: 'Adolla Entity who granted the Grace', type: 'text' },
 	{ key: 'fourthAbility', label: 'Fourth Generation ability', type: 'textarea', help: 'Theme-based, and it breaks the laws of physics.', showIf: { key: 'adollaBurst', in: ['Yes'] } },
 	// Kept in step with the technique log (who taught each one) and the Crimson list.

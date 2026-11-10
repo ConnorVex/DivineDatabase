@@ -231,7 +231,7 @@ const fireForce: PotentialDef[] = [
 		label: 'Adolla Burst',
 		about: 'The Genesis Flame: unsullied fire from Adolla with immense power, found in a select few Third Generations. Most Burst holders are Pillars, who represent emotions.',
 		group: 'Adolla Burst',
-		keys: ['adollaBurst', 'pillar'],
+		keys: ['adollaBurst'],
 		reached: hasBurst,
 		requirements: (f) => [thirdGen(f), { label: 'Your Genesis Flame shows itself in RP', status: 'staff' }],
 		perks: () => ['+5 TGUP per training session (stacks with grinding traits)', 'Pyrokinetic Power past Level 15, up to Y (Z with an Adolla Grace)', 'Adolla Links with no ill effects'],

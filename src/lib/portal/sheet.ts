@@ -128,6 +128,18 @@ export interface Sheet {
 	errorStats?: string[];
 }
 
+/** Whether a canon character has anything past the tryout: approved canons can add stats, traits,
+ * Fighting Styles and power systems from any series, and evolve like an OC. */
+export function hasFullSheet(s: Sheet): boolean {
+	return (
+		s.systems.length > 0 ||
+		s.traits.length > 0 ||
+		s.combat.styles.length > 0 ||
+		Boolean(s.combat.info.trim() || s.storage.trim()) ||
+		(['strength', 'speed', 'defense', 'stamina'] as const).some((k) => Boolean(String(s.stats[k] ?? '').trim()))
+	);
+}
+
 /** JSON with object keys sorted, so the database's key order doesn't count as a change. */
 const stable = (v: unknown): string =>
 	Array.isArray(v)

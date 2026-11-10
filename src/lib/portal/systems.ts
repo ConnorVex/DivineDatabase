@@ -512,7 +512,7 @@ export const systems: SystemDef[] = [
 			{ label: 'Pyrokinesis', keys: ['name', 'generation', 'theme'] },
 			{ label: 'Levels', keys: ['manipulation', 'power', 'oxygenTank', 'efficiency', 'absorption'] },
 			{ label: 'Stigma', keys: ['stigma', 'stigmaMark'] },
-			{ label: 'Adolla Burst', keys: ['adollaBurst', 'pillar'] },
+			{ label: 'Adolla Burst', keys: ['adollaBurst'] },
 			{ label: 'Adolla Grace', keys: ['adollaEntity', 'fourthAbility'] },
 			{ label: 'Techniques', keys: TECHNIQUE_KEYS },
 			{ label: 'Tephrosis', keys: ['tephrosis'] },

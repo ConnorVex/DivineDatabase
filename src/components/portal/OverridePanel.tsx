@@ -1,6 +1,7 @@
 // The admin panel's Players view: a player's characters and the rolls on each, with a per-roll
 // override code or a hand-set value, the roll ban, grants, and the history. The database checks
 // admin rights on every action.
+import { PillarAdmin } from './PillarSheet.tsx';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
 	adminSetRoll,
@@ -325,6 +326,8 @@ function PlayerDetail({ player, players, initialCharacter }: { player: PlayerSum
 										return <RollLine key={k} kind={k} row={row} code={codeFor(row)} ownerId={player.id} characterId={c.id} act={act} busy={busy} />;
 									})}
 									<StaffEditPanel characterId={c.id} />
+									{/* Tatsuya and Minako only (the panel hides itself for everyone else). */}
+									{(c.systems ?? []).some((x) => x.system === 'fire-force') && <PillarAdmin characterId={c.id} />}
 								</div>
 							);
 						})}

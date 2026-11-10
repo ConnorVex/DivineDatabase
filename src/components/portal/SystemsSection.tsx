@@ -36,6 +36,7 @@ import { canonIgnition, ignitionInfo, ONE_USER_CATEGORIES } from '../../lib/port
 import { canonStand, canonStandFields, STAND_STAT_LABELS, STAND_STAT_SHORT } from '../../lib/portal/canonStands.ts';
 import { BarrierList, type BarrierEntry } from './BarrierSheet.tsx';
 import { OcularPanel, ocularSpots } from './OcularSheet.tsx';
+import { PillarCard, usePillar } from './PillarSheet.tsx';
 import { ADAPTATION_TRAIT } from '../../lib/portal/fireforce.ts';
 import { withTechniques, type LinkEntry } from '../../lib/portal/fireforceLogs.ts';
 
@@ -1025,7 +1026,9 @@ type Block =
 	| { kind: 'adollaLinks' }
 	/** Fire Force: Tephrosis moving through its stages. */
 	| { kind: 'tephrosisClock' }
-	| { kind: 'ocular' };
+	| { kind: 'ocular' }
+	/** Fire Force: the character's Pillar and its Adolla Burst perks (only Pillars get the tab). */
+	| { kind: 'pillar' };
 
 interface PanelTab {
 	id: string;
@@ -1117,6 +1120,7 @@ const PANELS: Record<string, PanelDef> = {
 				],
 			},
 			{ id: 'tephrosis', label: 'Tephrosis', potential: 'tephrosis', blocks: [{ kind: 'potential', id: 'tephrosis' }, { kind: 'tephrosisClock' }], when: (f) => f.generation === 'Third' || f.generation === 'XO' },
+			{ id: 'pillar', label: 'Pillar', blocks: [{ kind: 'pillar' }] },
 			TREE_TAB,
 		],
 	},
@@ -1325,6 +1329,8 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	const claimable = Boolean(def.universe && def.claimLabel) && !effect?.noTechnique && (def.id !== 'jujutsu-kaisen' || jjkTechnique(f)) && (def.id !== 'jojo' || hasStand(f));
 	const universe = props.universes.find((u) => u.slug === def.universe);
 
+	// Pillar status, given by Tatsuya or Minako: its own tab on the Fire Force card.
+	const pillar = usePillar(def.id === 'fire-force' ? props.roller.characterId : null);
 	const groups = groupedFields(def, f);
 	const extraLabels = [EXTRAS_GROUP, ...(def.extras ?? []).map((x) => x.label)];
 	const potentials = potentialsFor(def.id);
@@ -1339,7 +1345,9 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 		.map((t, i) => (i === 0 && unplaced.length ? { ...t, blocks: [...t.blocks, ...unplaced.map((label): Block => ({ kind: 'group', label }))] } : t))
 		.filter((t) => !t.when || t.when(f))
 		// A character has one Ocular, so the tab sits on one Jujutsu Kaisen card only.
-		.filter((t) => !t.blocks.some((b) => b.kind === 'ocular') || ocularCardKey(sheet) === entry.key);
+		.filter((t) => !t.blocks.some((b) => b.kind === 'ocular') || ocularCardKey(sheet) === entry.key)
+		// Only Pillars get the Pillar tab, on their first Fire Force card.
+		.filter((t) => !t.blocks.some((b) => b.kind === 'pillar') || (pillar !== null && sheet.systems.find((x) => x.system === 'fire-force')?.key === entry.key));
 	const picked = Array.isArray(f[EXTRAS_KEY]) ? (f[EXTRAS_KEY] as string[]) : [];
 	const current = tabs.find((t) => t.id === props.tab) ?? tabs[0];
 	const labelOf = (t: PanelTab) => (typeof t.label === 'function' ? t.label(f) : t.label);
@@ -1815,6 +1823,8 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 						onChange={(links: LinkEntry[]) => setEntry((e) => void (e.fields.adollaLinks = links as unknown as FieldValue))}
 					/>
 				);
+			case 'pillar':
+				return pillar ? <PillarCard key={i} pillar={pillar} /> : null;
 			case 'ocular':
 				return (
 					<OcularPanel

@@ -92,7 +92,7 @@ function CharacterCard({
 					<span class="mc-status">{evolving ? evolutionStatus : status.label}</span>
 				</header>
 				<p class="mc-meta">
-					{c.kind === 'canon' ? `Canon tryout · ${series ?? 'unknown series'}` : `OC${roleLabel ? ` · ${roleLabel}` : ''}`}
+					{c.kind === 'canon' ? `${c.approved_at ? 'Canon character' : 'Canon tryout'} · ${series ?? 'unknown series'}` : `OC${roleLabel ? ` · ${roleLabel}` : ''}`}
 					{potential ? ` · ${potential} Potential` : ''}
 					{approvedEvolutions > 0 ? ` · ${approvedEvolutions} evolution${approvedEvolutions === 1 ? '' : 's'}` : ''}
 					{` · updated ${when(c.updated_at)}`}

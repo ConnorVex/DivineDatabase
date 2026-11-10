@@ -180,6 +180,18 @@ test('canon tryouts use the lighter sheet', () => {
 	assert.deepEqual(checkSheet(s, ctx), []);
 });
 
+test('approved canons can add any system and evolve, with no stats or Potential required', () => {
+	const s = emptySheet();
+	s.canon = { portrayal: 'Smug.', sample: 'Throughout heaven and earth…' };
+	const ctx = { kind: 'canon' as const, name: 'Satoru Gojo', canonUniverse: 'jujutsu-kaisen', isEvolution: true };
+	assert.deepEqual(messages(checkSheet(s, ctx), 'error'), []);
+	// A system from another series is checked like any OC's card.
+	s.systems = [{ key: 'q', system: 'quirk', fields: {}, description: '', skills: [], rollProofs: {} }];
+	assert.ok(checkSheet(s, ctx).some((i) => i.section === 'Systems'));
+	// The tryout itself still skips them.
+	assert.ok(!checkSheet(s, { ...ctx, isEvolution: false }).some((i) => i.section === 'Systems'));
+});
+
 test('normalizeSheet fills in missing parts', () => {
 	const s = normalizeSheet({ lore: { backstory: 'x' }, systems: [{ key: 'a', system: 'quirk', fields: {} }] });
 	assert.equal(s.lore.backstory, 'x');
