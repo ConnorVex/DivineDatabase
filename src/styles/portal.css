@@ -11354,3 +11354,25 @@ details.pf-live .wk-infobox-img {
 		flex: 1 1 40%;
 	}
 }
+
+/* Claims: staff give a spot to a character */
+.clm-give {
+	display: grid;
+	gap: 0.4rem;
+	padding-top: 0.75rem;
+	border-top: 1px dashed var(--pf-line);
+}
+.pf .clm-give > * {
+	margin: 0;
+}
+.clm-give-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	align-items: end;
+}
+.clm-give-row > :first-child {
+	flex: 1 1 14rem;
+	min-width: 0;
+	margin: 0;
+}

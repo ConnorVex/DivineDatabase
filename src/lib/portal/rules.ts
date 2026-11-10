@@ -418,7 +418,9 @@ export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 		}
 		// An Ocular spot: the JJK card says which eye and what it does, and staff approve it.
 		if (claim?.claimType === 'ocular') {
-			const card = sheet.systems.find((e) => e.system === 'jujutsu-kaisen' && !e.familyLink);
+			// The card describing the Ocular, or the first Jujutsu Kaisen card (as the form shows it).
+			const jjk = sheet.systems.filter((e) => e.system === 'jujutsu-kaisen' && !e.familyLink);
+			const card = jjk.find((e) => ['ocular', 'ocularImage', 'ocularAbility'].some((k) => String(e.fields[k] ?? '').trim())) ?? jjk[0];
 			if (!card) add('error', 'Systems', 'An Ocular needs a Jujutsu Kaisen card: add one, or remove the Ocular.');
 			else {
 				const name = String(card.fields.ocular ?? '').trim();

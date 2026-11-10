@@ -1254,6 +1254,12 @@ const PANELS: Record<string, PanelDef> = {
 const isUpgradeField = (f: Field) => f.key.toLowerCase().includes('upgradepoints');
 
 /** The open card: the system's own tabs, each built from blocks. */
+/** The Jujutsu Kaisen card that carries the character's Ocular: the one already describing it, or the first. */
+export function ocularCardKey(sheet: Sheet): string | undefined {
+	const jjk = sheet.systems.filter((e) => e.system === 'jujutsu-kaisen' && !e.familyLink);
+	return (jjk.find((e) => OCULAR_KEYS.some((k) => String(e.fields[k] ?? '').trim())) ?? jjk[0])?.key;
+}
+
 function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: string; setTab: (id: string) => void; limitedChoiceFull: (e: SystemEntry) => boolean }) {
 	const { entry, def, sheet, update, readOnly } = props;
 	const setEntry = (fn: (e: SystemEntry) => void) =>
@@ -1331,7 +1337,9 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	const skillsAt = skillsTab < 0 ? 1 : skillsTab;
 	const tabs = [...panel.tabs.slice(0, skillsAt), ...extrasTab, ...panel.tabs.slice(skillsAt)]
 		.map((t, i) => (i === 0 && unplaced.length ? { ...t, blocks: [...t.blocks, ...unplaced.map((label): Block => ({ kind: 'group', label }))] } : t))
-		.filter((t) => !t.when || t.when(f));
+		.filter((t) => !t.when || t.when(f))
+		// A character has one Ocular, so the tab sits on one Jujutsu Kaisen card only.
+		.filter((t) => !t.blocks.some((b) => b.kind === 'ocular') || ocularCardKey(sheet) === entry.key);
 	const picked = Array.isArray(f[EXTRAS_KEY]) ? (f[EXTRAS_KEY] as string[]) : [];
 	const current = tabs.find((t) => t.id === props.tab) ?? tabs[0];
 	const labelOf = (t: PanelTab) => (typeof t.label === 'function' ? t.label(f) : t.label);
@@ -1364,7 +1372,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	const ocularAsked = Boolean(ocularSpot && props.requestedClaims.includes(ocularSpot.id));
 	const ocularHeld = Boolean(ocularSpot && props.heldClaims.has(ocularSpot.id));
 	const lockReason = (t: PanelTab): string | null => {
-		if (t.lock === 'ocular' && !free && !ocularAsked && ocularSpots(ocularSpot, false, ocularHeld)?.full) return 'All Ocular Spots are taken';
+		if (t.lock === 'ocular' && !ocularAsked && ocularSpots(ocularSpot, false, ocularHeld)?.full) return 'All Ocular Spots are taken';
 		if (unlock) return null;
 		if (t.potential) {
 			const pot = potentialOf(t.potential);

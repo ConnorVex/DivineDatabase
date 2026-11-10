@@ -5,10 +5,13 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
 	adminDeleteClaimable,
+	adminGiveClaim,
 	adminRemoveHolder,
 	adminSaveClaimable,
 	adminSetHolderCounts,
 	loadClaimAdmin,
+	loadClaimCharacters,
+	type ClaimCharacter,
 	type Claimable,
 	type ClaimHolder,
 	type ClaimRow,
@@ -40,6 +43,11 @@ export function ClaimsPanel(props: { universes: Universe[]; onChanged?: () => vo
 
 	const reload = () => loadClaimAdmin().then(setData, (e) => setError(messageOf(e)));
 	useEffect(() => void reload(), []);
+	// Approved characters, for giving a spot by hand (loaded once a claim is opened).
+	const [characters, setCharacters] = useState<ClaimCharacter[] | null>(null);
+	useEffect(() => {
+		if (draft?.id && !characters) loadClaimCharacters().then(setCharacters, (e) => setError(messageOf(e)));
+	}, [draft?.id]);
 
 	const universes = props.universes;
 	const current = universe || universes[0]?.slug || '';
@@ -173,6 +181,9 @@ export function ClaimsPanel(props: { universes: Universe[]; onChanged?: () => vo
 											onDelete={remove}
 											onCount={(h, counts) => run(() => adminSetHolderCounts(h.id, counts))}
 											onFree={(h) => confirm(`Free ${h.holder_name || 'this holder'}’s spot? Their sheet isn’t changed.`) && run(() => adminRemoveHolder(h.id))}
+											characters={characters}
+											full={full}
+											onGive={(ch) => run(() => adminGiveClaim(c.id, ch))}
 										/>
 									)}
 								</li>
@@ -196,8 +207,13 @@ function ClaimEditor(props: {
 	onDelete?: () => void;
 	onCount?: (h: ClaimHolder, counts: boolean) => void;
 	onFree?: (h: ClaimHolder) => void;
+	/** Approved characters staff can give a spot to (null while loading). */
+	characters?: ClaimCharacter[] | null;
+	full?: boolean;
+	onGive?: (c: ClaimCharacter) => void;
 }) {
 	const { draft, busy } = props;
+	const [giving, setGiving] = useState('');
 	const set = (patch: Partial<Draft>) => props.onChange({ ...draft, ...patch });
 	const listId = `clm-cats-${draft.id ?? 'new'}`;
 	const unlimited = draft.max_users === null;
@@ -240,6 +256,40 @@ function ClaimEditor(props: {
 							</li>
 						))}
 					</ul>
+				</div>
+			)}
+
+			{props.onGive && (
+				<div class="clm-give">
+					<h5 class="sp-pot-head">Mark a spot as claimed</h5>
+					<p class="pf-help">
+						{props.full ? 'Every spot is taken. Free one, or add a spot, first.' : 'Give a spot to an approved character, e.g. someone who held it before the Divine Database. It shows on their sheet.'}
+					</p>
+					{!props.full && (
+						<div class="clm-give-row">
+							<SelectField
+								label="Character"
+								value={giving}
+								placeholder={props.characters ? 'Pick a character…' : 'Loading characters…'}
+								options={(props.characters ?? [])
+									.filter((c) => !props.holders.some((h) => h.character_id === c.id))
+									.map((c) => ({ value: c.id, label: c.player ? `${c.name} (${c.player})` : c.name }))}
+								onChange={setGiving}
+							/>
+							<button
+								type="button"
+								class="pf-button primary"
+								disabled={busy || !giving}
+								onClick={() => {
+									const c = props.characters?.find((x) => x.id === giving);
+									if (c) props.onGive!(c);
+									setGiving('');
+								}}
+							>
+								Give the spot
+							</button>
+						</div>
+					)}
 				</div>
 			)}
 

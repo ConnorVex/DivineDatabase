@@ -231,6 +231,33 @@ export async function adminSetHolderCounts(id: string, counts: boolean) {
 	fail(error);
 }
 
+/** An approved character staff can give a claim to. */
+export interface ClaimCharacter {
+	id: string;
+	name: string;
+	player: string;
+}
+
+export async function loadClaimCharacters(): Promise<ClaimCharacter[]> {
+	const { data, error } = await db()
+		.from('characters')
+		.select('id, approved_name, owner:profiles!characters_owner_id_fkey(display_name)')
+		.not('approved_at', 'is', null)
+		.neq('status', 'denied')
+		.order('approved_name');
+	fail(error);
+	return (data ?? []).map((r: any) => ({ id: r.id, name: r.approved_name ?? 'Unnamed', player: (Array.isArray(r.owner) ? r.owner[0] : r.owner)?.display_name ?? '' }));
+}
+
+/** Staff mark a spot as claimed by a character (admins only). It counts toward the limit. */
+export async function adminGiveClaim(claimableId: string, c: ClaimCharacter) {
+	const { error } = await db()
+		.from('claims')
+		.insert({ claimable_id: claimableId, character_id: c.id, holder_name: c.player ? `${c.name} (${c.player})` : c.name });
+	if (error?.code === '23505') throw new Error(`${c.name} already holds this.`);
+	fail(error);
+}
+
 /** Frees a holder's slot (admins only). The character's sheet isn't changed. */
 export async function adminRemoveHolder(id: string) {
 	const { error } = await db().from('claims').delete().eq('id', id);
@@ -572,12 +599,9 @@ export async function staffEditCharacter(id: string, sheet: Sheet, overrides: St
 }
 
 /** Admin characters: approve a new one, or put the edits live on an approved one. */
-export async function publishAdminCharacter(id: string, approved: boolean) {
-	if (!approved) return reviewCharacter(id, 'approved', 'Admin character.');
-	const { data, error } = await db().from('characters').select('name, sheet').eq('id', id).single();
-	fail(error);
-	const { error: e2 } = await db().from('characters').update({ approved_name: data!.name, approved_sheet: data!.sheet }).eq('id', id);
-	fail(e2);
+export async function publishAdminCharacter(id: string, _approved?: boolean) {
+	// Approves a new one or puts the edits live, and hands out its claims (an Ocular while a spot is open).
+	fail((await db().rpc('publish_admin_character', { p_character: id })).error);
 }
 
 export async function setPinnedNotes(id: string, notes: PinnedNote[]) {

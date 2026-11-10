@@ -35,6 +35,8 @@ export function OcularPanel(props: {
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState('');
 	const spots = ocularSpots(spot, asked, held);
+	// Staff can give a spot straight to a character: it has an Ocular to describe even if it never asked.
+	const has = asked || held;
 	const image = /^(https:|blob:)/.test(String(fields.ocularImage ?? '')) ? String(fields.ocularImage) : '';
 
 	async function pick(file: File | undefined) {
@@ -68,7 +70,7 @@ export function OcularPanel(props: {
 				</div>
 			)}
 
-			{!asked ? (
+			{!has ? (
 				<>
 					<p class="oc-lead">An extremely rare trait you’re born with. Oculars run in families, and each one looks unique.</p>
 					<ul class="oc-gives">
@@ -80,7 +82,8 @@ export function OcularPanel(props: {
 						))}
 					</ul>
 					{!readOnly && !spot && <p class="pf-help">Ocular spots aren’t open on the Divine Database yet.</p>}
-					{!readOnly && spot && (
+					{!readOnly && spot && spots?.full && <p class="pf-help">Every Ocular spot is taken right now.</p>}
+					{!readOnly && spot && !spots?.full && (
 						<div class="oc-ask">
 							<button type="button" class="pf-button" onClick={() => props.onAsk(true)}>
 								Ask for an Ocular
