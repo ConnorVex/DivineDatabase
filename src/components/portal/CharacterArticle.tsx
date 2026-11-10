@@ -17,6 +17,7 @@ import { PillarCard } from './PillarSheet.tsx';
 import type { Pillar } from '../../lib/portal/pillars.ts';
 import { richText } from './TraitsSection.tsx';
 import { MafoSummary } from './MafoSheet.tsx';
+import { EvolutionMeter } from './PowerEvolution.tsx';
 import { PinBoxes } from './PinnedNotes.tsx';
 import type { PinnedNote } from '../../lib/portal/pins.ts';
 
@@ -369,6 +370,8 @@ function AbilityTabs(props: ArticleProps) {
 						)}
 					</div>
 				)}
+				{e.powerLink && e.powerLink.powerId !== 'mafo' && props.characterId && <EvolutionMeter characterId={props.characterId} cardKey={e.key} compact />}
+				{e.evolvedFrom?.length ? <p class="wk-sub-label">Evolved from {e.evolvedFrom.map((x) => x.from).join(' → ')}</p> : null}
 				{e.powerLink?.powerId === 'mafo' && props.characterId && <MafoSummary characterId={props.characterId} cardKey={e.key} />}
 				{e.mafoGift && <p class="wk-sub-label">Given by {e.mafoGift.from} (Maximum: All For One)</p>}
 				{e.description && <Prose value={e.description} />}

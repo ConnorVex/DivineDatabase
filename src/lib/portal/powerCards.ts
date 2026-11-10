@@ -20,8 +20,37 @@ export interface CustomPower {
 	description: string;
 	drawbacks: string;
 	tree: CustomTree | null;
+	/** The ready-made card (saved by the site), so the database can swap a card when it evolves. */
+	card?: SystemEntry | null;
+	/** The power this one evolves into, and how (see power_evolutions). */
+	evolves_to?: string | null;
+	evolution?: EvolutionRules | null;
 	created_at: string;
 	updated_at: string;
+}
+
+/** How a power evolves into the next: a meter on the card, then a lock before it changes. */
+export interface EvolutionRules {
+	/** The meter's name, e.g. "Metamorphosis". */
+	meter: string;
+	max: number;
+	/** Added by every approved training log that used the card (traits don't change it). */
+	perLog: number;
+	/** The meter only fills, and Evolve only works, once the card's skill tree is complete. */
+	treeFirst: boolean;
+	/** The lock after pressing Evolve: this many days, skipped early by this many approved RPs (0 = not used). */
+	lockDays: number;
+	lockRps: number;
+}
+
+export const DEFAULT_EVOLUTION: EvolutionRules = { meter: 'Evolution', max: 100, perLog: 0, treeFirst: false, lockDays: 0, lockRps: 3 };
+
+/** "7 days, or sooner after 3 RPs" */
+export function lockText(e: Pick<EvolutionRules, 'lockDays' | 'lockRps'>): string {
+	const days = e.lockDays > 0 ? `${e.lockDays} day${e.lockDays === 1 ? '' : 's'}` : '';
+	const rps = e.lockRps > 0 ? `${e.lockRps} RP${e.lockRps === 1 ? '' : 's'}` : '';
+	if (days && rps) return `${days}, or sooner after ${rps}`;
+	return days || rps || 'no wait';
 }
 
 /** A grant: on the account while character_id is null, else on that character's card. */

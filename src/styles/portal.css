@@ -12205,3 +12205,95 @@ details.pf-live .wk-infobox-img {
 .fm-unparalleled-tag {
 	margin-left: 0.5rem;
 }
+
+/* ── Evolving granted powers: the meter on the card ── */
+.evo {
+	display: flex;
+	flex-direction: column;
+	gap: 0.45rem;
+	margin: 0.6rem 0 0;
+	padding: 0.7rem 0.85rem;
+	border: 1px solid color-mix(in srgb, var(--pf-accent) 35%, transparent);
+	border-radius: 0.6rem;
+	background: rgb(0 0 0 / 0.18);
+}
+.evo > *,
+.evo .pw-actions > *,
+.evo-staff > * {
+	margin: 0;
+}
+.evo-top {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+}
+.evo-label {
+	color: var(--pf-accent);
+	font-size: var(--sl-text-xs);
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+.evo-top strong {
+	color: var(--sl-color-white);
+	font-size: var(--sl-text-lg);
+}
+.evo-top small {
+	color: var(--sl-color-gray-3);
+	font-size: var(--sl-text-xs);
+}
+.evo-bar {
+	height: 0.5rem;
+	border-radius: 999px;
+	background: var(--sl-color-gray-5);
+	overflow: hidden;
+}
+.evo-bar > span {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: var(--pf-accent);
+	transition: width 0.4s ease;
+}
+.evo.full .evo-bar > span {
+	background: linear-gradient(90deg, var(--pf-accent), #eab308);
+}
+.evo.evolving .evo-bar > span {
+	background: repeating-linear-gradient(45deg, var(--pf-accent) 0 10px, color-mix(in srgb, var(--pf-accent) 60%, #000) 10px 20px);
+}
+.evo-note {
+	color: var(--sl-color-gray-2);
+	font-size: var(--sl-text-sm);
+}
+.evo-staff {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+.evo-staff input {
+	flex: 1 1 8rem;
+	min-width: 0;
+	padding: 0.4rem 0.55rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.45rem;
+	background: var(--sl-color-black);
+	color: var(--sl-color-white);
+}
+.evo-staff input[type='number'] {
+	flex: 0 1 7rem;
+}
+.evo-log summary {
+	cursor: pointer;
+	color: var(--sl-color-gray-3);
+	font-size: var(--sl-text-xs);
+}
+.evo-log ul {
+	margin: 0.3rem 0 0;
+	padding-left: 1.1rem;
+	font-size: var(--sl-text-xs);
+}
+.evo .evo-log {
+	border: 0;
+	padding: 0;
+	background: none;
+}

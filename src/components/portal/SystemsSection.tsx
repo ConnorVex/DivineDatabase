@@ -38,6 +38,7 @@ import { BarrierList, type BarrierEntry } from './BarrierSheet.tsx';
 import { OcularPanel, ocularSpots } from './OcularSheet.tsx';
 import { PillarCard, usePillar } from './PillarSheet.tsx';
 import { MafoPanel } from './MafoSheet.tsx';
+import { EvolutionMeter } from './PowerEvolution.tsx';
 import { richText } from './TraitsSection.tsx';
 import { cardFromPower, powerCardChanged, refreshPowerCard, type CustomPower, type MyPowerGrant } from '../../lib/portal/powers.ts';
 import { ADAPTATION_TRAIT } from '../../lib/portal/fireforce.ts';
@@ -960,7 +961,7 @@ function AbilitySource(props: {
 }
 
 /** The top of a granted power's card: what the power is, its drawbacks, and an update when the admin changed it. */
-function PowerSource(props: { entry: SystemEntry; grants?: MyPowerGrant[]; disabled: boolean; onRefresh: (p: CustomPower) => void }) {
+function PowerSource(props: { entry: SystemEntry; grants?: MyPowerGrant[]; disabled: boolean; characterId?: string | null; onRefresh: (p: CustomPower) => void }) {
 	const link = props.entry.powerLink!;
 	const grant = props.grants?.find((g) => g.id === link.grantId);
 	const changed = grant && powerCardChanged(props.entry, grant.power);
@@ -976,6 +977,8 @@ function PowerSource(props: { entry: SystemEntry; grants?: MyPowerGrant[]; disab
 					<div dangerouslySetInnerHTML={richText(link.drawbacks)} />
 				</div>
 			)}
+			{props.entry.evolvedFrom?.length ? <p class="pf-help">Evolved from {props.entry.evolvedFrom.map((x) => x.from).join(' → ')}.</p> : null}
+			{link.powerId !== 'mafo' && <EvolutionMeter characterId={props.characterId} cardKey={props.entry.key} />}
 			{props.grants && link.grantId !== null && !grant && <p class="pf-wide roll-note bad">This power isn’t granted to you any more. Remove the card.</p>}
 			{changed && !props.disabled && (
 				<p class="pf-wide roll-note">
@@ -2053,7 +2056,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	return (
 		<>
 			<PinBoxes notes={(props.pins ?? []).filter((n) => n.step === 'systems' && n.target === `card:${entry.key}`)} sheet={sheet} />
-			{power && <PowerSource entry={entry} grants={props.powerGrants} disabled={readOnly} onRefresh={(p) => setEntry((e) => refreshPowerCard(e, p))} />}
+			{power && <PowerSource entry={entry} grants={props.powerGrants} disabled={readOnly} characterId={props.roller.characterId} onRefresh={(p) => setEntry((e) => refreshPowerCard(e, p))} />}
 			{!power && <AbilitySource
 				entry={entry}
 				abilities={props.familyAbilities && props.familyAbilities.filter((p) => p.details.ability && abilitySystem(p.details.ability) === entry.system)}

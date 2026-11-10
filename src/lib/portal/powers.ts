@@ -3,7 +3,7 @@
 // evolution, and approval uses the grant up) or straight onto one of their characters.
 // The card keeps a powerLink: the power's stats stay locked and the player fills in what's left open.
 import { supabase } from '../supabase.ts';
-import { cardFromPower, type CustomPower, type MyPowerGrant, type PowerGrantRow } from './powerCards.ts';
+import { cardFromPower, type CustomPower, type EvolutionRules, type MyPowerGrant, type PowerGrantRow } from './powerCards.ts';
 
 export * from './powerCards.ts';
 
@@ -21,15 +21,21 @@ export async function loadPowers(): Promise<CustomPower[]> {
 	return (data ?? []) as CustomPower[];
 }
 
-export async function savePower(p: Pick<CustomPower, 'name' | 'system' | 'ability' | 'description' | 'drawbacks' | 'tree'> & { id: string | null }): Promise<string> {
+export async function savePower(p: Pick<CustomPower, 'name' | 'system' | 'ability' | 'description' | 'drawbacks' | 'tree' | 'evolves_to' | 'evolution'> & { id: string | null }): Promise<string> {
+	const ability = { ...p.ability, system: p.system };
+	// The ready-made card; the database puts the power's id on it.
+	const card = cardFromPower({ ...p, ability, id: p.id ?? '', created_at: '', updated_at: '' }, null);
 	const { data, error } = await db().rpc('save_custom_power', {
 		p_id: p.id,
 		p_name: p.name,
 		p_system: p.system,
-		p_ability: { ...p.ability, system: p.system },
+		p_ability: ability,
 		p_description: p.description,
 		p_drawbacks: p.drawbacks,
 		p_tree: p.tree,
+		p_card: { ...card, key: '' },
+		p_evolves_to: p.evolves_to ?? null,
+		p_evolution: p.evolves_to ? p.evolution : null,
 	});
 	fail(error);
 	return data as string;
@@ -69,3 +75,37 @@ export async function grantsWithPowers(profileId: string): Promise<MyPowerGrant[
 	return ((data ?? []) as MyPowerGrant[]).filter((g) => g.power);
 }
 
+
+/** A card's progress towards the next stage (from power_evolution_state). */
+export interface CardEvolution {
+	card_key: string;
+	power: string;
+	next: string;
+	next_ready: boolean;
+	evolution: EvolutionRules;
+	meter: number;
+	started_at: string | null;
+	ends_at: string | null;
+	rps_since: number | null;
+	tree_complete: boolean;
+	can_evolve: boolean;
+	staff: boolean;
+	log: { change: number; meter_after: number; source: 'training' | 'staff' | 'evolve'; reason: string; at: string }[] | null;
+}
+
+/** Finishes any evolution whose wait is over, then reads the character's evolving cards. */
+export async function loadEvolutions(characterId: string): Promise<CardEvolution[]> {
+	if (!supabase) return [];
+	await db().rpc('power_evolution_tick', { p_character: characterId });
+	const { data, error } = await db().rpc('power_evolution_state', { p_character: characterId });
+	fail(error);
+	return (data ?? []) as CardEvolution[];
+}
+
+export async function startEvolution(characterId: string, card: string) {
+	fail((await db().rpc('start_power_evolution', { p_character: characterId, p_card: card })).error);
+}
+
+export async function adjustMeter(characterId: string, card: string, change: number, reason: string) {
+	fail((await db().rpc('adjust_power_meter', { p_character: characterId, p_card: card, p_change: change, p_reason: reason })).error);
+}

@@ -11,6 +11,9 @@ import {
 	powerGrants,
 	revokePowerGrant,
 	savePower,
+	DEFAULT_EVOLUTION,
+	lockText,
+	type EvolutionRules,
 	type CustomPower,
 	type PowerAbility,
 	type PowerGrantRow,
@@ -33,10 +36,12 @@ interface Draft {
 	description: string;
 	drawbacks: string;
 	tree: CustomPower['tree'];
+	evolves_to: string | null;
+	evolution: EvolutionRules;
 }
 
-const blankDraft = (): Draft => ({ id: null, name: '', ability: { system: 'abilities', fields: defaults(systemById.get('abilities')!.fields), skills: [] }, description: '', drawbacks: '', tree: null });
-const draftOf = (p: CustomPower): Draft => ({ id: p.id, name: p.name, ability: structuredClone(p.ability), description: p.description, drawbacks: p.drawbacks, tree: p.tree ? structuredClone(p.tree) : null });
+const blankDraft = (): Draft => ({ id: null, name: '', ability: { system: 'abilities', fields: defaults(systemById.get('abilities')!.fields), skills: [] }, description: '', drawbacks: '', tree: null, evolves_to: null, evolution: { ...DEFAULT_EVOLUTION } });
+const draftOf = (p: CustomPower): Draft => ({ id: p.id, name: p.name, ability: structuredClone(p.ability), description: p.description, drawbacks: p.drawbacks, tree: p.tree ? structuredClone(p.tree) : null, evolves_to: p.evolves_to ?? null, evolution: { ...DEFAULT_EVOLUTION, ...(p.evolution ?? {}) } });
 const systemOf = (d: { ability: PowerAbility }) => d.ability.system ?? 'abilities';
 
 export function PowersPanel(props: { players: PlayerSummary[]; characters: AdminCharacter[]; onChanged?: () => void }) {
@@ -60,6 +65,7 @@ export function PowersPanel(props: { players: PlayerSummary[]; characters: Admin
 				key={draft.id ?? 'new'}
 				initial={draft}
 				saved={powers.find((p) => p.id === draft.id) ?? null}
+				powers={powers}
 				players={props.players}
 				characters={props.characters}
 				onClose={() => setDraft(null)}
@@ -93,7 +99,9 @@ export function PowersPanel(props: { players: PlayerSummary[]; characters: Admin
 								<strong>{p.name}</strong>
 								{p.description.trim() && <span class="pw-tile-about">{p.description.replace(/\*\*|(^|\W)_|_(?=\W|$)/g, '$1').trim().slice(0, 140)}</span>}
 								<span class="pw-tile-meta">
-									{p.tree ? 'Skill tree · ' : ''}Updated {when(p.updated_at)}
+									{p.tree ? 'Skill tree · ' : ''}
+									{p.evolves_to ? `Evolves into ${powers.find((x) => x.id === p.evolves_to)?.name ?? 'another power'} · ` : ''}
+									{powers.some((x) => x.evolves_to === p.id) ? 'Evolved stage · ' : ''}Updated {when(p.updated_at)}
 								</span>
 							</button>
 						</li>
@@ -109,6 +117,7 @@ export function PowersPanel(props: { players: PlayerSummary[]; characters: Admin
 function PowerEditor(props: {
 	initial: Draft;
 	saved: CustomPower | null;
+	powers: CustomPower[];
 	players: PlayerSummary[];
 	characters: AdminCharacter[];
 	onClose: () => void;
@@ -131,7 +140,7 @@ function PowerEditor(props: {
 		setBusy(true);
 		setMsg('');
 		try {
-			const id = await savePower({ id: d.id, name: d.name.trim(), system, ability: d.ability, description: d.description, drawbacks: d.drawbacks, tree: d.tree });
+			const id = await savePower({ id: d.id, name: d.name.trim(), system, ability: d.ability, description: d.description, drawbacks: d.drawbacks, tree: d.tree, evolves_to: d.evolves_to, evolution: d.evolution });
 			setMsg('Saved.');
 			props.onSaved(id);
 		} catch (e) {
@@ -182,6 +191,8 @@ function PowerEditor(props: {
 				<p class="pf-help">Optional. Players get this tree on the card and unlock its skills with its points; they can’t change it.</p>
 				<CustomTreeBuilder entry={entry} disabled={false} onChange={(tree) => set({ tree })} />
 			</fieldset>
+
+			<EvolutionBox d={d} powers={props.powers} onChange={set} />
 
 			<div class="pw-actions">
 				<button type="button" class="pf-button primary" disabled={busy || !d.name.trim() || (!dirty && Boolean(d.id))} onClick={save}>
@@ -337,6 +348,58 @@ function GrantBox(props: { power: CustomPower; players: PlayerSummary[]; charact
 				</ul>
 			) : (
 				<p class="pf-empty">Not granted to anyone yet.</p>
+			)}
+		</fieldset>
+	);
+}
+
+/** What this power evolves into, and how: the meter on the card and the wait after pressing Evolve. */
+function EvolutionBox({ d, powers, onChange }: { d: Draft; powers: CustomPower[]; onChange: (patch: Partial<Draft>) => void }) {
+	const e = d.evolution;
+	const setE = (patch: Partial<EvolutionRules>) => onChange({ evolution: { ...e, ...patch } });
+	const num = (v: string, min: number, max: number) => Math.max(min, Math.min(max, Math.floor(Number(v) || 0)));
+	const from = powers.filter((p) => p.evolves_to === d.id && d.id);
+	return (
+		<fieldset class="sys-group pf-wide pw-evolve">
+			<legend>Evolution</legend>
+			<p class="pf-help">
+				Optional. Build each stage as its own power (e.g. Inferior Shrine, then Superior Shrine) and pick the next stage here. The card shows a meter; once it’s full the
+				player presses Evolve, waits out the lock, and the card becomes the next stage.
+				{from.length > 0 && ` ${from.map((p) => p.name).join(', ')} evolve${from.length === 1 ? 's' : ''} into this one.`}
+			</p>
+			<div class="pf-grid">
+				<SelectField
+					label="Evolves into"
+					value={d.evolves_to ?? ''}
+					options={[{ value: '', label: 'Nothing (final stage)' }, ...powers.filter((p) => p.id !== d.id).map((p) => ({ value: p.id, label: p.name }))]}
+					onChange={(v) => onChange({ evolves_to: v || null })}
+				/>
+				{d.evolves_to && (
+					<>
+						<TextField label="Meter name" value={e.meter} placeholder="e.g. Metamorphosis" onInput={(meter) => setE({ meter })} />
+						<TextField label="Meter size" type="text" value={String(e.max)} onInput={(v) => setE({ max: num(v, 1, 100000) })} help="Full at this many points." />
+						<TextField
+							label="Points per training log"
+							type="text"
+							value={String(e.perLog)}
+							onInput={(v) => setE({ perLog: num(v, 0, 1000) })}
+							help="Added when staff approve a training log that used the card. Traits don’t change it. Staff add the rest (combat) by hand."
+						/>
+						<TextField label="Lock: days" type="text" value={String(e.lockDays)} onInput={(v) => setE({ lockDays: num(v, 0, 365) })} help="0 for none." />
+						<TextField label="Lock: RPs that end it early" type="text" value={String(e.lockRps)} onInput={(v) => setE({ lockRps: num(v, 0, 100) })} help="Approved training logs after pressing Evolve. 0 for none." />
+					</>
+				)}
+			</div>
+			{d.evolves_to && (
+				<>
+					<label class="mafo-toggle">
+						<input type="checkbox" checked={e.treeFirst} onChange={(ev) => setE({ treeFirst: ev.currentTarget.checked })} />
+						<span>The skill tree must be complete first (the meter only fills after that)</span>
+					</label>
+					<p class="pf-help">
+						{e.lockDays || e.lockRps ? `The card is locked for ${lockText(e)} after pressing Evolve.` : 'With no lock, the card evolves as soon as Evolve is pressed.'} Skills the player wrote and their description carry over; the next stage starts with its own tree.
+					</p>
+				</>
 			)}
 		</fieldset>
 	);
