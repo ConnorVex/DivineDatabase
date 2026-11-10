@@ -969,7 +969,7 @@ export default function SubmitForm() {
 				<ComboReveal
 					key={unseen[0].name}
 					combo={unseen[0]}
-					picked={s.traits.map((t) => t.name)}
+					picked={s.traits.filter((t) => !t.family).map((t) => t.name)}
 					onDone={() => updateSheet((x) => void x.seenCombos.push(unseen[0].name))}
 				/>
 			)}
