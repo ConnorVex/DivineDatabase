@@ -205,7 +205,7 @@ export default function EvolvePage() {
 						Earn points with <code>/training log</code> in Discord: pick the systems you used, and staff approval adds each one’s points here. Convert them below, and
 						spend them on your skill trees.
 					</p>
-					<PointsPanel characterId={c.id} sheet={c.approvedSheet} />
+					<PointsPanel characterId={c.id} sheet={c.approvedSheet} staffOverrides={c.staffOverrides} progressed={c.progressed} />
 				</section>
 			)}
 

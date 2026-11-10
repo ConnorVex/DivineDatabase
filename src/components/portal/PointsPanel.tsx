@@ -6,12 +6,30 @@ import { adjustPoints, convertCustomPoints, convertPoints, loadPoints, removeSki
 import { CUSTOM, customTreeNodes } from '../../lib/portal/customTree.ts';
 import { applies, cardCurrencies, cardLabel } from '../../lib/portal/points.ts';
 import type { Sheet } from '../../lib/portal/sheet.ts';
+import { barrierUnlocked } from '../../lib/portal/systems.ts';
+
+const BARRIER_TREE = 'jjk-barrier';
 import { SkillTreeView } from './SkillTreeView.tsx';
 
 const messageOf = (e: unknown) => (e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e));
 const SOURCE = { training: '🏋️ Training', convert: '🔁 Converted', staff: '🛡️ Staff', sheet: '📄 Starting', unlock: '🌳 Unlocked', refund: '↩️ Refunded' } as const;
 
-export function PointsPanel({ characterId, sheet, admin = false, initial }: { characterId: string; sheet: Sheet; admin?: boolean; initial?: CharacterPoints }) {
+export function PointsPanel({
+	characterId,
+	sheet,
+	admin = false,
+	initial,
+	staffOverrides,
+	progressed,
+}: {
+	characterId: string;
+	sheet: Sheet;
+	admin?: boolean;
+	initial?: CharacterPoints;
+	/** For the Barrier Techniques tree: it only shows once Barrier Techniques are unlocked. */
+	staffOverrides?: Record<string, unknown> | null;
+	progressed?: boolean;
+}) {
 	const [data, setData] = useState<CharacterPoints | null>(initial ?? null);
 	const [error, setError] = useState('');
 	const [busy, setBusy] = useState(false);
@@ -74,7 +92,16 @@ export function PointsPanel({ characterId, sheet, admin = false, initial }: { ch
 	const tracked = new Set(data.currencies.map((c) => c.code));
 	const currencyName = (card: string, code: string) => (code === CUSTOM ? customOf(card)?.code || 'Custom' : code);
 	const treeCards = sheet.systems.flatMap((entry) => [
-		...data.trees.filter((t) => t.system === entry.system && applies(t, entry)).map((tree) => ({ entry, tree, nodes: data.nodes.filter((n) => n.tree_id === tree.id) })),
+		...data.trees
+			.filter((t) => t.system === entry.system && applies(t, entry))
+			// The Barrier Techniques tree waits until they're unlocked (staff still see one with unlocks on it).
+			.filter(
+				(t) =>
+					t.id !== BARRIER_TREE ||
+					barrierUnlocked(sheet, entry, { progressed, staffOverrides: staffOverrides ?? undefined, approvedFields: entry.fields }) !== null ||
+					(admin && data.unlocks.some((u) => u.card_key === entry.key && u.tree_id === t.id)),
+			)
+			.map((tree) => ({ entry, tree, nodes: data.nodes.filter((n) => n.tree_id === tree.id) })),
 		...(entry.customTree
 			? [{ entry, tree: { id: 'custom', system: entry.system, label: entry.customTree.name || 'Custom tree', show_if: null, sort: 0 }, nodes: customTreeNodes(entry.customTree) }]
 			: []),

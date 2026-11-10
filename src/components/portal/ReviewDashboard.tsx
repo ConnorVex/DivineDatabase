@@ -447,7 +447,7 @@ function Detail(props: {
 
 					{c.approved_sheet && (
 						<Block title="Upgrade points">
-							<PointsPanel characterId={c.id} sheet={c.approved_sheet} admin={props.admin} />
+							<PointsPanel characterId={c.id} sheet={c.approved_sheet} admin={props.admin} staffOverrides={c.staff_overrides} progressed={c.progressed} />
 						</Block>
 					)}
 
