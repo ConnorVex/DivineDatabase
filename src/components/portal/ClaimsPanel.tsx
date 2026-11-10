@@ -196,6 +196,8 @@ export function ClaimsPanel(props: { universes: Universe[]; onChanged?: () => vo
 	);
 }
 
+const NEW_CATEGORY = '__new_category__';
+
 function ClaimEditor(props: {
 	draft: Draft;
 	categories: string[];
@@ -215,18 +217,43 @@ function ClaimEditor(props: {
 	const { draft, busy } = props;
 	const [giving, setGiving] = useState('');
 	const set = (patch: Partial<Draft>) => props.onChange({ ...draft, ...patch });
-	const listId = `clm-cats-${draft.id ?? 'new'}`;
+	// The series' categories (and this claim's own, if it's not one of them); a new one is typed in.
+	const categories = [...new Set([...props.categories, ...(draft.category.trim() ? [draft.category.trim()] : [])])];
+	const [newCategory, setNewCategory] = useState(false);
 	const unlimited = draft.max_users === null;
 	return (
 		<div class="clm-edit">
 			<div class="clm-edit-grid">
 				<TextField label="Name" required value={draft.name} onInput={(name) => set({ name })} />
-				<TextField label="Category" list={listId} value={draft.category} placeholder="e.g. Standard" help="Pick one or type a new one." onInput={(category) => set({ category })} />
-				<datalist id={listId}>
-					{props.categories.map((c) => (
-						<option key={c} value={c} />
-					))}
-				</datalist>
+				{newCategory ? (
+					<TextField
+						label="Category"
+						value={draft.category}
+						placeholder="Name the new category"
+						help={
+							<button type="button" class="pf-link-button" onClick={() => setNewCategory(false)}>
+								Pick from the list
+							</button>
+						}
+						onInput={(category) => set({ category })}
+					/>
+				) : (
+					<SelectField
+						label="Category"
+						value={draft.category}
+						placeholder="Pick a category…"
+						options={[
+							...categories.map((c) => ({ value: c })),
+							{ value: NEW_CATEGORY, label: '＋ New category…' },
+						]}
+						onChange={(v) => {
+							if (v === NEW_CATEGORY) {
+								setNewCategory(true);
+								set({ category: '' });
+							} else set({ category: v });
+						}}
+					/>
+				)}
 				<div class="clm-spots">
 					<NumberField label="Spots" min={0} value={unlimited ? undefined : draft.max_users!} disabled={unlimited} onInput={(n) => set({ max_users: Math.max(0, Math.floor(n)) })} />
 					<label class="clm-check">
