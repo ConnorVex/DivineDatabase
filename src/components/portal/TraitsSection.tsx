@@ -123,6 +123,8 @@ interface Props {
 	/** Trait perks of the character's families (null while loading). */
 	familyTraits: LinkablePerk[] | null;
 	familyName: (id: string) => string;
+	/** An admin character: no slot limit, and its Potential is set in Stats instead of rolled. */
+	noLimits?: boolean;
 }
 
 /** The traits the character's families offer. One can be taken as the Family trait, in a single slot. */
@@ -156,7 +158,7 @@ function FamilyTraits(props: { perks: LinkablePerk[]; sheet: Sheet; left: number
 	);
 }
 
-export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits, readOnly, roller, familyTraits, familyName }: Props) {
+export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits, readOnly, roller, familyTraits, familyName, noLimits = false }: Props) {
 	const [query, setQuery] = useState('');
 	const [open, setOpen] = useState<Combo | null>(null);
 	const picked = sheet.traits.map((t) => t.name);
@@ -173,7 +175,7 @@ export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits,
 	}, [query, picked.join('|')]);
 
 	const setTrait = (i: number, patch: Partial<PickedTrait>) => update((s) => Object.assign(s.traits[i], patch));
-	const left = slots.total - slots.used;
+	const left = noLimits ? Infinity : slots.total - slots.used;
 	const slotsOf = (name: string) => rarityLabel.get(traitByName.get(name)?.rarity ?? '')?.slots ?? 1;
 
 	return (
@@ -182,33 +184,41 @@ export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits,
 			title="Traits"
 			intro="Roll your Potential here, then add the traits you rolled. Common and Uncommon traits take 1 slot, Rare 2, Legendary 3, Mythic 4."
 			badge={
-				<span class={`pf-badge ${slots.used > slots.total ? 'bad' : 'ok'}`}>
-					Slots {slots.used} / {slots.total}
-				</span>
+				noLimits ? (
+					<span class="pf-badge ok">{slots.used} slots · no limit</span>
+				) : (
+					<span class={`pf-badge ${slots.used > slots.total ? 'bad' : 'ok'}`}>
+						Slots {slots.used} / {slots.total}
+					</span>
+				)
 			}
 		>
-			<RollPanel
-				kind="potential"
-				record={roller.characterRolls.potential}
-				current={sheet.potential.grade ? { grade: sheet.potential.grade, roll: sheet.potential.roll } : null}
-				characterId={roller.characterId}
-				myRolls={roller.myRolls}
-				ensureSaved={roller.ensureSaved}
-				refresh={roller.refresh}
-				readOnly={readOnly}
-				onRolled={(r) =>
-					update((s) => {
-						s.potential.grade = r.grade ?? '';
-						s.potential.roll = r.roll ?? null;
-					})
-				}
-				onCleared={() =>
-					update((s) => {
-						s.potential.grade = '';
-						s.potential.roll = null;
-					})
-				}
-			/>
+			{noLimits ? (
+				<p class="pf-help pf-wide">Admin character: set its Potential in Stats. Add any traits you like, with no slot limit.</p>
+			) : (
+				<RollPanel
+					kind="potential"
+					record={roller.characterRolls.potential}
+					current={sheet.potential.grade ? { grade: sheet.potential.grade, roll: sheet.potential.roll } : null}
+					characterId={roller.characterId}
+					myRolls={roller.myRolls}
+					ensureSaved={roller.ensureSaved}
+					refresh={roller.refresh}
+					readOnly={readOnly}
+					onRolled={(r) =>
+						update((s) => {
+							s.potential.grade = r.grade ?? '';
+							s.potential.roll = r.roll ?? null;
+						})
+					}
+					onCleared={() =>
+						update((s) => {
+							s.potential.grade = '';
+							s.potential.roll = null;
+						})
+					}
+				/>
+			)}
 			{(() => {
 				const p = rules.potentials.find((x) => x.id === sheet.potential.grade);
 				return p ? <p class="pf-help pf-wide">{`${p.label} Potential reaches up to Phase ${p.maxPhase} (Tier ${p.maxTier}).`}</p> : null;
@@ -315,7 +325,9 @@ export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits,
 					</label>
 					<input id="trait-search" type="search" placeholder="Search by name, rarity or type (e.g. “rare”, “skill”)" value={query} onInput={(e) => setQuery(e.currentTarget.value)} />
 					<p class="pf-help" role="status">
-						{left <= 0
+						{noLimits
+							? 'No slot limit on an admin character.'
+							: left <= 0
 							? 'All your trait slots are full. Remove a trait to add a different one.'
 							: `${left} slot${left === 1 ? '' : 's'} left. Traits that don’t fit are greyed out.`}
 					</p>

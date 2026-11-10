@@ -10765,6 +10765,12 @@ details.pf-live .wk-infobox-img {
 	font-weight: 600;
 	cursor: pointer;
 }
+/* Starlight's page styles give every element after the first a top margin, which pushed every tab
+   after the first one down. The doubled class outranks that rule. */
+.clm-types.clm-types > *,
+.wk-ab-tabs.wk-ab-tabs > * {
+	margin: 0;
+}
 .clm-types button span {
 	font-family: var(--pf-mono);
 	font-size: 0.75em;
@@ -10938,6 +10944,7 @@ details.pf-live .wk-infobox-img {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
+	justify-content: center;
 	flex: none;
 	max-width: 14rem;
 	padding: 0.45rem 0.8rem;
@@ -11115,4 +11122,235 @@ details.pf-live .wk-infobox-img {
 	border-radius: 999px;
 	font-size: var(--sl-text-xs);
 	color: var(--pf-text);
+}
+
+/* Players view: the picked character's staff edit, and the account-wide panels' heading */
+.ov-staff {
+	margin-top: 0.9rem;
+	padding-top: 0.9rem;
+	border-top: 1px dashed var(--pf-line);
+}
+.pf .ov-staff > * {
+	margin: 0 0 0.5rem;
+}
+.pf .ov-account-head {
+	margin: 1.25rem 0 0.5rem;
+	font-family: var(--pf-display, inherit);
+	font-weight: 700;
+	color: var(--pf-text);
+}
+
+/* Admin characters: a select that also takes a typed value */
+.free-select {
+	display: grid;
+	gap: 0.25rem;
+	align-content: start;
+}
+.pf .free-select > * {
+	margin: 0;
+}
+.pf-link-button {
+	justify-self: start;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--pf-accent);
+	font: inherit;
+	font-size: var(--sl-text-xs);
+	font-weight: 600;
+	cursor: pointer;
+}
+.pf-link-button:hover {
+	text-decoration: underline;
+}
+
+/* ── Character gallery (CharacterGallery.tsx) ── */
+.gal {
+	display: grid;
+	gap: 1rem;
+}
+.pf.gal > *,
+.gal-head > *,
+.gal-tools > *,
+.gal-kinds.gal-kinds > *,
+.gal-grid > *,
+.gal-card *,
+.gal-count > * {
+	margin: 0;
+}
+.gal-head {
+	display: grid;
+	gap: 0.75rem;
+}
+.gal-intro {
+	color: var(--pf-muted);
+}
+.gal-tools {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	align-items: center;
+}
+.gal-search {
+	flex: 1 1 18rem;
+	min-width: 0;
+}
+.gal-tools input,
+.gal-tools select {
+	width: 100%;
+	min-height: 2.6rem;
+	padding: 0.5rem 0.8rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.6rem;
+	background: var(--pf-field);
+	color: var(--pf-text);
+	font: inherit;
+	font-size: var(--sl-text-sm);
+}
+.gal-tools select {
+	width: auto;
+	flex: 0 1 auto;
+	max-width: 100%;
+}
+.gal-tools :is(input, select):focus-visible {
+	outline: 2px solid var(--pf-accent);
+	outline-offset: 1px;
+}
+.gal-kinds {
+	display: inline-flex;
+	padding: 0.2rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.7rem;
+	background: var(--pf-field);
+}
+.gal-kinds button {
+	padding: 0.4rem 0.8rem;
+	border: 0;
+	border-radius: 0.5rem;
+	background: transparent;
+	color: var(--pf-muted);
+	font: inherit;
+	font-size: var(--sl-text-sm);
+	font-weight: 600;
+	cursor: pointer;
+}
+.gal-kinds button.on {
+	background: var(--pf-glow);
+	color: var(--pf-text);
+}
+.gal-count {
+	display: flex;
+	gap: 0.75rem;
+	align-items: baseline;
+	color: var(--pf-muted);
+	font-size: var(--sl-text-sm);
+}
+.gal-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+	gap: 0.85rem;
+}
+.gal-card {
+	--gal-fam: var(--pf-accent);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.9rem;
+	background: var(--pf-panel);
+	color: var(--pf-text);
+	text-decoration: none;
+	transition:
+		border-color 0.15s,
+		transform 0.15s;
+}
+.gal-card:hover,
+.gal-card:focus-visible {
+	border-color: var(--gal-fam);
+	transform: translateY(-2px);
+}
+.gal-art {
+	display: grid;
+	place-items: center;
+	aspect-ratio: 4 / 3;
+	background: linear-gradient(160deg, color-mix(in srgb, var(--gal-fam) 22%, var(--pf-field)), var(--pf-field));
+	overflow: hidden;
+}
+.gal-art img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: top;
+}
+.gal-initial {
+	font-size: 2.6rem;
+	font-weight: 800;
+	color: color-mix(in srgb, var(--gal-fam) 70%, var(--pf-text));
+}
+.gal-lock {
+	font-size: 2rem;
+	opacity: 0.8;
+}
+.gal-card.locked .gal-art {
+	background: repeating-linear-gradient(135deg, var(--pf-field) 0 10px, color-mix(in srgb, var(--pf-line) 45%, var(--pf-field)) 10px 20px);
+}
+.gal-body {
+	display: grid;
+	gap: 0.35rem;
+	padding: 0.7rem 0.8rem 0.85rem;
+}
+.gal-name {
+	font-weight: 700;
+	line-height: 1.25;
+}
+.gal-player {
+	display: flex;
+	align-items: center;
+	gap: 0.35rem;
+	color: var(--pf-muted);
+	font-size: var(--sl-text-xs);
+}
+.gal-player img {
+	border-radius: 50%;
+}
+.gal-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+}
+.gal-tag {
+	padding: 0.1rem 0.45rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.4rem;
+	color: var(--pf-muted);
+	font-size: 0.7rem;
+	font-weight: 600;
+}
+.gal-tag.canon {
+	border-color: color-mix(in srgb, var(--pf-legendary) 50%, var(--pf-line));
+	color: var(--pf-legendary);
+}
+.gal-tag.pot {
+	border-color: var(--pf-line-strong);
+	color: var(--pf-text);
+}
+.gal-tag.muted {
+	opacity: 0.75;
+}
+.gal-fam {
+	font-size: var(--sl-text-xs);
+	font-weight: 600;
+	color: color-mix(in srgb, var(--gal-fam) 75%, var(--pf-text));
+}
+.gal-more {
+	justify-self: center;
+}
+@media (max-width: 30rem) {
+	.gal-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.6rem;
+	}
+	.gal-tools select {
+		flex: 1 1 40%;
+	}
 }

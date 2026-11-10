@@ -124,6 +124,8 @@ interface Props {
 	issues?: Issue[];
 	/** Local testing only (the dev preview's ?all): every locked tab and potential opens. */
 	unlockAll?: boolean;
+	/** An admin's own character: no limits at all, and any value can be typed in (custom CE levels and so on). */
+	adminCharacter?: boolean;
 }
 
 const newKey = () => Math.random().toString(36).slice(2, 10);
@@ -160,6 +162,33 @@ const JJK_LEVEL_OPTIONS: Record<string, { value: string; label: string }[]> = {
 	],
 };
 
+/** A select that also takes any typed value: admin characters can set things outside the lists. */
+function FreeSelect(props: { label: string; help?: string; value: string; options: { value: string; label?: string; group?: string }[]; disabled: boolean; onChange: (v: string) => void }) {
+	const listed = props.value === '' || props.options.some((o) => o.value === props.value && !/\(custom\)$/.test(o.label ?? ''));
+	const [typing, setTyping] = useState(!listed);
+	if (typing)
+		return (
+			<div class="free-select">
+				<TextField label={`${props.label} (custom)`} help={props.help} value={props.value} disabled={props.disabled} placeholder="Type any value" onInput={props.onChange} />
+				{!props.disabled && (
+					<button type="button" class="pf-link-button" onClick={() => setTyping(false)}>
+						Pick from the list
+					</button>
+				)}
+			</div>
+		);
+	return (
+		<div class="free-select">
+			<SelectField label={props.label} help={props.help} value={props.value} options={props.options.map((o) => ({ ...o, disabled: false }))} disabled={props.disabled} onChange={props.onChange} />
+			{!props.disabled && (
+				<button type="button" class="pf-link-button" onClick={() => setTyping(true)}>
+					✎ Type a custom value
+				</button>
+			)}
+		</div>
+	);
+}
+
 export function FieldInput(props: {
 	field: Field;
 	value: FieldValue | undefined;
@@ -176,18 +205,21 @@ export function FieldInput(props: {
 	lockPermission?: boolean;
 	/** The character's traits: options only a trait opens (Bio-King's Colossal power) need it. */
 	traits?: string[];
+	/** An admin character: every option open, no minimums, and any value can be typed in. */
+	free?: boolean;
 }) {
-	const { field, value, onChange, blocked } = props;
-	const atStart = props.atStart && field.startsAt !== undefined;
+	const { field, value, onChange } = props;
+	const blocked = props.free ? undefined : props.blocked;
+	const atStart = !props.free && props.atStart && field.startsAt !== undefined;
 	const label = field.label;
 	const help = atStart ? [field.help, `Starts at ${startText(field)}; higher needs a stat override.`].filter(Boolean).join(' ') : field.help;
 	const startChoices = atStart && Array.isArray(field.startsAt) ? field.startsAt : null;
 	const options = (field.options ?? []).map((o: Option) => {
 		const isBlocked = blocked?.value === o.value && value !== o.value;
 		const selected = Array.isArray(value) ? (value as string[]).includes(o.value) : value === o.value;
-		const pastStart = Boolean(startChoices && !startChoices.includes(o.value) && !selected) || Boolean(props.lockPermission && o.permission && !selected);
-		const noTrait = Boolean(o.trait && props.traits && !props.traits.includes(o.trait) && !selected);
-		const noPoints = !pastStart && !noTrait && !selected && Boolean(props.overBudget?.(o.value));
+		const pastStart = !props.free && (Boolean(startChoices && !startChoices.includes(o.value) && !selected) || Boolean(props.lockPermission && o.permission && !selected));
+		const noTrait = !props.free && Boolean(o.trait && props.traits && !props.traits.includes(o.trait) && !selected);
+		const noPoints = !props.free && !pastStart && !noTrait && !selected && Boolean(props.overBudget?.(o.value));
 		const note = isBlocked ? ` (${blocked!.reason})` : noTrait ? ` (needs ${o.trait})` : pastStart ? ' (override)' : noPoints ? ' (no points left)' : '';
 		let displayLabel = o.label ?? o.value;
 		if (field.key === 'generation' && field.label.toLowerCase().includes('generation')) {
@@ -210,6 +242,7 @@ export function FieldInput(props: {
 		if (curValStr !== '' && !jjkOpts.some((o) => o.value === curValStr)) {
 			jjkOpts.push({ value: curValStr, label: `Level ${curValStr} (custom)` });
 		}
+		if (props.free) return <FreeSelect label={label} help={help} value={curValStr} options={jjkOpts} disabled={disabled} onChange={(v) => onChange(/^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v)} />;
 		return (
 			<SelectField
 				label={label}
@@ -226,13 +259,14 @@ export function FieldInput(props: {
 	// A family ability can set its own value outside the list.
 	if (field.type === 'select' && value !== undefined && value !== '' && !options.some((o) => o.value === String(value)))
 		options.push({ value: String(value), label: `${value} (custom)`, disabled: false });
+	if (props.free && field.type === 'select') return <FreeSelect label={label} help={help} value={String(value ?? '')} options={options} disabled={disabled} onChange={onChange} />;
 	switch (field.type) {
 		case 'select':
 			return <SelectField label={label} help={help} required={field.required} value={String(value ?? '')} options={options} disabled={disabled} onChange={onChange} />;
 		case 'multiselect':
 			return <CheckboxGroup label={label} help={help} required={field.required} values={Array.isArray(value) ? (value as string[]) : []} options={options} disabled={disabled} onChange={onChange} />;
 		case 'number':
-			return <NumberField label={label} help={help} required={field.required} min={field.min} value={typeof value === 'number' ? value : Number(value) || 0} disabled={disabled} onInput={onChange} />;
+			return <NumberField label={label} help={help} required={field.required} min={props.free ? undefined : field.min} value={typeof value === 'number' ? value : Number(value) || 0} disabled={disabled} onInput={onChange} />;
 		case 'textarea':
 			return <TextArea label={label} help={help} required={field.required} rows={3} value={String(value ?? '')} disabled={disabled} onInput={onChange} />;
 		case 'list': {
@@ -447,6 +481,7 @@ export function SkillsEditor({
 	tree,
 	defaults = [],
 	defaultsFrom,
+	noLimits = false,
 }: {
 	skills: Skill[];
 	/** Moves the system always gives, shown first and not editable. */
@@ -459,6 +494,8 @@ export function SkillsEditor({
 	isEvolution: boolean;
 	isTreeActive?: boolean;
 	tree?: CustomTree | null;
+	/** An admin character: as many skills of each kind as they like. */
+	noLimits?: boolean;
 }) {
 	const set = (i: number, patch: Partial<Skill>) => onUpdate((prev) => prev.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 	const [editing, setEditing] = useState<number | null>(null);
@@ -468,8 +505,8 @@ export function SkillsEditor({
 	const ultimateName = limits?.ultimateLabel ?? 'Ultimate';
 	// A new character can only add the skills their system starts with; Maximum-style caps always apply.
 	const count = (type: Skill['type']) => skills.filter((s) => s.type === type && !s.locked).length;
-	const standardFull = !isEvolution && count('standard') >= startingMax('standard', limits);
-	const ultimateFull = count('ultimate') >= (isEvolution ? (limits?.ultimateCap ?? Infinity) : startingMax('ultimate', limits));
+	const standardFull = !noLimits && !isEvolution && count('standard') >= startingMax('standard', limits);
+	const ultimateFull = !noLimits && count('ultimate') >= (isEvolution ? (limits?.ultimateCap ?? Infinity) : startingMax('ultimate', limits));
 	const lockedCount = skills.filter((s) => s.locked).length;
 	const nodeCost = (s: Skill) => {
 		const node = tree?.nodes.find((n) => n.id === s.treeNodeId);
@@ -698,7 +735,7 @@ export function SkillsEditor({
 	);
 }
 
-function ClaimPicker(props: { universe: string; label: string; board: ClaimRow[]; picked: string[]; held: Set<string>; onChange: (ids: string[]) => void; disabled: boolean }) {
+function ClaimPicker(props: { universe: string; label: string; board: ClaimRow[]; picked: string[]; held: Set<string>; onChange: (ids: string[]) => void; disabled: boolean; free?: boolean }) {
 	// One-user categories (Pillars) come first, in their own section, and hold one character each.
 	const oneUser = (r: ClaimRow) => props.universe === 'fire-force' && ONE_USER_CATEGORIES.includes(r.category);
 	const rows = props.board
@@ -710,7 +747,7 @@ function ClaimPicker(props: { universe: string; label: string; board: ClaimRow[]
 	const mine = rows.filter((r) => props.picked.includes(r.id));
 	// One canon ability per series: picking another swaps it.
 	const others = props.picked.filter((id) => !rows.some((r) => r.id === id));
-	const full = (r: ClaimRow) => r.max_users !== null && r.used_slots >= r.max_users && !props.held.has(r.id);
+	const full = (r: ClaimRow) => !props.free && r.max_users !== null && r.used_slots >= r.max_users && !props.held.has(r.id);
 	const usage = (r: ClaimRow) => (r.max_users === null ? 'no limit' : `${r.used_slots}/${r.max_users}`);
 	return (
 		<div class="pf-wide claim-picker">
@@ -1231,6 +1268,10 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 		tabs: [{ id: 'main', label: def.label, blocks: [{ kind: 'group', label: '' }, { kind: 'description' }] }, SKILLS_TAB, TREE_TAB],
 	};
 	const f = entry.fields;
+	// Admin characters open everything, like the dev preview's ?all.
+	const free = Boolean(props.adminCharacter);
+	const unlock = Boolean(props.unlockAll) || free;
+	const unlockedText = free ? 'Open on an admin character.' : 'Unlocked for testing.';
 
 	// Locks, as on every card: family abilities, wallet-tracked points, a Heavenly Restriction, staff values.
 	const linked = Boolean(entry.familyLink);
@@ -1240,9 +1281,9 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	const effect = entry.system === 'jujutsu-kaisen' ? heavenlyEffect(f.heavenlyRestriction, f) : null;
 	// With a stat override (and no restriction granted to the account), a Heavenly Restriction can be asked for here.
 	const heavenlyAsk = Boolean(entry.statOverride) && !props.isEvolution && !linked && !props.heavenlyGrant && entry.system === 'jujutsu-kaisen';
-	const heavenlyLocked = (key: string) => (key === 'heavenlyRestriction' && !props.unlockAll && !heavenlyAsk && (props.isEvolution || props.heavenlyGrant !== null || !effect)) || Boolean(effect && key in effect.fixed);
+	const heavenlyLocked = (key: string) => (key === 'heavenlyRestriction' && !unlock && !heavenlyAsk && (props.isEvolution || props.heavenlyGrant !== null || !effect)) || Boolean(effect && key in effect.fixed);
 	const staffSet = (key: string) => Boolean(props.staffOverrides?.[cardPath(entry.key, key)]);
-	const setByRoll = (key: string) => Boolean(def.fields.find((x) => x.key === key)?.setByRoll) && !staffSet(key);
+	const setByRoll = (key: string) => !free && Boolean(def.fields.find((x) => x.key === key)?.setByRoll) && !staffSet(key);
 	// A canon Quirk's class and Quirk Factor are fixed, and so is a Pillar Ignition's Adolla Burst.
 	const canonFixed: Fields = (() => {
 		if (linked || !['quirk', 'fire-force', 'jojo', 'infamous'].includes(def.id)) return {};
@@ -1271,7 +1312,9 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 		const b = systemBudget(sheet, { ...entry, fields: { ...f, [key]: v } });
 		return Boolean(b && b.spent > b.total && b.spent > spentNow);
 	};
+	// An admin character types its Cursed Energy in instead of rolling it.
 	const rollOpen =
+		!free &&
 		(!linked || own.some((k) => def.fields.find((x) => x.key === k)?.rolled)) && !(effect && 'ceClass' in effect.fixed) && !props.staffOverrides?.[cardPath(entry.key, 'ceClass')];
 	const claimable = Boolean(def.universe && def.claimLabel) && !effect?.noTechnique && (def.id !== 'jujutsu-kaisen' || jjkTechnique(f)) && (def.id !== 'jojo' || hasStand(f));
 	const universe = props.universes.find((u) => u.slug === def.universe);
@@ -1292,7 +1335,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	const picked = Array.isArray(f[EXTRAS_KEY]) ? (f[EXTRAS_KEY] as string[]) : [];
 	const current = tabs.find((t) => t.id === props.tab) ?? tabs[0];
 	const labelOf = (t: PanelTab) => (typeof t.label === 'function' ? t.label(f) : t.label);
-	const barrierNatural = def.id !== 'jujutsu-kaisen' ? null : props.unlockAll ? 'Unlocked for testing.' : barrierUnlocked(sheet, entry, { isEvolution: props.isEvolution, staffOverrides: props.staffOverrides });
+	const barrierNatural = def.id !== 'jujutsu-kaisen' ? null : unlock ? unlockedText : barrierUnlocked(sheet, entry, { isEvolution: props.isEvolution, staffOverrides: props.staffOverrides });
 	// A stat override can ask to start with Barrier Techniques too.
 	const barrierAsk = def.id === 'jujutsu-kaisen' && !barrierNatural && Boolean(entry.statOverride) && canOverride;
 	const barrierOpen = barrierNatural ?? (barrierAsk ? 'Opened by your stat override request.' : null);
@@ -1304,7 +1347,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	const potentialOf = (id: string) => {
 		const p = potentials.find((x) => x.id === id);
 		if (!p) return null;
-		const state = props.unlockAll ? { ...potentialState(p, entry, potentialCtx), open: true, reason: 'Unlocked for testing.' } : potentialState(p, entry, potentialCtx);
+		const state = unlock ? { ...potentialState(p, entry, potentialCtx), open: true, reason: unlockedText } : potentialState(p, entry, potentialCtx);
 		// Once unstable, the Variant roll stays open even if the requirements changed since.
 		return { p, state: p.id === 'variant' && unstable && !state.open ? { ...state, open: true, reason: 'Your Quirk is unstable. Roll for Spontaneous Evolution below.' } : state };
 	};
@@ -1321,8 +1364,8 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	const ocularAsked = Boolean(ocularSpot && props.requestedClaims.includes(ocularSpot.id));
 	const ocularHeld = Boolean(ocularSpot && props.heldClaims.has(ocularSpot.id));
 	const lockReason = (t: PanelTab): string | null => {
-		if (t.lock === 'ocular' && !ocularAsked && ocularSpots(ocularSpot, false, ocularHeld)?.full) return 'All Ocular Spots are taken';
-		if (props.unlockAll) return null;
+		if (t.lock === 'ocular' && !free && !ocularAsked && ocularSpots(ocularSpot, false, ocularHeld)?.full) return 'All Ocular Spots are taken';
+		if (unlock) return null;
 		if (t.potential) {
 			const pot = potentialOf(t.potential);
 			return pot && !pot.state.open ? pot.state.reason : null;
@@ -1345,7 +1388,8 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 			key={field.key}
 			field={field.key in canonFixed ? { ...field, help: canonHelp, ...(field.options && !field.options.some((o) => o.value === String(canonFixed[field.key])) ? { options: [...field.options, { value: String(canonFixed[field.key]) }] } : {}) } : staffSet(field.key) ? { ...field, help: 'Set by staff.' } : tracked(field.key) ? { ...field, help: TRACKED_HELP } : field}
 			value={field.key in canonFixed ? canonFixed[field.key] : f[field.key]}
-			disabled={fieldLocked(field.key) || Boolean(field.rolled)}
+			disabled={fieldLocked(field.key) || (Boolean(field.rolled) && !free)}
+			free={free}
 			blocked={def.limitedChoice?.key === field.key && props.limitedChoiceFull(entry) ? { value: def.limitedChoice.value, reason: 'max reached' } : undefined}
 			atStart={startHeld}
 			overBudget={budgetLocked ? (v) => overBudget(field.key, v) : undefined}
@@ -1505,6 +1549,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 							board={props.claimBoard}
 							picked={props.requestedClaims}
 							held={props.heldClaims}
+							free={free}
 							disabled={readOnly}
 							onChange={(ids) => {
 								props.setRequestedClaims(ids);
@@ -1594,6 +1639,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 							defaults={def.defaultMoves?.(f)}
 							defaultsFrom={def.id === 'infamous' ? `Every ${String(f.class)} Conduit` : undefined}
 							isEvolution={props.isEvolution}
+							noLimits={Boolean(props.adminCharacter)}
 							isTreeActive={Boolean(entry.customTree)}
 							tree={entry.customTree}
 							onUpdate={(fn) =>
@@ -1708,7 +1754,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 					<AwakeningLog
 						key={i}
 						fields={f}
-						canAdd={Boolean(pot?.state.open) && (props.isEvolution || Boolean(props.unlockAll))}
+						canAdd={Boolean(pot?.state.open) && (props.isEvolution || unlock)}
 						readOnly={readOnly || staffSet('awakenings')}
 						approvedCount={0}
 						onChange={(log) => setEntry((e) => void Object.assign(e.fields, withAwakenings(e.fields, log)))}
@@ -1745,7 +1791,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 						key={i}
 						fields={f}
 						stamina={String(sheet.stats.stamina ?? '')}
-						canLog={!readOnly && (props.isEvolution || Boolean(props.unlockAll) || staffSet('techniques'))}
+						canLog={!readOnly && (props.isEvolution || unlock || staffSet('techniques'))}
 						onLog={(log) => setEntry((e) => void Object.assign(e.fields, withTechniques(e.fields, log)))}
 					/>
 				);
@@ -1754,7 +1800,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 					<AdollaLinks
 						key={i}
 						fields={f}
-						canAdd={!readOnly && (props.isEvolution || Boolean(props.unlockAll))}
+						canAdd={!readOnly && (props.isEvolution || unlock)}
 						rolls={cardRolls?.filter((r) => r.kind === 'adolla_peek')}
 						roll={evolution && props.isEvolution ? () => evolution.roll(entry.key, 'adolla_peek') : undefined}
 						rpMs={evolution?.rpMs}
@@ -1785,7 +1831,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 					<TephrosisClock
 						key={i}
 						fields={f}
-						canStart={!readOnly && Boolean(pot?.state.open) && (props.isEvolution || Boolean(props.unlockAll))}
+						canStart={!readOnly && Boolean(pot?.state.open) && (props.isEvolution || unlock)}
 						hasAdaptation={sheet.traits.some((t) => t.name === ADAPTATION_TRAIT)}
 						readOnly={readOnly || staffSet('tephrosis')}
 						rpMs={evolution?.rpMs}
@@ -1819,7 +1865,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 								done={pot.p.reached(f)}
 								rolls={cardRolls}
 								roll={evolution && ((kind) => evolution.roll(entry.key, kind))}
-								ready={Boolean(props.unlockAll) || unstable || pot.state.requirements.every((r) => r.status !== 'unmet')}
+								ready={unlock || unstable || pot.state.requirements.every((r) => r.status !== 'unmet')}
 								readOnly={readOnly}
 								onResult={applyRoll}
 								rpMs={evolution?.rpMs}
@@ -2118,6 +2164,7 @@ export function SystemsSection(props: Props) {
 	};
 
 	const limitedChoiceFull = (entry: SystemEntry) => {
+		if (props.adminCharacter) return false;
 		const def = systemById.get(entry.system);
 		const others = sheet.systems.filter((e) => e !== entry && e.system === entry.system && countsTowardLimit(def, e.fields)).length;
 		return others >= systemLimit(sheet, entry.system, props.comboSystemLimits);
@@ -2147,6 +2194,7 @@ export function SystemsSection(props: Props) {
 	/** Why a system can't be added right now, or null. */
 	const cantAdd = (id: string): string | null => {
 		const sys = systemById.get(id)!;
+		if (props.adminCharacter) return null;
 		if (heavenly && !HEAVENLY_SYSTEMS.includes(id)) return 'Not with a Heavenly Restriction';
 		const limit = systemLimit(sheet, id, props.comboSystemLimits);
 		const have = sheet.systems.filter((e) => e.system === id).length;

@@ -318,7 +318,8 @@ function AbilityTabs(props: ArticleProps) {
 									{x.key === priority && <span title="Priority system">★ </span>}
 									{titleOf(x)}
 								</span>
-								<span class="wk-ab-tab-sys">{systemById.get(x.system)?.label ?? x.system}</span>
+								{/* The system's name, unless the card has no title of its own and already shows it. */}
+								{titleOf(x) !== (systemById.get(x.system)?.label ?? x.system) && <span class="wk-ab-tab-sys">{systemById.get(x.system)?.label ?? x.system}</span>}
 								{pinned && <span class="wk-ab-tab-pin" title="Has review notes" />}
 							</button>
 						);

@@ -5,7 +5,7 @@
 // Usage: <PortalNav current="submit" />
 
 interface Props {
-	current?: 'home' | 'submit' | 'mine' | 'families' | 'review';
+	current?: 'home' | 'submit' | 'mine' | 'gallery' | 'families' | 'review';
 }
 
 const { current } = Astro.props;
@@ -14,6 +14,7 @@ const links = [
 	{ id: 'home', label: 'Home', href: `${base}` },
 	{ id: 'submit', label: 'Submit', href: `${base}submit/` },
 	{ id: 'mine', label: 'My Stuff', href: `${base}characters/` },
+	{ id: 'gallery', label: 'Gallery', href: `${base}gallery/` },
 	{ id: 'families', label: 'Families', href: `${base}families/` },
 	{ id: 'review', label: 'Admin Panel', href: `${base}admin/review/`, admin: true, reviewer: true },
 ];

@@ -771,6 +771,7 @@ export default function SubmitForm() {
 									roller={roller}
 									familyTraits={familyPerks && familyPerks.filter((p) => p.kind === 'trait')}
 									familyName={(id) => familyChoices?.families.find((f) => f.id === id)?.name ?? 'A family'}
+									noLimits={adminChar}
 								/>
 							</div>
 							<div class="pf-step" hidden={current !== 'combat'}>
@@ -838,6 +839,7 @@ export default function SubmitForm() {
 									heavenlyGrant={heavenlyGrant}
 									staffOverrides={draft.staffOverrides}
 									issues={issues}
+									adminCharacter={adminChar}
 								/>
 							</div>
 							<div class="pf-step" hidden={current !== 'storage'}>

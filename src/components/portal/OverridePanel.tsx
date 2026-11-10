@@ -307,8 +307,9 @@ function PlayerDetail({ player, players, initialCharacter }: { player: PlayerSum
 			) : (
 				<>
 					<div class="hud-panel">
-						<h3 class="hud-panel-title">Characters and rolls</h3>
-						{ocs.length === 0 && loose.length === 0 && <p class="pf-empty">No characters with rolls yet.</p>}
+						<h3 class="hud-panel-title">Characters</h3>
+						<p class="pf-help">Pick a character: its rolls and the staff edit below are for that character only.</p>
+						{ocs.length === 0 && loose.length === 0 && <p class="pf-empty">No characters yet.</p>}
 						{pickerOptions.length > 0 && <CharacterPicker options={pickerOptions} value={shownId} onChange={setPicked} />}
 						{ocs.filter((c) => c.id === shownId).map((c) => {
 							const hasJjk = (c.systems ?? []).some((e) => e?.system === 'jujutsu-kaisen');
@@ -318,10 +319,12 @@ function PlayerDetail({ player, players, initialCharacter }: { player: PlayerSum
 									<p class="ov-char-name">
 										<strong>{c.name}</strong> <span class="pf-help">{c.status.replace('_', ' ')}</span>
 									</p>
+									<p class="pf-subhead">Rolls</p>
 									{kinds.map((k) => {
 										const row = rollFor(c.id, k);
 										return <RollLine key={k} kind={k} row={row} code={codeFor(row)} ownerId={player.id} characterId={c.id} act={act} busy={busy} />;
 									})}
+									<StaffEditPanel characterId={c.id} />
 								</div>
 							);
 						})}
@@ -337,7 +340,9 @@ function PlayerDetail({ player, players, initialCharacter }: { player: PlayerSum
 						)}
 					</div>
 
-					{shownId && shownId !== LOOSE && <StaffEditPanel characterId={shownId} />}
+					<p class="ov-account-head">
+						Account <span class="pf-help">· applies to all of {player.display_name}’s characters</span>
+					</p>
 
 					{info.codes.some((c) => !c.roll_id) && (
 						<div class="hud-panel">
@@ -406,7 +411,7 @@ function PlayerDetail({ player, players, initialCharacter }: { player: PlayerSum
 	);
 }
 
-/** Staff edit for the character picked in the dropdown: set its stats, Potential or power fields by hand. */
+/** Staff edit for the picked character (inside its section): set its stats, Potential or power fields by hand. */
 function StaffEditPanel({ characterId }: { characterId: string }) {
 	const [c, setC] = useState<AdminCharacter | null | undefined>(undefined);
 	const [error, setError] = useState('');
@@ -417,8 +422,8 @@ function StaffEditPanel({ characterId }: { characterId: string }) {
 		reload();
 	}, [characterId]);
 	return (
-		<div class="hud-panel">
-			<h3 class="hud-panel-title">Staff edit</h3>
+		<div class="ov-staff">
+			<p class="pf-subhead">Staff edit</p>
 			{error ? (
 				<p class="portal-error">{error}</p>
 			) : c === undefined ? (

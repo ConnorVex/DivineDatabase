@@ -1,0 +1,12 @@
+---
+// The character gallery: every approved character, for everyone. Encrypted ones stay locked.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import PortalNav from '../components/portal/PortalNav.astro';
+import CharacterGallery from '../components/portal/CharacterGallery.tsx';
+import '../styles/portal.css';
+---
+
+<StarlightPage frontmatter={{ title: 'Character Gallery', description: 'Every approved character in Singularity.', template: 'splash', tableOfContents: false, pagefind: false }}>
+	<PortalNav current="gallery" />
+	<CharacterGallery client:only="preact" />
+</StarlightPage>
