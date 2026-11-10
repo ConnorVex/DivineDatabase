@@ -48,7 +48,7 @@ export default function CharacterPage() {
 	if (!page.allowed)
 		return (
 			<div class="pf">
-				<EncryptedScreen name={page.name} owner={page.owner}>
+				<EncryptedScreen name={page.name} owner={page.owner} sealedBy={page.sealed_by}>
 					{player === null && (
 						<button type="button" class="portal-button discord" onClick={() => logIn().catch((e) => setError(messageOf(e)))}>
 							Log in with Discord
@@ -62,6 +62,11 @@ export default function CharacterPage() {
 	const admin = Boolean(player?.isAdmin);
 	return (
 		<div class="pf cp">
+			{page.sealed_by && (
+				<div class="pf-status enc-banner" role="note">
+					<strong>🔒 Sealed</strong> · {page.sealed_by} is sealed: only the family and the admins can see its members.
+				</div>
+			)}
 			{page.encrypted && (
 				<div class="pf-status enc-banner" role="note">
 					<strong>🔒 Encrypted</strong> · Only {page.mine ? 'you' : 'the owner'}, the admins{page.mine ? ' and the players you add' : ' and the players they added'} can see this character.

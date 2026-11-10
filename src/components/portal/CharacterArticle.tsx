@@ -2,6 +2,7 @@
 // S.T.S stats) and wiki sections for lore, traits, combat and each power system. Used on the
 // review page; the submit form's Review step can use it too.
 import type { ComponentChildren } from 'preact';
+import { useState } from 'preact/hooks';
 import type { ClaimRow, Combo } from '../../lib/portal/api.ts';
 import type { FamilyCard } from '../../lib/families/api.ts';
 import { PERK_ACCESS } from '../../lib/families/api.ts';
@@ -256,6 +257,222 @@ export function CharacterInfobox(props: ArticleProps) {
 	);
 }
 
+/** One tab per power system, so the page shows a single ability at a time. Facts sit in their
+ * card groups as compact chips; skills, lists and the custom tree follow. */
+function AbilityTabs(props: ArticleProps) {
+	const s = props.sheet;
+	const staff = props.staffOverrides ?? {};
+	const perkById = new Map((props.perks ?? []).map((p) => [p.id, p]));
+	const families = props.families ?? [];
+	const { boxes, pinTo } = pinHelpers(props);
+	const pins = props.pins ?? [];
+	const priority = s.systems.length > 1 ? s.prioritySystem : undefined;
+	const [openKey, setOpen] = useState<string | undefined>(undefined);
+	const open = s.systems.find((e) => e.key === openKey) ?? s.systems.find((e) => e.key === priority) ?? s.systems[0];
+	const titleOf = (e: (typeof s.systems)[number]) => String(e.fields.name ?? '').trim() || systemById.get(e.system)?.label || e.system;
+
+	const e = open;
+	const def = systemById.get(e.system);
+	const ability = e.familyLink && perkById.get(e.familyLink.perkId)?.details.ability;
+	const shown = def ? visibleFields(def, e.fields).filter((f) => f.key !== 'name' && f.type !== 'list' && f.type !== 'textarea') : [];
+	const valueOf = (key: string) => {
+		const v = e.fields[key];
+		const text = Array.isArray(v) ? (v as string[]).join(', ') : v;
+		return text === undefined || text === null ? '' : String(text).trim();
+	};
+	// The card's own groups (as on the form), then whatever isn't in one.
+	const grouped = new Set((def?.groups ?? []).flatMap((g) => g.keys));
+	const factGroups = [
+		...(def?.groups ?? []).map((g) => ({ label: g.label, fields: shown.filter((f) => g.keys.includes(f.key)) })),
+		{ label: def?.groups?.length ? 'Other' : '', fields: shown.filter((f) => !grouped.has(f.key)) },
+	]
+		.map((g) => ({ ...g, fields: g.fields.filter((f) => valueOf(f.key)) }))
+		.filter((g) => g.fields.length);
+	const extras = [
+		...(e.fields.ceLevel ? [{ label: 'CE level', value: String(e.fields.ceLevel) }] : []),
+		...(props.claims ?? [])
+			.filter((b) => b.universe === def?.universe)
+			.map((b) => ({ label: 'Canon claim', value: `${b.name} (${b.category || 'canon'} · ${b.max_users === null ? 'no limit' : `${b.used_slots}/${b.max_users}`})` })),
+	];
+	const texts = (def?.fields ?? []).filter((f) => f.type === 'textarea' && String(e.fields[f.key] ?? '').trim());
+	const lists = (def?.fields ?? [])
+		.filter((f) => f.type === 'list')
+		.map((f) => ({ f, rows: ((e.fields[f.key] as Record<string, string>[]) ?? []).filter((r) => Object.values(r).some((v) => String(v ?? '').trim())) }))
+		.filter((l) => l.rows.length);
+	const moves = def?.defaultMoves?.(e.fields) ?? [];
+
+	return (
+		<div class="wk-abilities">
+			{s.systems.length > 1 && (
+				<div class="wk-ab-tabs" role="tablist" aria-label="Power systems">
+					{s.systems.map((x) => {
+						const on = x.key === e.key;
+						const pinned = pins.some((n) => n.step === 'systems' && n.target?.startsWith(`card:${x.key}`));
+						return (
+							<button key={x.key} type="button" role="tab" aria-selected={on} class={on ? 'on' : undefined} onClick={(ev) => {
+									setOpen(x.key);
+									ev.currentTarget.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+								}}
+							>
+								<span class="wk-ab-tab-name">
+									{x.key === priority && <span title="Priority system">★ </span>}
+									{titleOf(x)}
+								</span>
+								<span class="wk-ab-tab-sys">{systemById.get(x.system)?.label ?? x.system}</span>
+								{pinned && <span class="wk-ab-tab-pin" title="Has review notes" />}
+							</button>
+						);
+					})}
+				</div>
+			)}
+
+			<div class="wk-ability" role={s.systems.length > 1 ? 'tabpanel' : undefined}>
+				<header class="wk-ab-head">
+					<span class="wk-ab-kicker">{def?.label ?? e.system}</span>
+					<h4 class="wk-h4">
+						{titleOf(e)}
+						{e.key === priority && <span class="wk-badge">priority</span>}
+						<PinButton onPin={pinTo('systems', `card:${e.key}`)} what={`the ${def?.label ?? 'system'} card`} />
+					</h4>
+				</header>
+				{boxes('systems', `card:${e.key}`)}
+				{e.familyLink && (
+					<FamilyLinkNote
+						familyId={e.familyLink.familyId}
+						title={e.familyLink.title}
+						perk={perkById.get(e.familyLink.perkId)}
+						changed={Boolean(ability && familyCardChanged(e, ability))}
+						proof={e.familyLink.proof}
+						families={families}
+					/>
+				)}
+				{e.description && <Prose value={e.description} />}
+
+				{(factGroups.length > 0 || extras.length > 0) && (
+					<div class="wk-ab-facts">
+						{factGroups.map((g) => (
+							<div key={g.label} class="wk-ab-group">
+								{g.label && factGroups.length + (extras.length ? 1 : 0) > 1 && <p class="wk-sub-label">{g.label}</p>}
+								<dl>
+									{g.fields.map((f) => (
+										<div key={f.key}>
+											<dt>{f.label}</dt>
+											<dd>
+												{valueOf(f.key)}
+												{staff[`card:${e.key}.${f.key}`] && <span class="wk-staff" title="Set by staff"> staff</span>}
+											</dd>
+										</div>
+									))}
+								</dl>
+							</div>
+						))}
+						{extras.length > 0 && (
+							<div class="wk-ab-group">
+								{factGroups.length > 0 && <p class="wk-sub-label">Claims</p>}
+								<dl>
+									{extras.map((x, i) => (
+										<div key={i}>
+											<dt>{x.label}</dt>
+											<dd>{x.value}</dd>
+										</div>
+									))}
+								</dl>
+							</div>
+						)}
+					</div>
+				)}
+
+				{texts.map((f) => (
+					<div key={f.key} class="wk-sub">
+						<p class="wk-sub-label">{f.label}</p>
+						<Prose value={String(e.fields[f.key])} />
+					</div>
+				))}
+
+				{lists.map(({ f, rows }) => (
+					<div key={f.key} class="wk-sub">
+						<p class="wk-sub-label">
+							{f.label} <span class="wk-ab-count">{rows.length}</span>
+						</p>
+						<ul class="wk-ab-list">
+							{rows.map((row, i) => (
+								<li key={i}>
+									{(f.columns ?? [])
+										.filter((col) => String(row[col.key] ?? '').trim())
+										.map((col, j) =>
+											j === 0 ? (
+												<strong key={col.key}>{row[col.key]}</strong>
+											) : (
+												<span key={col.key}>
+													<em>{col.label}</em> {row[col.key]}
+												</span>
+											),
+										)}
+								</li>
+							))}
+						</ul>
+					</div>
+				))}
+
+				{(moves.length > 0 || e.skills.length > 0) && (
+					<div class="wk-sub">
+						<p class="wk-sub-label">
+							Skills <span class="wk-ab-count">{moves.length + e.skills.length}</span>
+						</p>
+						<ul class="wk-skills">
+							{moves.map((m) => (
+								<li key={`d-${m.name}`} class={m.type}>
+									<strong>{m.name}</strong> <span class="trait-meta">{m.type} · default</span>
+									{m.cost && <span class="trait-meta"> · {m.cost}</span>}
+									<p>{m.effect}</p>
+								</li>
+							))}
+							{e.skills.map((sk, i) => (
+								<li key={i} class={sk.type}>
+									<strong>{sk.name || 'Unnamed'}</strong> <span class="trait-meta">{sk.type}</span>
+									{sk.mastery && <span class="trait-meta"> · {sk.mastery}</span>}
+									{sk.locked && <span class="trait-meta"> · locked (on the skill tree)</span>}
+									{sk.effect && <p>{sk.effect}</p>}
+								</li>
+							))}
+						</ul>
+					</div>
+				)}
+				{e.customTree && (
+					<details class="pts-tree rv-custom-tree">
+						<summary>
+							Custom tree: {e.customTree.name || 'Unnamed'}
+							<span class="pts-tree-count">
+								{e.customTree.nodes.length} skills · costs {treeCurrencyLabel(e.customTree)}
+							</span>
+						</summary>
+						{e.customTree.currency === CUSTOM && (
+							<p class="pf-help rv-custom-rates">
+								{e.customTree.custom.name} ({e.customTree.custom.code}): +{e.customTree.custom.gain} per session
+								{e.customTree.custom.convertFrom &&
+									` · ${e.customTree.custom.convertFromAmount} ${e.customTree.custom.convertFrom} → ${e.customTree.custom.convertToAmount} ${e.customTree.custom.code}`}
+							</p>
+						)}
+						<SkillTreeView
+							tree={{ id: 'custom', system: e.system, label: e.customTree.name, show_if: null, sort: 0 }}
+							nodes={customTreeNodes(e.customTree)}
+							currencyName={() => treeCurrencyLabel(e.customTree!)}
+							unlocks={[]}
+							balance={() => 0}
+							tracked={() => true}
+							admin={false}
+							busy={false}
+							preview
+							onUnlock={async () => false}
+							onRemove={async () => false}
+						/>
+					</details>
+				)}
+			</div>
+		</div>
+	);
+}
+
 export function CharacterArticle(props: ArticleProps) {
 	const s = props.sheet;
 	const oc = props.kind === 'oc';
@@ -379,122 +596,7 @@ export function CharacterArticle(props: ArticleProps) {
 						{s.systems.length > 0 && (
 							<Section title="Abilities" pin={<PinButton onPin={pinTo('systems')} what="Systems" />}>
 								{boxes('systems', null)}
-								{s.systems.map((e) => {
-									const def = systemById.get(e.system);
-									const ability = e.familyLink && perkById.get(e.familyLink.perkId)?.details.ability;
-									return (
-										<div class="wk-ability" key={e.key}>
-											<h4 class="wk-h4">
-												{def?.label ?? e.system}
-												{s.systems.length > 1 && s.prioritySystem === e.key && <span class="wk-badge">priority</span>}
-												<PinButton onPin={pinTo('systems', `card:${e.key}`)} what={`the ${def?.label ?? 'system'} card`} />
-											</h4>
-											{boxes('systems', `card:${e.key}`)}
-											{e.familyLink && (
-												<FamilyLinkNote
-													familyId={e.familyLink.familyId}
-													title={e.familyLink.title}
-													perk={perkById.get(e.familyLink.perkId)}
-													changed={Boolean(ability && familyCardChanged(e, ability))}
-													proof={e.familyLink.proof}
-													families={families}
-												/>
-											)}
-											{e.description && <Prose value={e.description} />}
-											<table class="wk-table wide">
-												<tbody>
-													{def &&
-														visibleFields(def, e.fields)
-															.filter((f) => f.type !== 'list' && f.type !== 'textarea')
-															.map((f) => {
-																const v = e.fields[f.key];
-																const text = Array.isArray(v) ? (v as string[]).join(', ') : v;
-																return <Row key={f.key} label={f.label} value={text === undefined ? '' : String(text)} staff={Boolean(staff[`card:${e.key}.${f.key}`])} />;
-															})}
-													{e.fields.ceLevel && <Row label="CE level" value={String(e.fields.ceLevel)} />}
-													{(props.claims ?? [])
-														.filter((b) => b.universe === def?.universe)
-														.map((b) => (
-															<Row key={b.id} label="Canon claim" value={`${b.name} (${b.category || 'canon'} · ${b.max_users === null ? 'no limit' : `${b.used_slots}/${b.max_users}`})`} />
-														))}
-												</tbody>
-											</table>
-											{def?.fields
-												.filter((f) => f.type === 'textarea' && String(e.fields[f.key] ?? '').trim())
-												.map((f) => (
-													<div key={f.key} class="wk-sub">
-														<p class="wk-sub-label">{f.label}</p>
-														<Prose value={String(e.fields[f.key])} />
-													</div>
-												))}
-											{def?.fields
-												.filter((f) => f.type === 'list')
-												.map((f) =>
-													((e.fields[f.key] as Record<string, string>[]) ?? []).map((row, i) => (
-														<p key={`${f.key}${i}`} class="wk-prose">
-															<strong>
-																{f.label} #{i + 1}:
-															</strong>{' '}
-															{(f.columns ?? []).map((col) => `${col.label}: ${row[col.key] || '—'}`).join(' · ')}
-														</p>
-													)),
-												)}
-											{(def?.defaultMoves?.(e.fields).length ?? 0) > 0 && (
-												<ul class="wk-skills">
-													{def!.defaultMoves!(e.fields).map((m) => (
-														<li key={m.name} class={m.type}>
-															<strong>{m.name}</strong> <span class="trait-meta">{m.type} · default</span>
-															{m.cost && <span class="trait-meta"> · {m.cost}</span>}
-															<p>{m.effect}</p>
-														</li>
-													))}
-												</ul>
-											)}
-											{e.skills.length > 0 && (
-												<ul class="wk-skills">
-													{e.skills.map((sk, i) => (
-														<li key={i} class={sk.type}>
-															<strong>{sk.name || 'Unnamed'}</strong> <span class="trait-meta">{sk.type}</span>
-															{sk.mastery && <span class="trait-meta"> · {sk.mastery}</span>}
-															{sk.locked && <span class="trait-meta"> · locked (on the skill tree)</span>}
-															{sk.effect && <p>{sk.effect}</p>}
-														</li>
-													))}
-												</ul>
-											)}
-											{e.customTree && (
-												<details class="pts-tree rv-custom-tree">
-													<summary>
-														Custom tree: {e.customTree.name || 'Unnamed'}
-														<span class="pts-tree-count">
-															{e.customTree.nodes.length} skills · costs {treeCurrencyLabel(e.customTree)}
-														</span>
-													</summary>
-													{e.customTree.currency === CUSTOM && (
-														<p class="pf-help rv-custom-rates">
-															{e.customTree.custom.name} ({e.customTree.custom.code}): +{e.customTree.custom.gain} per session
-															{e.customTree.custom.convertFrom &&
-																` · ${e.customTree.custom.convertFromAmount} ${e.customTree.custom.convertFrom} → ${e.customTree.custom.convertToAmount} ${e.customTree.custom.code}`}
-														</p>
-													)}
-													<SkillTreeView
-														tree={{ id: 'custom', system: e.system, label: e.customTree.name, show_if: null, sort: 0 }}
-														nodes={customTreeNodes(e.customTree)}
-														currencyName={() => treeCurrencyLabel(e.customTree!)}
-														unlocks={[]}
-														balance={() => 0}
-														tracked={() => true}
-														admin={false}
-														busy={false}
-														preview
-														onUnlock={async () => false}
-														onRemove={async () => false}
-													/>
-												</details>
-											)}
-										</div>
-									);
-								})}
+								<AbilityTabs {...props} />
 							</Section>
 						)}
 

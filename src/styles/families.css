@@ -1074,3 +1074,710 @@
 .perk-stats-panel .hud-stat-head {
 	flex-wrap: wrap;
 }
+
+/* ── Perk sections in the editor (FamilyEditor.tsx → PerksTab) ── */
+.fm .fm-psec {
+	margin: 0 0 1.25rem;
+	padding: 0.85rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.8rem;
+	background: color-mix(in srgb, var(--pf-text) 2%, transparent);
+}
+.fm .fm-psec > * {
+	margin-top: 0;
+}
+.fm-psec-head {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin-bottom: 0.65rem;
+}
+.fm .fm-psec-head > * {
+	margin: 0;
+}
+.fm .fm-psec-name {
+	flex: 1 1 auto;
+	font-size: var(--sl-text-base);
+}
+.fm .fm-psec-input {
+	flex: 1 1 auto;
+	min-width: 0;
+	padding: 0.35rem 0.6rem;
+	border: 1px solid transparent;
+	border-radius: 0.45rem;
+	background: transparent;
+	color: var(--pf-text);
+	font: inherit;
+	font-size: var(--sl-text-lg);
+	font-weight: 800;
+}
+.fm .fm-psec-input:hover,
+.fm .fm-psec-input:focus {
+	border-color: var(--pf-line-strong);
+	background: var(--pf-field);
+	outline: none;
+}
+.fm-psec-count {
+	flex: none;
+	padding: 0 0.5rem;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--pf-text) 8%, transparent);
+	font-family: var(--pf-mono);
+	font-size: var(--sl-text-xs);
+	color: var(--pf-muted);
+}
+.fm-psec-move {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	flex: none;
+}
+.fm .fm-psec-move > * {
+	margin: 0;
+}
+.fm .fm-psec-move .pf-button {
+	min-width: 2.1rem;
+	padding: 0.3rem 0.5rem;
+}
+.fm .fm-psec-move select {
+	max-width: 11rem;
+	padding: 0.3rem 0.5rem;
+	font-size: var(--sl-text-sm);
+}
+.fm .fm-psec-tools {
+	flex-wrap: wrap;
+}
+.fm .fm-psec-tools .fm-psec-move {
+	margin-inline-end: auto;
+}
+.fm .fm-psec-add {
+	margin-top: 0.25rem;
+}
+.fm .fm-psec-new {
+	margin-bottom: 0.5rem;
+}
+
+/* ── Perk rules (PerkRules.tsx) ── */
+.fm .pr-group legend {
+	font-weight: 800;
+}
+.pr-sub {
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+.fm .pr-sub > *,
+.fm .pr-rows > * {
+	margin-top: 0;
+}
+.fm .pr-sub-head {
+	margin: 0.5rem 0 0;
+	font-size: var(--sl-text-sm);
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--pf-muted);
+}
+.pr-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+.pr-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+	padding: 0.6rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.6rem;
+	background: var(--pf-field);
+}
+.pr-row-fields {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+	gap: 0.5rem 0.75rem;
+	align-items: end;
+}
+.fm .pr-row-fields > * {
+	margin: 0;
+}
+.fm .pr-remove {
+	flex: none;
+	margin: 0;
+	padding: 0.3rem 0.55rem;
+}
+.fm .pr-add {
+	align-self: flex-start;
+}
+.pr-own {
+	align-self: center;
+	white-space: nowrap;
+}
+.pr-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+}
+.pr-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.3rem 0.7rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 999px;
+	font-size: var(--sl-text-sm);
+	cursor: pointer;
+}
+.pr-chip input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+.pr-chip.on {
+	border-color: var(--pf-accent);
+	background: color-mix(in srgb, var(--pf-accent) 14%, transparent);
+	color: var(--pf-text);
+	font-weight: 700;
+}
+.pr-chip:focus-within {
+	outline: 2px solid var(--pf-accent);
+	outline-offset: 1px;
+}
+
+/* Read-only rules (family page and admin review) */
+.pr-view {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+.pr-view > * {
+	margin: 0;
+}
+.pr-facts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+.pr-facts li {
+	margin: 0;
+	padding: 0.25rem 0.65rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.5rem;
+	font-size: var(--sl-text-sm);
+}
+.pr-options {
+	padding: 0.5rem 0.75rem;
+	border-left: 3px solid var(--sl-color-green-high);
+	border-radius: 0 0.5rem 0.5rem 0;
+	background: color-mix(in srgb, var(--sl-color-gray-6) 50%, transparent);
+}
+.pr-options.rolled {
+	border-left-color: var(--sl-color-orange-high);
+}
+.pr-options.banned {
+	border-left-color: var(--sl-color-red-high);
+}
+.pr-options-head {
+	margin: 0 0 0.25rem;
+	font-size: var(--sl-text-xs);
+	font-weight: 800;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--sl-color-gray-3);
+}
+.pr-options ul,
+.pr-items,
+.pr-holders {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+.pr-options li,
+.pr-items li {
+	margin: 0.15rem 0;
+	font-size: var(--sl-text-sm);
+}
+.pr-opt-field {
+	color: var(--sl-color-gray-3);
+}
+.pr-style {
+	display: grid;
+	gap: 0.4rem;
+	margin: 0;
+}
+.pr-style > div {
+	padding: 0.45rem 0.75rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.6rem;
+}
+.pr-style dt {
+	font-size: var(--sl-text-xs);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--sl-color-gray-3);
+}
+.pr-style dd {
+	margin: 0;
+	white-space: pre-wrap;
+	font-size: var(--sl-text-sm);
+}
+.pr-tracker {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+.pr-tracker > * {
+	margin: 0;
+}
+.pr-meter-head {
+	display: flex;
+	justify-content: space-between;
+	font-size: var(--sl-text-sm);
+}
+.pr-meter-head span {
+	font-family: var(--sl-font-mono, monospace);
+	color: var(--sl-color-gray-3);
+}
+.pr-meter-bar {
+	height: 0.5rem;
+	margin: 0.3rem 0;
+	border-radius: 999px;
+	background: linear-gradient(90deg, var(--pf-accent, var(--sl-color-accent)) 0 8%, var(--sl-color-gray-5) 8%);
+}
+.pr-meter .pf-help {
+	margin: 0;
+}
+.pr-levels {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: grid;
+	gap: 0.5rem;
+	counter-reset: lvl;
+}
+.pr-levels > li {
+	margin: 0;
+	padding: 0.55rem 0.8rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.6rem;
+}
+.pr-level-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.25rem 0.75rem;
+}
+.pr-level-head .pf-help {
+	margin: 0;
+}
+.pr-levels p {
+	margin: 0.2rem 0 0;
+	font-size: var(--sl-text-sm);
+	white-space: pre-wrap;
+}
+.pr-holders {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.3rem;
+	margin-top: 0.4rem;
+}
+.pr-holders li {
+	margin: 0;
+	padding: 0.15rem 0.6rem;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--pf-accent, var(--sl-color-accent)) 12%, transparent);
+	font-size: var(--sl-text-xs);
+}
+.pr-holders em {
+	font-style: normal;
+	opacity: 0.8;
+}
+.fm .perk-stats dd,
+.fm .pr-style dd,
+.pf .perk-stats dd,
+.pf .pr-style dd {
+	margin-inline-start: 0;
+	padding: 0;
+}
+.pr-options .fm-chip {
+	margin-inline-start: 0.4rem;
+}
+/* Line built perks up with the description's padding inside a perk card. */
+.fm-perk > .perk-built {
+	padding-inline: 1rem;
+}
+
+/* A custom trait's training effect */
+.perk-training {
+	margin: 0;
+	padding: 0.75rem 0.9rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.6rem;
+	display: grid;
+	gap: 0.6rem;
+}
+.perk-training > * {
+	margin-top: 0;
+}
+.perk-training legend {
+	padding-inline: 0.3rem;
+}
+.perk-training-row {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr));
+	gap: 0.75rem;
+}
+.perk-training-row > * {
+	margin-top: 0;
+}
+.perk-built .perk-training-chip {
+	margin-inline-start: 0.4rem;
+}
+.perk-training .clm-check {
+	justify-self: start;
+	display: inline-flex;
+	flex-direction: row;
+	width: auto;
+	color: var(--sl-color-white);
+}
+.perk-training .clm-check input {
+	width: auto;
+	margin: 0;
+	flex: none;
+}
+
+/* ───────────── Inheritance (InheritanceBuilder.tsx, InheritanceRolls.tsx) ───────────── */
+.fm .ih > * {
+	margin-top: 0;
+}
+.ih {
+	display: grid;
+	gap: 1.25rem;
+}
+.ih-head {
+	display: grid;
+	gap: 0.75rem;
+}
+.fm .ih-head > * {
+	margin: 0;
+}
+.ih-kicker {
+	font-size: var(--sl-text-xs);
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--pf-accent);
+}
+.ih-name input {
+	font-size: var(--sl-text-xl);
+	font-weight: 700;
+}
+.ih-tally {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+.ih-group {
+	display: grid;
+	gap: 0.6rem;
+}
+.fm .ih-group > * {
+	margin: 0;
+}
+.ih-list {
+	display: grid;
+	gap: 0.6rem;
+}
+.ih-perk {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 0.6rem 1rem;
+	align-items: start;
+	padding: 0.85rem 1rem;
+	border: 1px solid var(--pf-line);
+	border-left: 3px solid var(--pf-line);
+	border-radius: 0.75rem;
+	background: var(--pf-panel);
+}
+.ih-perk.got {
+	border-left-color: var(--pf-accent);
+}
+.ih-perk.locked {
+	opacity: 0.75;
+	border-style: dashed;
+}
+.ih-perk > *,
+.ih-perk-main > * {
+	margin: 0;
+}
+.ih-perk-main {
+	display: grid;
+	gap: 0.25rem;
+	min-width: 0;
+}
+.ih-perk-title {
+	font-weight: 700;
+	color: var(--pf-text);
+}
+.ih-perk-sub {
+	font-size: var(--sl-text-xs);
+	color: var(--pf-muted);
+}
+.ih-perk-text {
+	font-size: var(--sl-text-sm);
+	overflow-wrap: anywhere;
+}
+.ih-more summary {
+	cursor: pointer;
+	font-size: var(--sl-text-sm);
+	color: var(--pf-accent);
+}
+.ih-more .perk-built {
+	margin-top: 0.5rem;
+}
+.ih-perk-act {
+	display: flex;
+	justify-content: flex-end;
+}
+.ih-state {
+	display: inline-flex;
+	padding: 0.3rem 0.7rem;
+	border-radius: 999px;
+	font-size: var(--sl-text-sm);
+	font-weight: 600;
+	white-space: nowrap;
+	border: 1px solid var(--pf-line);
+}
+.ih-state.got {
+	color: var(--pf-accent);
+	border-color: color-mix(in srgb, var(--pf-accent) 55%, transparent);
+	background: color-mix(in srgb, var(--pf-accent) 10%, transparent);
+}
+.ih-state.later,
+.ih-state.banned {
+	color: var(--pf-muted);
+	white-space: normal;
+	text-align: end;
+}
+.ih-roll {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.4rem 0.75rem;
+	font-size: var(--sl-text-sm);
+	font-weight: 600;
+	text-align: end;
+}
+.ih-roll.won {
+	color: var(--pf-accent);
+}
+.ih-roll.lost,
+.ih-roll.waiting {
+	color: var(--pf-muted);
+}
+.ih-roll-note {
+	font-weight: 400;
+	font-style: italic;
+}
+.ih-options,
+.ih-potential {
+	grid-column: 1 / -1;
+}
+.ih-options {
+	list-style: none;
+	padding: 0.6rem 0 0;
+	margin: 0;
+	border-top: 1px solid var(--pf-line);
+	display: grid;
+	gap: 0.5rem;
+}
+.ih-options li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.4rem 0.75rem;
+	margin: 0;
+}
+.ih-option-name {
+	font-size: var(--sl-text-sm);
+	min-width: 0;
+}
+.ih-bar {
+	position: sticky;
+	bottom: 0.75rem;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.65rem 0.75rem 0.65rem 1rem;
+	border: 1px solid var(--pf-line-strong, var(--pf-line));
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--pf-panel) 92%, transparent);
+	backdrop-filter: blur(8px);
+}
+.ih-save {
+	font-size: var(--sl-text-sm);
+	color: var(--pf-muted);
+}
+@media (max-width: 34rem) {
+	.ih-perk {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.ih-perk-act,
+	.ih-roll {
+		justify-content: flex-start;
+		text-align: start;
+	}
+	.ih-state.later,
+	.ih-state.banned {
+		text-align: start;
+	}
+}
+
+/* Join: start a family character */
+.fm-start {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 0.75rem;
+	margin-top: 1rem;
+}
+.fm .fm-start > * {
+	margin: 0;
+}
+.fm-start .pf-field {
+	flex: 1 1 14rem;
+}
+.fm-mine li > span {
+	min-width: 0;
+}
+.fm-mine li > .pf-button + .pf-button {
+	margin-inline-start: 0;
+}
+
+/* Manage family → Inheritance */
+.ih-asks {
+	display: grid;
+	gap: 0.6rem;
+}
+.ih-ask {
+	padding: 0.85rem 1rem;
+	border: 1px solid var(--pf-line);
+	border-left: 3px solid var(--pf-accent);
+	border-radius: 0.75rem;
+	background: var(--pf-panel);
+	display: grid;
+	gap: 0.65rem;
+}
+.ih-ask.won,
+.ih-ask.lost {
+	border-left-color: var(--pf-line);
+}
+.ih-ask > *,
+.ih-ask-head > div > * {
+	margin: 0;
+}
+.ih-ask-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 0.75rem;
+}
+.ih-ask-label {
+	font-weight: 700;
+	color: var(--pf-text);
+	overflow-wrap: anywhere;
+}
+.ih-ask-state {
+	flex: none;
+	font-size: var(--sl-text-xs);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--pf-muted);
+}
+.ih-ask-state.pending,
+.ih-ask-state.won {
+	color: var(--pf-accent);
+}
+.ih-ask-form {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+	gap: 0.6rem 0.75rem;
+}
+.fm .ih-ask-form > * {
+	margin: 0;
+}
+.ih-ask-actions {
+	grid-column: 1 / -1;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 0.5rem;
+}
+.ih-ask-result {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem 0.75rem;
+	font-size: var(--sl-text-sm);
+}
+.ih-ask-result .pf-button {
+	margin-inline-start: auto;
+}
+
+/* Inheritance: asking to see hidden perks */
+.ih-access {
+	padding: 0.9rem 1rem;
+	border: 1px dashed var(--pf-accent);
+	border-radius: 0.75rem;
+	background: color-mix(in srgb, var(--pf-accent) 6%, transparent);
+	display: grid;
+	gap: 0.5rem;
+}
+.fm .ih-access > * {
+	margin: 0;
+}
+.ih-access-title {
+	font-weight: 700;
+	color: var(--pf-text);
+}
+.ih-access-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+}
+.ih-access-form .pf-field {
+	flex: 1 1 14rem;
+	min-width: 0;
+	margin: 0;
+}
+.fm-seal .clm-check {
+	color: var(--pf-text);
+}
+.fm-seal .clm-check input {
+	width: auto;
+	margin: 0;
+}
+.ih-access-who {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+}
+.ih-access-who img,
+.ih-access-avatar {
+	width: 2rem;
+	height: 2rem;
+	border-radius: 50%;
+	flex: none;
+	background: var(--pf-line);
+}

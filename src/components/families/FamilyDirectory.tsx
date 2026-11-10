@@ -6,7 +6,7 @@ import { messageOf, STATUS_TEXT, useFamilyTheme } from './shared.tsx';
 
 const FILTERS = [
 	{ id: 'all', label: 'All', match: () => true },
-	{ id: 'recruiting', label: 'Recruiting', match: (f: FamilyCard) => f.recruiting !== 'closed' },
+	{ id: 'open', label: 'Open', match: (f: FamilyCard) => f.recruiting === 'open' },
 ] as const;
 
 function Card({ f }: { f: FamilyCard }) {

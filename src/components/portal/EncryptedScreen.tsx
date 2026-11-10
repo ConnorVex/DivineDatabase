@@ -52,7 +52,7 @@ function BinaryRain() {
 	return <canvas ref={canvas} class="enc-rain" aria-hidden="true" />;
 }
 
-export function EncryptedScreen({ name, owner, children }: { name: string; owner?: string | null; children?: ComponentChildren }) {
+export function EncryptedScreen({ name, owner, sealedBy, children }: { name: string; owner?: string | null; sealedBy?: string | null; children?: ComponentChildren }) {
 	return (
 		<div class="enc-screen" role="region" aria-label="Encrypted character">
 			<BinaryRain />
@@ -60,10 +60,10 @@ export function EncryptedScreen({ name, owner, children }: { name: string; owner
 				<span class="enc-lock" aria-hidden="true">
 					🔒
 				</span>
-				<p class="enc-kicker">Encrypted</p>
+				<p class="enc-kicker">{sealedBy ? `Sealed · ${sealedBy}` : 'Encrypted'}</p>
 				<h2 class="enc-name">{name}</h2>
 				{owner && <p class="enc-owner">Owned by {owner}</p>}
-				<p class="enc-message">You are not authorized to view this character.</p>
+				<p class="enc-message">{sealedBy ? `${sealedBy} keeps its members to itself. Only the family can view this character.` : 'You are not authorized to view this character.'}</p>
 				{children}
 			</div>
 		</div>

@@ -5,11 +5,12 @@
 // read-only summary shown on the family page and in the admin review.
 import { Fragment } from 'preact';
 import { useId, useState } from 'preact/hooks';
-import type { PerkDetails, PerkKind } from '../../lib/families/api.ts';
+import { trainingText, type PerkDetails, type PerkKind } from '../../lib/families/api.ts';
 import { rankInfo, ranks, rules, traits } from '../../lib/portal/rules.ts';
 import { abilitySystem, familyScope, groupedFields, systemById, systems, visibleFields, type Field, type FieldValue } from '../../lib/portal/systems.ts';
 import { NumberField, SelectField, TextArea, TextField } from '../portal/fields.tsx';
 import { FieldInput, SkillsEditor, defaults } from '../portal/SystemsSection.tsx';
+import { PerkRulesView, blankStyle, blankSystemRules, blankTraitRules, ruleProblems } from './PerkRules.tsx';
 
 type Ability = NonNullable<PerkDetails['ability']>;
 const rarities = rules.traitSlots.rarities;
@@ -18,7 +19,8 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const blank = (v: unknown) => v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
 
 /** Perk kinds that are built instead of only described. */
-export const isBuilt = (kind: PerkKind) => kind === 'locked_power' || kind === 'trait' || kind === 'starting_stats';
+export const isBuilt = (kind: PerkKind) =>
+	kind === 'locked_power' || kind === 'trait' || kind === 'starting_stats' || kind === 'trait_slots' || kind === 'system_start' || kind === 'fighting_style' || kind === 'technique' || kind === 'item';
 
 const blankAbility = (system: string): Ability => ({ system, fields: defaults(systemById.get(system)!.fields), skills: [] });
 
@@ -27,18 +29,30 @@ export function blankDetails(kind: PerkKind): PerkDetails {
 	if (kind === 'locked_power') return { ability: blankAbility('abilities') };
 	if (kind === 'trait') return { trait: '' };
 	if (kind === 'starting_stats') return { stats: { strength: '', speed: '', defense: '', stamina: '', intelligence: '', extraPtp: 0 } };
+	if (kind === 'trait_slots') return { traitRules: blankTraitRules() };
+	if (kind === 'system_start') return { systemRules: blankSystemRules() };
+	if (kind === 'fighting_style') return { style: blankStyle() };
+	if (kind === 'item') return { items: [] };
+	// A secret technique's tracker is optional.
 	return {};
 }
 
 /** What still has to be filled in before a built perk can be sent. */
 export function detailProblems(kind: PerkKind, details: PerkDetails, title: string): string[] {
 	const name = title.trim() || 'A new perk';
+	if (kind === 'trait_slots' || kind === 'system_start' || kind === 'technique' || kind === 'item') return ruleProblems(details, name);
 	if (kind === 'trait') {
 		if (!details.customTrait) return details.trait ? [] : [`${name}: pick the trait it gives.`];
 		const out: string[] = [];
 		if (!details.trait?.trim()) out.push(`${name}: give the custom trait a name.`);
 		else if (traitByName.has(details.trait.trim())) out.push(`${name}: “${details.trait.trim()}” is already a listed trait, so pick it from the list instead.`);
 		if (!details.customTrait.category || !details.customTrait.effect) out.push(`${name}: pick the custom trait’s type and effect.`);
+		const t = details.customTrait.training;
+		if (t) {
+			if (!t.percent && !t.flat) out.push(`${name}: give the training effect a percent or a flat amount, or untick it.`);
+			if (t.percent < -100 || t.percent > 500) out.push(`${name}: the training percent has to be from -100 to 500.`);
+			if (t.flat < -100 || t.flat > 100) out.push(`${name}: the flat training amount has to be from -100 to 100.`);
+		}
 		return out;
 	}
 	if (kind === 'locked_power') {
@@ -322,6 +336,36 @@ export function TraitPicker({ value, onChange }: { value: PerkDetails; onChange:
 					<SelectField label="Type" required value={custom.category} placeholder="Pick a type…" onChange={(category) => setCustom({ category })} options={CATEGORIES.map((c) => ({ value: c, label: cap(c) }))} />
 					<SelectField label="Effect" required value={custom.effect} placeholder="Pick an effect…" onChange={(effect) => setCustom({ effect })} options={EFFECTS.map((e) => ({ value: e, label: cap(e) }))} />
 					<p class="pf-help pf-wide">Describe what the trait does in the perk’s description. The admins review custom traits when the perk is sent.</p>
+					<fieldset class="pf-field pf-wide perk-training">
+						<legend class="pf-label">Training logs</legend>
+						<label class="clm-check">
+							<input
+								type="checkbox"
+								checked={!!custom.training}
+								onChange={(e) => setCustom({ training: e.currentTarget.checked ? { percent: 0, flat: 0 } : undefined })}
+							/>
+							Changes the Physical Points from training
+						</label>
+						{custom.training && (
+							<div class="perk-training-row">
+								<NumberField
+									label="Percent"
+									min={-100}
+									value={custom.training.percent}
+									help="Of the points staff give. -25 takes a quarter away."
+									onInput={(n) => setCustom({ training: { ...custom.training!, percent: Math.round(n) || 0 } })}
+								/>
+								<NumberField
+									label="Flat"
+									min={-100}
+									value={custom.training.flat}
+									help="Added after the percent. Can be negative."
+									onInput={(n) => setCustom({ training: { ...custom.training!, flat: Math.round(n) || 0 } })}
+								/>
+							</div>
+						)}
+						<p class="pf-help">Members’ training logs count it by itself, like the staff’s trait rules.</p>
+					</fieldset>
 				</>
 			)}
 		</>
@@ -335,6 +379,7 @@ const showValue = (v: FieldValue | undefined) =>
 
 /** Read-only view of what a built perk gives. Renders nothing for the other kinds. */
 export function PerkBuilt({ kind, details }: { kind: PerkKind | null; details: PerkDetails | undefined }) {
+	if (kind === 'trait_slots' || kind === 'system_start' || kind === 'fighting_style' || kind === 'technique' || kind === 'item') return <PerkRulesView details={details} />;
 	if (kind === 'trait' && details?.trait) {
 		const info = traitByName.get(details.trait);
 		const custom = details.customTrait;
@@ -343,6 +388,11 @@ export function PerkBuilt({ kind, details }: { kind: PerkKind | null; details: P
 				<span class="fm-chip">{custom ? 'Custom trait' : 'Trait'}</span> <strong>{details.trait}</strong>
 				{info && !custom && <span class="pf-help"> · {cap(info.rarity)} {info.category} {info.effect}</span>}
 				{custom && <span class="pf-help"> · {custom.category} {custom.effect}</span>}
+				{custom?.training && (custom.training.percent || custom.training.flat) ? (
+					<span class="fm-chip perk-training-chip" title="Counted on members’ training logs">
+						🏋️ Training {trainingText(custom.training)}
+					</span>
+				) : null}
 			</p>
 		);
 	}

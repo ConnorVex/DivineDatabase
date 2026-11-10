@@ -81,6 +81,8 @@ export interface CheckContext {
 	encryptionRequest?: { reason: string } | null;
 	/** Families the character is in or is asking to join (ids). */
 	families?: string[];
+	/** Perks the character gets from its family's Inheritance (ids). */
+	inheritedPerks?: Set<string>;
 	/** The family perks the player can link, by id. Without it, linked cards aren't checked against their perk. */
 	familyPerks?: Map<string, LinkablePerk>;
 }
@@ -340,7 +342,9 @@ export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 	// ── Traits ──
 	const slots = traitSlots(sheet, ctx.extraTraitSlots ?? 0);
 	if (slots.used > slots.total) add('error', 'Traits', `Your traits take ${slots.used} slots, but you only have ${slots.total}. Remove a trait.`);
-	if (sheet.traits.filter((t) => t.family).length > rules.traitSlots.familyTrait.max) add('error', 'Traits', 'Only one trait can be a Family trait.');
+	// Traits a family's Inheritance gives don't count toward the one Family trait.
+	const inherited = ctx.inheritedPerks ?? new Set<string>();
+	if (sheet.traits.filter((t) => t.family && !(t.perkId && inherited.has(t.perkId))).length > rules.traitSlots.familyTrait.max) add('error', 'Traits', 'Only one trait can be a Family trait.');
 	const inFamily = (ctx.families?.length ?? 0) > 0;
 	if (sheet.traits.some((t) => t.family) && !inFamily) add('error', 'Families', 'A Family trait needs a family: pick the family that offers it.');
 	const seen = new Set<string>();
@@ -430,7 +434,7 @@ export function checkSheet(sheet: Sheet, given: CheckContext): Issue[] {
 				inFamily ? 'Families' : 'Systems',
 				inFamily
 					? `${claim.name} is ${claim.category}: the family that holds it (or an admin) confirms it.`
-					: `${claim.name} is ${claim.category}: pick the family that holds it in the Families step.`,
+					: `${claim.name} is ${claim.category}: only the family that holds it can give it, through the family’s Inheritance.`,
 			);
 		}
 	}
@@ -722,7 +726,7 @@ function checkFamilyLink(entry: SystemEntry, ctx: CheckContext, where: string, a
 		add('error', 'Systems', `${where}: pick which family ability to use, or make the card your own.`);
 		return;
 	}
-	if (!(ctx.families ?? []).includes(link.familyId)) add('error', 'Families', `${where} is a family ability: pick that family in the Families step.`);
+	if (!(ctx.families ?? []).includes(link.familyId)) add('error', 'Families', `${where} is a family ability, but this character isn’t in that family. Make the card your own.`);
 	if (!ctx.familyPerks) return;
 	const perk = ctx.familyPerks.get(link.perkId);
 	if (!perk?.details.ability || abilitySystem(perk.details.ability) !== entry.system) {
@@ -741,7 +745,7 @@ function checkFamilyTrait(picked: PickedTrait, ctx: CheckContext, add: (level: I
 		if (ctx.familyPerks) add('warning', 'Traits', `${picked.name} is a Family trait that isn’t linked to a family’s trait: re-add it from “Your families’ traits”.`);
 		return;
 	}
-	if (picked.familyId && !(ctx.families ?? []).includes(picked.familyId)) add('error', 'Families', `${picked.name} is a family trait: pick that family in the Families step.`);
+	if (picked.familyId && !(ctx.families ?? []).includes(picked.familyId)) add('error', 'Families', `${picked.name} is a family trait, but this character isn’t in that family. Remove it.`);
 	if (!ctx.familyPerks) return;
 	const perk = ctx.familyPerks.get(picked.perkId);
 	if (!perk || perk.details.trait !== picked.name) {

@@ -1,6 +1,6 @@
 // Potential, the trait picker with slot counting, and discovered trait combinations.
 import { useEffect, useMemo, useState } from 'preact/hooks';
-import { PERK_ACCESS } from '../../lib/families/api.ts';
+import { PERK_ACCESS, trainingText } from '../../lib/families/api.ts';
 import type { Combo } from '../../lib/portal/api.ts';
 import type { LinkablePerk } from '../../lib/portal/families.ts';
 import { rules, traits, traitSlots } from '../../lib/portal/rules.ts';
@@ -231,7 +231,7 @@ export function TraitsSection({ sheet, update, combos, extraSlots, lockedTraits,
 									<TraitChip name={t.name} />
 									<span class="trait-meta">
 										{perk?.details.customTrait
-											? `Custom · ${perk.details.customTrait.category} · ${perk.details.customTrait.effect} · 1 slot`
+											? `Custom · ${perk.details.customTrait.category} · ${perk.details.customTrait.effect} · 1 slot${perk.details.customTrait.training ? ` · Training ${trainingText(perk.details.customTrait.training)}` : ''}`
 											: `${rarity?.label ?? 'Unknown'} · ${info?.category} · ${info?.effect} · ${t.family ? 1 : rarity?.slots ?? '?'} slot${(t.family ? 1 : rarity?.slots) === 1 ? '' : 's'}`}
 									</span>
 									{t.family && <span class="fam-tag">Family trait{t.familyId ? ` · ${familyName(t.familyId)}` : ''}</span>}

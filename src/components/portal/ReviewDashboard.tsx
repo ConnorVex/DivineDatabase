@@ -48,6 +48,7 @@ import { loadFamilyChoices, loadLinkablePerks, type LinkablePerk } from '../../l
 import { applyApproved, approvedText, checkSheet, denyStatOverride, ENCRYPTION_ITEM, isStatOverride, type Issue } from '../../lib/portal/rules.ts';
 import { AdminRail } from './AdminRail.tsx';
 import { MaintenancePanel } from './MaintenancePanel.tsx';
+import { ClaimsPanel } from './ClaimsPanel.tsx';
 import { PlayersView } from './OverridePanel.tsx';
 import { OwnerCard } from './OwnerCard.tsx';
 import { startPortalTheme, themeForRole } from '../../lib/portal/theme.ts';
@@ -77,10 +78,10 @@ const KINDS = [
 	{ id: 'perks', label: 'Family perks', icon: '✨' },
 	{ id: 'equipment', label: 'Equipment', icon: '⚔️' },
 ] as const;
-type Kind = (typeof KINDS)[number]['id'] | 'players' | 'site';
+type Kind = (typeof KINDS)[number]['id'] | 'players' | 'claims' | 'site';
 const kindFromUrl = (): Kind => {
 	const t = new URLSearchParams(location.search).get('type');
-	return t === 'players' || t === 'site' || KINDS.some((k) => k.id === t) ? (t as Kind) : 'characters';
+	return t === 'players' || t === 'claims' || t === 'site' || KINDS.some((k) => k.id === t) ? (t as Kind) : 'characters';
 };
 
 const STATUS_LABEL: Record<Status, string> = {
@@ -755,6 +756,7 @@ export default function ReviewDashboard() {
 		else url.searchParams.set('type', k);
 		if (player) url.searchParams.set('player', player);
 		else url.searchParams.delete('player');
+		if (k !== 'claims') url.searchParams.delete('universe');
 		history.replaceState(null, '', url);
 	}
 	// From a review: open the owner in Players & rolls, on the character being reviewed.
@@ -817,7 +819,7 @@ export default function ReviewDashboard() {
 	if (!all) return <p class="portal-status">Loading submissions…</p>;
 
 	const pendingFamilies = families.filter((f) => f.status === 'pending');
-	const counts: Record<Exclude<Kind, 'players' | 'site'>, number> = {
+	const counts: Record<Exclude<Kind, 'players' | 'claims' | 'site'>, number> = {
 		characters: all.filter((c) => c.status === 'pending').length,
 		families: pendingFamilies.length,
 		perks: perks.reduce((n, r) => n + r.perks.length, 0),
@@ -846,6 +848,7 @@ export default function ReviewDashboard() {
 				<div class="fm fm-admin-list">{perks.length ? perks.map((r) => <ReviewRequest key={r.id} r={r} onDone={load} />) : <p class="pf-empty">No perks waiting. 🎉</p>}</div>
 			)}
 			{shownKind === 'equipment' && <EquipmentReview requests={equipment} items={craftItems} players={players} onDone={load} />}
+			{shownKind === 'claims' && <ClaimsPanel universes={universes} onChanged={load} />}
 			{shownKind === 'site' && <MaintenancePanel />}
 			{shownKind === 'players' && <PlayersView players={[...players.values()]} focus={focus} focusCharacter={focusChar} onFocus={(id) => (setFocusChar(null), setKind('players', id))} />}
 		</>
@@ -866,6 +869,7 @@ export default function ReviewDashboard() {
 				inbox={KINDS.map((k) => ({ id: k.id, label: k.label, icon: k.icon, count: counts[k.id] }))}
 				tools={[
 					{ id: 'players', label: 'Players & rolls', icon: '🎲' },
+					{ id: 'claims', label: 'Claims', icon: '📌' },
 					{ id: 'site', label: 'Maintenance', icon: '🛠️' },
 				]}
 				active={shownKind}

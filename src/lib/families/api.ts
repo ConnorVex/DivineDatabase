@@ -6,7 +6,8 @@ import { supabase } from '../supabase.ts';
 
 export type FamilyStatus = 'pending' | 'approved' | 'needs_correction' | 'denied';
 export type Standing = 'sister' | 'allies' | 'friendly' | 'neutral' | 'uneasy' | 'hostile' | 'mortal_enemies';
-export type Recruiting = 'open' | 'tryouts' | 'closed';
+/** Open: players can start a family character from the family page. Closed: they can't. */
+export type Recruiting = 'open' | 'closed';
 export type FoundIn = 'mainland' | 'outworld' | 'both';
 export type PerkKind =
 	| 'starting_stats'
@@ -39,8 +40,12 @@ export interface Family {
 	banner_url: string;
 	colour: string;
 	recruiting: Recruiting;
+	/** Members are hidden from everyone outside the family, and every perk counts as hidden. */
+	sealed: boolean;
 	home: string;
 	special_statuses: string[];
+	/** Perk section names, in order. */
+	perk_sections?: string[];
 	review_note: string;
 	submitted_at: string | null;
 	approved_at: string | null;
@@ -90,6 +95,18 @@ export interface StandingNote {
 }
 
 /** What a built perk holds. A Family ability is a power-system card; a Family trait names a trait. */
+/** How a custom trait changes the Physical Points staff give on a member's training log. */
+export interface TrainingEffect {
+	/** A percent of the points staff give, e.g. 50 or -25. */
+	percent: number;
+	/** A flat number of points added or taken away. */
+	flat: number;
+}
+
+/** "+50%", "-2", "+25% +3" */
+export const trainingText = (t: TrainingEffect) =>
+	[t.percent ? `${t.percent > 0 ? '+' : ''}${t.percent}%` : '', t.flat ? `${t.flat > 0 ? '+' : ''}${t.flat}` : ''].filter(Boolean).join(' ');
+
 export interface PerkDetails {
 	/** `system` is a power system id; perks from before it existed are Abilities cards. */
 	ability?: { system?: string; fields: Fields; skills: Skill[]; parts?: string[] };
@@ -97,7 +114,71 @@ export interface PerkDetails {
 	stats?: { strength: string; speed: string; defense: string; stamina: string; intelligence: string; extraPtp: number };
 	trait?: string;
 	/** Set when the family made its own trait instead of picking a listed one. */
-	customTrait?: { category: string; effect: string };
+	customTrait?: { category: string; effect: string; training?: TrainingEffect };
+	/** Trait rules (kind trait_slots): how members fill their trait slots. */
+	traitRules?: TraitRules;
+	/** System rules (kind system_start): how a power system starts for members. */
+	systemRules?: SystemRules;
+	/** A fighting style only taught in the family. */
+	style?: StyleRules;
+	/** A secret technique's tracker: a meter, levels, and who's reached them. */
+	tracker?: Tracker;
+	/** Items & vault: what's in it. */
+	items?: { name: string; note: string }[];
+}
+
+export interface TraitRules {
+	/** Extra trait slots every member gets. */
+	extraSlots: number;
+	/** Members can still use the regular trait slots. */
+	regularSlots: boolean;
+	/** Members pick any listed trait as a family trait. */
+	anyTrait: boolean;
+	/** Family traits count toward combinations. */
+	countsForCombos: boolean;
+	/** Potentials members may pick instead of rolling (ids from the rules); empty = roll as usual. */
+	potentials: string[];
+}
+
+/** How an option of a system field is gained: start with it, roll for it, or not allowed. */
+export type OptionAccess = 'start' | 'rolled' | 'banned';
+export interface SystemOption {
+	field: string;
+	value: string;
+	access: OptionAccess;
+	/** A value that isn't on the usual list (the family's own), e.g. a custom CE level. */
+	custom: boolean;
+	/** What the option means, e.g. "8K Cursed Energy". */
+	detail: string;
+}
+export interface SystemRules {
+	system: string;
+	/** Members must have this system: no, yes, or yes unless (e.g. Heavenly Restricted). */
+	required: 'no' | 'yes' | 'unless';
+	unless: string;
+	/** Fields every member starts with set to these values. */
+	fixed: Record<string, string>;
+	options: SystemOption[];
+	/** Extra points to spend on the system's stats, and what they're called. */
+	extraPoints: number;
+	pointsLabel: string;
+	/** Starting skills: the system's usual limit, no limit, or a set number. */
+	moveLimit: 'default' | 'unlimited' | number;
+}
+
+export interface StyleRules {
+	/** e.g. Flow or Moveset. */
+	styleClass: string;
+	passive: string;
+	/** How it's switched on in a fight. */
+	activation: string;
+}
+
+export interface Tracker {
+	meter: { label: string; max: number; gain: string };
+	levels: { name: string; requirement: string; effect: string }[];
+	/** Members and the level they've reached, e.g. their named Awakening. */
+	holders: { name: string; level: string; title: string }[];
 }
 
 export interface Perk {
@@ -116,10 +197,13 @@ export interface Perk {
 	request_id?: string | null;
 	/** Set once an admin has decided it; kept when the owner changes it again. */
 	reviewed_at?: string | null;
+	/** The section it sits in (one of the family's perk_sections, or '' for none) and its place there. */
+	section?: string;
+	sort?: number;
 }
 
 /** A perk as the family page shows it. Locked hidden perks come without their details. */
-export type BoardPerk = Pick<Perk, 'id' | 'family_id' | 'hidden' | 'created_at' | 'title' | 'description' | 'details'> & {
+export type BoardPerk = Pick<Perk, 'id' | 'family_id' | 'hidden' | 'created_at' | 'title' | 'description' | 'details' | 'section' | 'sort'> & {
 	unlocked: boolean;
 	kind: PerkKind | null;
 	access: PerkAccess | null;
@@ -142,8 +226,6 @@ export interface FamilyBundle {
 	/** Every perk with its review state (owner and admins only). */
 	allPerks: Perk[];
 	owner: FamilyOwner | null;
-	/** Tryouts the viewer may read: their own, or all of them for the owner and admins. Empty when logged out. */
-	tryouts: Tryout[];
 	/** Character portraits from the gallery, by character id. */
 	portraits: Record<string, string>;
 }
@@ -161,9 +243,10 @@ export const STANDINGS: { id: Standing; label: string; tone: string }[] = [
 export const PERK_KINDS: { id: PerkKind; label: string; hint: string }[] = [
 	{ id: 'starting_stats', label: 'Starting stats', hint: 'Starting ranks for members’ stats, set the same way as on a character, plus any extra tier points' },
 	{ id: 'trait', label: 'Family trait', hint: 'A trait that runs in the family. Members link it in their Traits, where it takes one slot' },
-	{ id: 'trait_slots', label: 'Trait slots', hint: 'Extra trait slots, or a different way to fill them' },
+	{ id: 'trait_slots', label: 'Trait rules', hint: 'Extra trait slots, whether regular slots can be used, picking any trait, combinations, and choosing a Potential' },
+	{ id: 'system_start', label: 'System rules', hint: 'How a power system starts for members: required systems, fixed values, options to start with or roll for, extra points, skill limits' },
 	{ id: 'locked_power', label: 'Family ability', hint: 'A power-system card (Abilities, Jujutsu Kaisen, JoJo…) with the family’s own starting stats, which members link on their character' },
-	{ id: 'technique', label: 'Secret technique', hint: 'Something the family has mastered, like a special transformation' },
+	{ id: 'technique', label: 'Secret technique', hint: 'Something the family has mastered, like a special transformation. Can track a meter, levels and who has reached them' },
 	{ id: 'fighting_style', label: 'Fighting style', hint: 'A style only taught inside the family' },
 	{ id: 'item', label: 'Items & vault', hint: 'Starting gear, or access to a shared vault' },
 	{ id: 'rolls', label: 'Better rolls', hint: 'Extra rolls, better odds, or picking instead of rolling' },
@@ -174,14 +257,27 @@ export const PERK_KINDS: { id: PerkKind; label: string; hint: string }[] = [
 ];
 
 export const PERK_ACCESS: { id: PerkAccess; label: string }[] = [
-	{ id: 'automatic', label: 'Every member' },
+	{ id: 'automatic', label: 'Guaranteed: every member' },
 	{ id: 'choice', label: 'Members can pick it' },
 	{ id: 'rolled', label: 'Rolled for' },
 	{ id: 'earned', label: 'Earned in RP' },
 	{ id: 'taught', label: 'Taught by a member' },
 ];
 
-export const RECRUITING: Record<Recruiting, string> = { open: 'Recruiting', tryouts: 'Tryouts open', closed: 'Not recruiting' };
+/** Perks grouped the way the family page shows them: the family's own sections (in its order,
+ * then "Other perks"), or by kind when it has none. Each group is in its saved order. */
+export function groupPerks<P extends { kind: PerkKind | null; section?: string; sort?: number }>(perks: P[], sections: string[] | undefined): { id: string; label: string; rows: P[] }[] {
+	const names = (sections ?? []).filter(Boolean);
+	const bySort = (x: P, y: P) => (x.sort ?? 0) - (y.sort ?? 0);
+	return names.length
+		? [
+				...names.map((name) => ({ id: name, label: name, rows: perks.filter((p) => p.section === name).sort(bySort) })),
+				{ id: '__other', label: 'Other perks', rows: perks.filter((p) => !names.includes(p.section ?? '')).sort(bySort) },
+			].filter((g) => g.rows.length)
+		: PERK_KINDS.map((k) => ({ id: k.id, label: k.label, rows: perks.filter((p) => p.kind === k.id).sort(bySort) })).filter((g) => g.rows.length);
+}
+
+export const RECRUITING: Record<Recruiting, string> = { open: 'Open', closed: 'Closed' };
 export const FOUND_IN: Record<FoundIn, string> = { mainland: 'Mainland', outworld: 'Outworld', both: 'Mainland & Outworld' };
 
 /** The editable columns of a family (everything else is set by the database or admins). */
@@ -196,6 +292,7 @@ export const EDITABLE = [
 	'banner_url',
 	'colour',
 	'recruiting',
+	'sealed',
 	'home',
 ] as const;
 export type FamilyFields = Pick<Family, (typeof EDITABLE)[number]>;
@@ -243,20 +340,16 @@ export async function loadFamily(slug: string, canManage: (f: Family) => boolean
 	if (!family) throw new Error('Family not found.');
 	const id = family.id;
 	const manage = canManage(family);
-	const loggedIn = Boolean(await currentUserId());
-	const [divisions, members, relations, notes, perks, allPerks, owner, tryouts] = await Promise.all([
+	const [divisions, members, relations, notes, perks, allPerks, owner] = await Promise.all([
 		db().from('family_divisions').select('*').eq('family_id', id).order('sort'),
 		db().from('family_members').select('*').eq('family_id', id).order('sort').order('created_at'),
 		db().from('family_relations').select('*').eq('family_id', id).order('sort'),
 		db().from('family_standing_notes').select('*').eq('family_id', id),
-		db().from('family_perk_board').select('*').eq('family_id', id).order('created_at'),
-		manage ? db().from('family_perks').select('*').eq('family_id', id).order('created_at') : Promise.resolve({ data: [], error: null }),
+		db().from('family_perk_board').select('*').eq('family_id', id).order('sort').order('created_at'),
+		manage ? db().from('family_perks').select('*').eq('family_id', id).order('sort').order('created_at') : Promise.resolve({ data: [], error: null }),
 		db().from('family_owners').select('*').eq('family_id', id).maybeSingle(),
-		loggedIn
-			? db().from('family_tryouts').select('*').eq('family_id', id).order('created_at', { ascending: false })
-			: Promise.resolve({ data: [], error: null }),
 	]);
-	for (const r of [divisions, members, relations, notes, perks, allPerks, owner, tryouts]) fail(r.error);
+	for (const r of [divisions, members, relations, notes, perks, allPerks, owner]) fail(r.error);
 
 	const characterIds = (members.data ?? []).map((m) => m.character_id).filter(Boolean);
 	const portraits: Record<string, string> = {};
@@ -273,7 +366,6 @@ export async function loadFamily(slug: string, canManage: (f: Family) => boolean
 		perks: perks.data ?? [],
 		allPerks: allPerks.data ?? [],
 		owner: owner.data ?? null,
-		tryouts: tryouts.data ?? [],
 		portraits,
 	};
 }
@@ -343,6 +435,8 @@ export type DivisionDraft = Omit<Division, 'id' | 'family_id'> & { id?: string }
 export type RelationDraft = Omit<Relation, 'id' | 'family_id'> & { id?: string };
 export type MemberDraft = Pick<Member, 'name' | 'division_id' | 'title' | 'relationship' | 'image_url' | 'sort'> & { id?: string; character_id?: string | null };
 export type PerkDraft = Pick<Perk, 'kind' | 'access' | 'title' | 'description' | 'hidden' | 'details'> & { id?: string };
+/** Where a perk sits: its section and place. Moving perks doesn't send them for review. */
+export type PerkPlace = { section: string; sort: number };
 
 export const saveDivisions = (familyId: string, before: Division[], rows: DivisionDraft[]) =>
 	sync('family_divisions', familyId, before, rows.map((r, i) => ({ ...r, sort: i + 1 })));
@@ -369,65 +463,18 @@ export async function saveStandingNotes(familyId: string, notes: Partial<Record<
 
 /** Removes `removed` perks, then sends every new or changed perk to the admins as one request. */
 /** `skipReview` only counts for admins: their perks are approved as they're saved. */
-export async function sendPerks(familyId: string, perks: PerkDraft[], removed: string[], note: string, skipReview = false) {
+export async function sendPerks(familyId: string, perks: (PerkDraft & Partial<PerkPlace>)[], removed: string[], note: string, skipReview = false) {
 	if (removed.length) fail((await db().from('family_perks').delete().in('id', removed)).error);
 	if (perks.length)
 		fail((await db().rpc('submit_perk_request', { p_family: familyId, p_note: note, p_perks: perks.map((p) => ({ ...p, title: p.title.trim() })), p_skip_review: skipReview })).error);
 }
 
+/** Saves the family's perk sections in order and where each saved perk sits, without a review. */
+export async function arrangePerks(familyId: string, sections: string[], order: ({ id: string } & PerkPlace)[]) {
+	fail((await db().rpc('arrange_family_perks', { p_family: familyId, p_sections: sections, p_order: order })).error);
+}
+
 // ───────────────────────────── Joining ─────────────────────────────
-
-export async function requestToJoin(familyId: string, character: MyCharacter, message: string) {
-	const { error } = await db()
-		.from('family_members')
-		.insert({ family_id: familyId, character_id: character.id, name: character.name, message: message.trim() });
-	if (error?.message.includes('duplicate key')) throw new Error(`${character.name} is already in this family or has asked to join.`);
-	fail(error);
-}
-
-// ───────────────────────────── Tryouts ─────────────────────────────
-
-/** A sample character sent to a family holding tryouts. Private to the sender, the owner and admins. */
-export interface Tryout {
-	id: string;
-	family_id: string;
-	player_id: string;
-	division_id: string | null;
-	character_name: string;
-	image_url: string;
-	about: string;
-	backstory: string;
-	sample: string;
-	status: 'pending' | 'accepted' | 'declined';
-	owner_note: string;
-	created_at: string;
-	reviewed_at: string | null;
-}
-export type TryoutDraft = Pick<Tryout, 'division_id' | 'character_name' | 'image_url' | 'about' | 'backstory' | 'sample'>;
-
-export async function sendTryout(familyId: string, t: TryoutDraft) {
-	const { error } = await db()
-		.from('family_tryouts')
-		.insert({
-			family_id: familyId,
-			division_id: t.division_id || null,
-			character_name: t.character_name.trim(),
-			image_url: t.image_url.trim(),
-			about: t.about.trim(),
-			backstory: t.backstory.trim(),
-			sample: t.sample.trim(),
-		});
-	if (error?.message.includes('family_tryouts_one_pending')) throw new Error('You already have a tryout waiting for this family.');
-	fail(error);
-}
-
-export async function decideTryout(id: string, status: 'accepted' | 'declined', note: string) {
-	fail((await db().from('family_tryouts').update({ status, owner_note: note.trim() }).eq('id', id)).error);
-}
-
-export async function deleteTryout(id: string) {
-	fail((await db().from('family_tryouts').delete().eq('id', id)).error);
-}
 
 export async function acceptMember(id: string) {
 	fail((await db().from('family_members').update({ status: 'active' }).eq('id', id)).error);

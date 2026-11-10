@@ -75,6 +75,20 @@ export interface PickedTrait {
 	rollProof?: string;
 }
 
+/** A character made through a family's Inheritance builder (on the family's page). Only new
+ * characters made this way join a family; it's set when the builder starts them. */
+export interface Inheritance {
+	familyId: string;
+	/** The "Members can pick it" perks the player took (perk ids). */
+	picks: string[];
+	/** Family options the player starts with: "<perk id>|<field>=<value>" (a System rules option). */
+	options: string[];
+	/** The Potential the player picked, when the family's Trait rules allow picking one. */
+	potential: string;
+}
+
+export const optionKey = (perkId: string, field: string, value: string) => `${perkId}|${field}=${value}`;
+
 export interface Sheet {
 	role?: string;
 	age?: string;
@@ -106,6 +120,8 @@ export interface Sheet {
 	evolutions: { date: string; summary: string; earned: string; link: string }[];
 	/** Families the character asks to join when it's submitted (family ids). */
 	families: string[];
+	/** Set for a character made in a family's Inheritance builder. */
+	inheritance?: Inheritance | null;
 	/** Canon tryouts only. */
 	canon: { portrayal: string; sample: string };
 	/** Admin characters: stats in an Error Tier, shown as ERROR to everyone but admins. */
@@ -184,5 +200,15 @@ export function normalizeSheet(raw: unknown): Sheet {
 			: [],
 		evolutions: Array.isArray(s.evolutions) ? s.evolutions : [],
 		families: Array.isArray(s.families) ? s.families.filter((f): f is string => typeof f === 'string') : [],
+		inheritance: normalizeInheritance(s.inheritance),
 	};
+}
+
+const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+
+function normalizeInheritance(raw: unknown): Inheritance | null {
+	if (!raw || typeof raw !== 'object') return null;
+	const i = raw as Partial<Inheritance>;
+	if (typeof i.familyId !== 'string' || !i.familyId) return null;
+	return { familyId: i.familyId, picks: strings(i.picks), options: strings(i.options), potential: typeof i.potential === 'string' ? i.potential : '' };
 }

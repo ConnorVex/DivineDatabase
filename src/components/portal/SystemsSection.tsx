@@ -865,7 +865,7 @@ function AbilitySource(props: {
 							const next = abilities?.find((p) => p.id === id);
 							if (next) props.onLink(next);
 						}}
-						help="Abilities from the families picked in the Families step, or that this character is already in."
+						help="Abilities from this character’s family."
 					/>
 					{link.perkId && abilities && !perk && (
 						<p class="pf-wide roll-note bad">“{link.title}” isn’t available any more: the family removed it, or this character no longer picks that family.</p>

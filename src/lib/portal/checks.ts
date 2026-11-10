@@ -1,6 +1,8 @@
 // The rule checks for a whole character, shared by the form and the evolution page.
 import type { CharacterDraft, ClaimRow, Combo } from './api.ts';
 import type { LinkablePerk } from './families.ts';
+import type { BoardPerk } from '../families/api.ts';
+import { inheritanceEffects, inheritanceIssues, inheritedOptions, inheritedPerks, type InheritanceRoll } from './inheritance.ts';
 import { applyApproved, checkSheet, type Issue } from './rules.ts';
 import { systemById } from './systems.ts';
 
@@ -15,6 +17,8 @@ export interface CheckData {
 	familyPerks?: LinkablePerk[];
 	/** The Heavenly Restriction granted for this character (null: none; undefined: not known). */
 	heavenlyGrant?: string | null;
+	/** For a character made in a family's Inheritance: the family's perks and the owner's rolls. */
+	inheritance?: { familyName: string; perks: BoardPerk[]; rolls: InheritanceRoll[] } | null;
 }
 
 /** Canon picks only count for systems the character still has. */
@@ -25,14 +29,19 @@ export function effectiveClaims(d: CharacterDraft, board: ClaimRow[]): string[] 
 
 export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[] {
 	const { board, held, combos } = data;
+	const inh = draft.sheet.inheritance && data.inheritance && !draft.approvedAt ? data.inheritance : null;
+	const got = inh ? inheritedPerks(inh.perks, draft.sheet.inheritance!, inh.rolls) : [];
+	const effects = inheritanceEffects(got);
+	const familyIssues = inh ? inheritanceIssues(draft.sheet, got, inheritedOptions(got, draft.sheet.inheritance!, inh.rolls), inh.familyName) : [];
 	const claims = new Map(board.map((r) => [r.id, { name: r.name, usedSlots: r.used_slots, maxUsers: r.max_users, category: r.category, universe: r.universe, claimType: r.claim_type }]));
 	const list = applyApproved(checkSheet(draft.sheet, {
 		kind: draft.kind,
 		name: draft.name,
 		canonUniverse: draft.canonUniverse,
 		isEvolution: Boolean(draft.approvedAt),
-		extraTraitSlots: draft.extraTraitSlots,
-		bonusPtp: draft.bonusPtp,
+		extraTraitSlots: (draft.extraTraitSlots ?? 0) + effects.extraTraitSlots,
+		bonusPtp: (draft.bonusPtp ?? 0) + effects.bonusPtp,
+		inheritedPerks: new Set(got.map((p) => p.id)),
 		approvedSheet: draft.approvedSheet,
 		claims,
 		heldClaimIds: held,
@@ -42,11 +51,11 @@ export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[]
 		families: [...draft.sheet.families, ...data.familyIds],
 		familyPerks: data.familyPerks && new Map(data.familyPerks.map((p) => [p.id, p])),
 		heavenlyGrant: data.heavenlyGrant,
-		staffOverrides: draft.staffOverrides,
+		staffOverrides: { ...effects.overrides, ...draft.staffOverrides },
 		progressed: draft.progressed,
 		adminCharacter: draft.adminCharacter,
 		encryptionRequest: draft.encryptionRequested && !draft.encrypted && !draft.adminCharacter ? { reason: draft.encryptionReason } : null,
-	}), draft.approvedPermissions);
+	}).concat(familyIssues), draft.approvedPermissions);
 	if (draft.kind === 'canon' && draft.canonUniverse && draft.name.trim()) {
 		const taken = board.find((r) => r.claim_type === 'character' && r.universe === draft.canonUniverse && r.name.toLowerCase() === draft.name.trim().toLowerCase());
 		if (taken && !held.has(taken.id) && taken.max_users !== null && taken.used_slots >= taken.max_users) {

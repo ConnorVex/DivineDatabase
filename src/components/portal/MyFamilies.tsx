@@ -1,11 +1,10 @@
-// The Families tab of My Stuff: the family you own, your characters' families, and your tryouts.
+// The Families tab of My Stuff: the family you own and your characters' families.
 import { useEffect, useState } from 'preact/hooks';
 import { loadMyFamilies, type MyFamilies as Data } from '../../lib/portal/home.ts';
 
 const families = `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}families/`;
 const familyHref = (slug: string) => `${families}view/?f=${encodeURIComponent(slug)}`;
 const messageOf = (e: unknown) => (e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e));
-const when = (iso: string) => new Date(iso).toLocaleDateString(undefined, { dateStyle: 'medium' });
 
 const FAMILY_STATUS = {
 	pending: { label: 'In review', tone: 'info' },
@@ -13,12 +12,6 @@ const FAMILY_STATUS = {
 	needs_correction: { label: 'Needs correction', tone: 'warn' },
 	denied: { label: 'Denied', tone: 'bad' },
 };
-const TRYOUT_STATUS = {
-	pending: { label: 'Waiting for the owner', tone: 'info' },
-	accepted: { label: 'Accepted', tone: 'good' },
-	declined: { label: 'Declined', tone: 'bad' },
-};
-
 export function MyFamilies() {
 	const [data, setData] = useState<Data | null>(null);
 	const [error, setError] = useState('');
@@ -30,7 +23,6 @@ export function MyFamilies() {
 	if (!data) return <p class="portal-status">Loading your families…</p>;
 
 	const f = data.family;
-	const accepted = data.tryouts.filter((t) => t.status === 'accepted');
 	return (
 		<div class="dd-home mf">
 			<section class="portal-card">
@@ -47,7 +39,6 @@ export function MyFamilies() {
 							<p class="pf-help">
 								<span class={`dd-status tone-${FAMILY_STATUS[f.status].tone}`}>{FAMILY_STATUS[f.status].label}</span>
 								{f.joinRequests > 0 && ` · ${f.joinRequests} join request${f.joinRequests === 1 ? '' : 's'}`}
-								{f.tryouts > 0 && ` · ${f.tryouts} tryout${f.tryouts === 1 ? '' : 's'} waiting`}
 							</p>
 						</div>
 						<a class="pf-button primary" href={familyHref(f.slug)}>
@@ -70,8 +61,8 @@ export function MyFamilies() {
 				</header>
 				{data.memberships.length === 0 ? (
 					<p class="pf-empty">
-						None of your characters is in a family yet. Open a family’s page from the <a href={families}>directory</a> to ask to join, or pick families in the
-						character form.
+						None of your characters is in a family yet. Characters join by being made for a family: open one from the <a href={families}>directory</a> and start a
+						character there.
 					</p>
 				) : (
 					<ul class="dd-rows">
@@ -87,33 +78,6 @@ export function MyFamilies() {
 				)}
 			</section>
 
-			<section class="portal-card">
-				<header class="dd-stuff-head">
-					<h3>Your tryouts</h3>
-				</header>
-				{data.tryouts.length === 0 ? (
-					<p class="pf-empty">No tryouts. Families that hold tryouts have a “Send a tryout” button on their page.</p>
-				) : (
-					<ul class="dd-rows">
-						{data.tryouts.map((t) => (
-							<li key={t.id}>
-								<span>
-									<strong>{t.characterName}</strong> for <a href={familyHref(t.familySlug)}>{t.familyName}</a>
-									<span class="pf-help"> · sent {when(t.createdAt)}</span>
-									{t.ownerNote && <span class="mf-note">“{t.ownerNote}”</span>}
-								</span>
-								<span class={`dd-status tone-${TRYOUT_STATUS[t.status].tone}`}>{TRYOUT_STATUS[t.status].label}</span>
-							</li>
-						))}
-					</ul>
-				)}
-				{accepted.length > 0 && (
-					<p class="pf-help mf-tip">
-						Passed a tryout? Make the character in the <a href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}submit/`}>character form</a> and use “Use this
-						tryout” on its Families step.
-					</p>
-				)}
-			</section>
 		</div>
 	);
 }

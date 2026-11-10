@@ -13,6 +13,7 @@ export const emptyFamily = (): FamilyFields => ({
 	banner_url: '',
 	colour: '#20e0a0',
 	recruiting: 'closed',
+	sealed: false,
 	home: '',
 });
 
@@ -50,12 +51,23 @@ export function FamilyForm({ value, onChange, nameLocked }: { value: FamilyField
 				options={Object.entries(FOUND_IN).map(([v, label]) => ({ value: v, label }))}
 			/>
 			<SelectField
-				label="Recruiting"
+				label="Family status"
 				value={value.recruiting}
 				onChange={(v) => set('recruiting', (v || 'closed') as FamilyFields['recruiting'])}
 				options={Object.entries(RECRUITING).map(([v, label]) => ({ value: v, label }))}
-				help="Recruiting: players ask to join. Tryouts: players send a tryout for you to review."
+				help="Open: players can make a character for your family. Closed: no new members."
 			/>
+			<div class="pf-field fm-seal">
+				<span class="pf-label">Sealed</span>
+				<label class="clm-check">
+					<input type="checkbox" checked={Boolean(value.sealed)} onChange={(e) => set('sealed', e.currentTarget.checked)} />
+					🔒 Seal members
+				</label>
+				<p class="pf-help">
+					Only the family and the admins see your members’ characters and your perks. Others see the name, the lore and the roster. Players you let in can see the
+					Inheritance.
+				</p>
+			</div>
 			<div class="pf-field">
 				<label class="pf-label" for="fm-colour">
 					Colour

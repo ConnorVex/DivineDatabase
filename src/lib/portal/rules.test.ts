@@ -244,7 +244,7 @@ test('a Cursed Technique has a single Maximum Technique', () => {
 test('Family Locked claims need permission', () => {
 	const s = goodSheet();
 	const claims = new Map([['l', { name: 'Limitless', usedSlots: 0, maxUsers: null, category: 'Family Locked' }]]);
-	assert.match(messages(checkSheet(s, { ...ocCtx, claims, requestedClaims: ['l'] }), 'permission').join(), /Limitless is Family Locked: pick the family/);
+	assert.match(messages(checkSheet(s, { ...ocCtx, claims, requestedClaims: ['l'] }), 'permission').join(), /Limitless is Family Locked: only the family that holds it can give it/);
 	const withFamily = checkSheet(s, { ...ocCtx, claims, requestedClaims: ['l'], families: ['f1'] }).filter((i) => i.level === 'permission');
 	assert.match(withFamily.map((i) => i.message).join(), /family that holds it \(or an admin\) confirms it/);
 	assert.equal(withFamily[0].section, 'Families');

@@ -8,12 +8,11 @@ import {
 	PERK_KINDS,
 	STANDINGS,
 	acceptMember,
-	decideTryout,
-	deleteTryout,
 	removeMember,
 	richText,
 	saveDivisions,
 	sendPerks,
+	arrangePerks,
 	saveRelations,
 	saveRoster,
 	saveStandingNotes,
@@ -21,7 +20,6 @@ import {
 	type DivisionDraft,
 	type FamilyBundle,
 	type FamilyFields,
-	type Tryout,
 	type MemberDraft,
 	type Perk,
 	type PerkDraft,
@@ -32,14 +30,16 @@ import {
 } from '../../lib/families/api.ts';
 import { abilitySystem, systemById } from '../../lib/portal/systems.ts';
 import { AbilityBuilder, StatsBuilder, TraitPicker, blankDetails, detailProblems, isBuilt } from './PerkBuilders.tsx';
+import { ItemsBuilder, StyleBuilder, SystemRulesBuilder, TrackerBuilder, TraitRulesBuilder } from './PerkRules.tsx';
 import { FamilyForm, familyProblems } from './FamilyForm.tsx';
 import { messageOf } from './shared.tsx';
+import { InheritanceTab } from './InheritanceRolls.tsx';
 
 const TABS = [
 	{ id: 'page', label: 'Page' },
 	{ id: 'divisions', label: 'Divisions' },
 	{ id: 'roster', label: 'Roster' },
-	{ id: 'tryouts', label: 'Tryouts' },
+	{ id: 'inheritance', label: 'Inheritance' },
 	{ id: 'relations', label: 'Relations' },
 	{ id: 'perks', label: 'Perks' },
 ] as const;
@@ -345,118 +345,6 @@ function RosterTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
 	);
 }
 
-// ───────────────────────────── Tryouts ─────────────────────────────
-
-const TRYOUT_STATUS = { pending: 'Waiting', accepted: 'Accepted', declined: 'Declined' } as const;
-
-function TryoutCard({ t, b, onSaved }: { t: Tryout; b: FamilyBundle; onSaved: () => void }) {
-	const [note, setNote] = useState(t.owner_note);
-	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState('');
-	const division = b.divisions.find((d) => d.id === t.division_id)?.name;
-	const image = /^https:\/\//.test(t.image_url) ? t.image_url : null;
-	async function run(action: () => Promise<void>) {
-		setBusy(true);
-		setError('');
-		try {
-			await action();
-			onSaved();
-		} catch (e) {
-			setError(messageOf(e));
-			setBusy(false);
-		}
-	}
-	return (
-		<details class={`fm-tryout-card tryout-${t.status}`} open={t.status === 'pending'}>
-			<summary>
-				{image ? <img class="fm-face" src={image} alt="" /> : <span class="fm-face">{t.character_name.charAt(0).toUpperCase()}</span>}
-				<span class="fm-member-text">
-					<strong>{t.character_name}</strong>
-					<span class="fm-member-sub">
-						{new Date(t.created_at).toLocaleDateString()}
-						{division && ` · for ${division}`}
-					</span>
-				</span>
-				<span class="fm-tryout-state">{TRYOUT_STATUS[t.status]}</span>
-			</summary>
-			<div class="fm-tryout-body">
-				<h4>Who they are</h4>
-				<div class="fm-prose" dangerouslySetInnerHTML={{ __html: richText(t.about) }} />
-				{t.backstory && (
-					<>
-						<h4>Backstory</h4>
-						<div class="fm-prose" dangerouslySetInnerHTML={{ __html: richText(t.backstory) }} />
-					</>
-				)}
-				<h4>RP sample</h4>
-				<div class="fm-prose fm-sample" dangerouslySetInnerHTML={{ __html: richText(t.sample) }} />
-				{t.status === 'pending' ? (
-					<>
-						<div class="pf-field">
-							<label class="pf-label" for={`t-note-${t.id}`}>
-								Note to the player
-							</label>
-							<input id={`t-note-${t.id}`} maxLength={1000} value={note} onInput={(e) => setNote(e.currentTarget.value)} placeholder="Optional, shown to them" />
-						</div>
-						<div class="fm-edit-row-tools">
-							<button type="button" class="pf-button subtle" disabled={busy} onClick={() => run(() => decideTryout(t.id, 'declined', note))}>
-								Decline
-							</button>
-							<button type="button" class="pf-button primary" disabled={busy} onClick={() => run(() => decideTryout(t.id, 'accepted', note))}>
-								Accept
-							</button>
-						</div>
-					</>
-				) : (
-					<>
-						{t.owner_note && <p class="fm-request-msg">Your note: “{t.owner_note}”</p>}
-						<div class="fm-edit-row-tools">
-							<button type="button" class="pf-button subtle" disabled={busy} onClick={() => run(() => deleteTryout(t.id))}>
-								Delete
-							</button>
-						</div>
-					</>
-				)}
-				{error && <p class="portal-error">{error}</p>}
-			</div>
-		</details>
-	);
-}
-
-function TryoutsTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
-	const pending = b.tryouts.filter((t) => t.status === 'pending');
-	const decided = b.tryouts.filter((t) => t.status !== 'pending');
-	return (
-		<section class="pf-section">
-			<header class="pf-section-head">
-				<h2>Tryouts</h2>
-				<span class="pf-badge">{pending.length}</span>
-			</header>
-			<p class="pf-intro">
-				{b.family.recruiting === 'tryouts'
-					? 'Players send a brand-new sample character. Accepting lets them make that character and ask to join. Deleting an accepted tryout takes that away again.'
-					: 'Set Recruiting to "Tryouts open" on the Page tab to take tryouts.'}
-			</p>
-			{pending.length === 0 && <p class="pf-empty">No tryouts waiting.</p>}
-			<div class="fm-tryout-list">
-				{pending.map((t) => (
-					<TryoutCard key={t.id} t={t} b={b} onSaved={onSaved} />
-				))}
-			</div>
-			{decided.length > 0 && (
-				<>
-					<p class="pf-subhead">Decided</p>
-					<div class="fm-tryout-list">
-						{decided.map((t) => (
-							<TryoutCard key={t.id} t={t} b={b} onSaved={onSaved} />
-						))}
-					</div>
-				</>
-			)}
-		</section>
-	);
-}
-
 // ───────────────────────────── Relations ─────────────────────────────
 
 function RelationsTab({ b, families, onSaved }: { b: FamilyBundle; families: { id: string; name: string }[]; onSaved: () => void }) {
@@ -588,9 +476,11 @@ const perkFields = (p: PerkDraft): PerkDraft => ({
 	details: isBuilt(p.kind) ? { ...blankDetails(p.kind), ...p.details } : {},
 });
 
-type PerkRow = { key: string; draft: PerkDraft; saved?: Perk; removed?: boolean };
+type PerkRow = { key: string; draft: PerkDraft; saved?: Perk; removed?: boolean; section: string };
 
 function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onChange: (d: PerkDraft) => void }) {
+	const d = draft.details;
+	const setDetails = (details: PerkDraft['details']) => onChange({ ...draft, details });
 	return (
 		<div class="pf-grid fm-perk-form">
 			<div class="pf-field pf-wide">
@@ -621,7 +511,7 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 			</div>
 			<div class="pf-field">
 				<label class="pf-label" for={`p-access-${id}`}>
-					Who gets it
+					How members get it
 				</label>
 				<select id={`p-access-${id}`} value={draft.access} onChange={(e) => onChange({ ...draft, access: e.currentTarget.value as PerkAccess })}>
 					{PERK_ACCESS.map((k) => (
@@ -633,27 +523,20 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 			</div>
 			{draft.kind === 'trait' && (
 				<TraitPicker
-					value={draft.details}
+					value={d}
 					onChange={(details) =>
 						onChange({ ...draft, details, title: !draft.title.trim() || draft.title === draft.details.trait ? details.trait ?? '' : draft.title })
 					}
 				/>
 			)}
-			{draft.kind === 'starting_stats' && draft.details.stats && (
-				<StatsBuilder value={draft.details.stats} onChange={(stats) => onChange({ ...draft, details: { stats } })} />
-			)}
-			{draft.kind === 'locked_power' && draft.details.ability ? (
+			{draft.kind === 'starting_stats' && d.stats && <StatsBuilder value={d.stats} onChange={(stats) => setDetails({ stats })} />}
+			{draft.kind === 'locked_power' && d.ability ? (
 				// A Family ability's description lives inside its card.
-				<AbilityBuilder
-					value={draft.details.ability}
-					onChange={(ability) => onChange({ ...draft, details: { ability } })}
-					description={draft.description}
-					onDescription={(description) => onChange({ ...draft, description })}
-				/>
+				<AbilityBuilder value={d.ability} onChange={(ability) => setDetails({ ability })} description={draft.description} onDescription={(description) => onChange({ ...draft, description })} />
 			) : (
 				<div class="pf-field pf-wide">
 					<label class="pf-label" for={`p-desc-${id}`}>
-						{draft.kind === 'trait' ? (draft.details.customTrait ? 'What the trait does' : 'Notes (optional)') : draft.kind === 'starting_stats' ? 'Anything else (optional)' : 'What it gives'}
+						{draft.kind === 'trait' ? (d.customTrait ? 'What the trait does' : 'Notes (optional)') : draft.kind === 'starting_stats' || isRuleKind(draft.kind) ? 'Description' : 'What it gives'}
 					</label>
 					<textarea
 						id={`p-desc-${id}`}
@@ -662,13 +545,18 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 						value={draft.description}
 						onInput={(e) => onChange({ ...draft, description: e.currentTarget.value })}
 						placeholder={
-							draft.kind === 'trait' && !draft.details.customTrait
+							draft.kind === 'trait' && !d.customTrait
 								? 'Anything about how the family passes this trait on.'
 								: 'Effects, limits, cooldowns, and any rolls. **bold** and *italic* work.'
 						}
 					/>
 				</div>
 			)}
+			{draft.kind === 'trait_slots' && d.traitRules && <TraitRulesBuilder value={d.traitRules} onChange={(traitRules) => setDetails({ traitRules })} />}
+			{draft.kind === 'system_start' && d.systemRules && <SystemRulesBuilder value={d.systemRules} onChange={(systemRules) => setDetails({ systemRules })} />}
+			{draft.kind === 'fighting_style' && d.style && <StyleBuilder value={d.style} onChange={(style) => setDetails({ style })} />}
+			{draft.kind === 'technique' && <TrackerBuilder value={d.tracker} onChange={(tracker) => setDetails(tracker ? { tracker } : {})} />}
+			{draft.kind === 'item' && <ItemsBuilder value={d.items ?? []} onChange={(items) => setDetails({ items })} />}
 			<label class="pf-check pf-wide">
 				<input type="checkbox" checked={draft.hidden} onChange={(e) => onChange({ ...draft, hidden: e.currentTarget.checked })} />
 				Members only: hide it from anyone outside the family
@@ -677,7 +565,9 @@ function PerkFields({ id, draft, onChange }: { id: string; draft: PerkDraft; onC
 	);
 }
 
-/** One line under a perk's name: its kind, what it gives, and who gets it. */
+const isRuleKind = (k: PerkKind) => k === 'trait_slots' || k === 'system_start' || k === 'fighting_style' || k === 'technique' || k === 'item';
+
+/** One line under a perk's name: its kind, what it gives, and how members get it. */
 function perkSubline(d: PerkDraft) {
 	const kind = PERK_KINDS.find((k) => k.id === d.kind)?.label ?? 'Perk';
 	const what =
@@ -685,34 +575,173 @@ function perkSubline(d: PerkDraft) {
 			? systemById.get(abilitySystem(d.details.ability))?.label
 			: d.kind === 'trait' && d.details.trait
 				? `${d.details.trait}${d.details.customTrait ? ' (custom)' : ''}`
-				: '';
-	const access = PERK_ACCESS.find((a) => a.id === d.access)?.label;
+				: d.kind === 'system_start' && d.details.systemRules
+					? systemById.get(d.details.systemRules.system)?.label
+					: d.kind === 'fighting_style'
+						? d.details.style?.styleClass
+						: '';
+	const access = PERK_ACCESS.find((a) => a.id === d.access)?.label.replace(/:.*/, '');
 	return [kind, what, access].filter(Boolean).join(' · ');
 }
 
+const UNSORTED = '';
+/** Where every saved perk sits, to tell whether anything moved. */
+type Sec = { id: string; name: string };
+const placeKey = (sections: Sec[], rows: PerkRow[]) =>
+	JSON.stringify([
+		sections.map((x) => x.name),
+		rows.filter((r) => r.saved && !r.removed).map((r) => [r.saved!.id, sections.find((x) => x.id === r.section)?.name ?? '', placeIn(rows, r)]),
+	]);
+const placeIn = (rows: PerkRow[], r: PerkRow) => rows.filter((x) => x.section === r.section && !x.removed).indexOf(r) + 1;
+
 function PerksTab({ b, isAdmin, onSaved }: { b: FamilyBundle; isAdmin: boolean; onSaved: () => void }) {
-	const initial = useMemo<PerkRow[]>(() => b.allPerks.map((p) => ({ key: p.id, draft: perkFields(p), saved: p })), [b.allPerks]);
+	const initialSections = useMemo<Sec[]>(() => {
+		const named = (b.family.perk_sections ?? []).filter(Boolean);
+		// Sections perks use that aren't in the list (e.g. after a rename elsewhere) still show.
+		const extra = [...new Set(b.allPerks.map((p) => p.section ?? '').filter((x) => x && !named.includes(x)))];
+		return [...named, ...extra].map((name) => ({ id: `s:${name}`, name }));
+	}, [b.family.perk_sections, b.allPerks]);
+	const initial = useMemo<PerkRow[]>(
+		() =>
+			[...b.allPerks]
+				.sort((x, y) => (x.sort ?? 0) - (y.sort ?? 0))
+				.map((p) => ({ key: p.id, draft: perkFields(p), saved: p, section: initialSections.find((x) => x.name === p.section)?.id ?? UNSORTED })),
+		[b.allPerks, initialSections],
+	);
 	const [rows, setRows] = useState(initial);
+	const [sections, setSections] = useState(initialSections);
 	const [note, setNote] = useState('');
 	const [skipReview, setSkipReview] = useState(true);
+	const [openKey, setOpenKey] = useState<string | null>(null);
 	const approveNow = isAdmin && skipReview;
 	const set = (key: string, patch: Partial<PerkRow>) => setRows(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 	const changed = (r: PerkRow) => !r.saved || JSON.stringify(r.draft) !== JSON.stringify(perkFields(r.saved));
 	const sending = rows.filter((r) => !r.removed && changed(r));
 	const removed = rows.filter((r) => r.removed && r.saved);
+	const moved = placeKey(sections, rows) !== placeKey(initialSections, initial);
 	const added = sending.filter((r) => !r.saved).length;
-	const summary = [added && `${added} new`, sending.length - added && `${sending.length - added} changed`, removed.length && `${removed.length} removed`].filter(Boolean).join(' · ');
-	// Saved perks are grouped by the kind they were saved as, so a row doesn't jump while it's edited.
-	const groups = [
-		...PERK_KINDS.map((k) => ({ label: k.label, rows: rows.filter((r) => r.saved?.kind === k.id) })),
-		{ label: 'Older kinds', rows: rows.filter((r) => r.saved && !PERK_KINDS.some((k) => k.id === r.saved!.kind)) },
-		{ label: 'New perks', rows: rows.filter((r) => !r.saved) },
-	].filter((g) => g.rows.length);
+	const summary = [added && `${added} new`, sending.length - added && `${sending.length - added} changed`, removed.length && `${removed.length} removed`, moved && 'moved']
+		.filter(Boolean)
+		.join(' · ');
 	const problems = [
 		...(sending.some((r) => !r.draft.title.trim()) ? ['Every perk needs a name.'] : []),
 		...sending.flatMap((r) => detailProblems(r.draft.kind, r.draft.details, r.draft.title)),
-		...(sending.length > 25 ? ['Send at most 25 perks at a time.'] : []),
+		...(sending.length > 40 ? ['Send at most 40 perks at a time.'] : []),
+		...(sections.some((x) => !x.name.trim()) ? ['Every section needs a name.'] : []),
+		...(new Set(sections.map((x) => x.name.trim().toLowerCase())).size !== sections.length ? ['Two sections have the same name.'] : []),
 	];
+
+	/** Moves a perk one place up or down within its section. */
+	function shift(r: PerkRow, by: -1 | 1) {
+		const same = rows.filter((x) => x.section === r.section);
+		const other = same[same.indexOf(r) + by];
+		if (!other) return;
+		const i = rows.indexOf(r);
+		const j = rows.indexOf(other);
+		const next = [...rows];
+		[next[i], next[j]] = [next[j], next[i]];
+		setRows(next);
+	}
+	function renameSection(i: number, name: string) {
+		setSections(sections.map((x, j) => (j === i ? { ...x, name } : x)));
+	}
+	function dropSection(i: number) {
+		const old = sections[i].id;
+		setSections(sections.filter((_, j) => j !== i));
+		setRows(rows.map((r) => (r.section === old ? { ...r, section: UNSORTED } : r)));
+	}
+	function moveSection(i: number, by: -1 | 1) {
+		const next = [...sections];
+		const j = i + by;
+		if (j < 0 || j >= next.length) return;
+		[next[i], next[j]] = [next[j], next[i]];
+		setSections(next);
+	}
+	function addPerk(section: string) {
+		const key = `new-${Date.now()}`;
+		setRows([...rows, { key, draft: { ...NEW_PERK }, section }]);
+		setOpenKey(key);
+	}
+
+	const shown: Sec[] = [...sections, ...(rows.some((r) => r.section === UNSORTED) || !sections.length ? [{ id: UNSORTED, name: '' }] : [])];
+
+	const perkRow = (r: PerkRow) => {
+		const status = r.saved?.status;
+		const edited = r.saved && changed(r);
+		const same = rows.filter((x) => x.section === r.section);
+		const at = same.indexOf(r);
+		return (
+			<details
+				class={`fm-perk-edit${status ? ` perk-${status}` : ''}${r.removed ? ' removed' : ''}`}
+				key={r.key}
+				open={openKey === r.key}
+				onToggle={(e) => {
+					const open = (e.currentTarget as HTMLDetailsElement).open;
+					if (open) setOpenKey(r.key);
+					else if (openKey === r.key) setOpenKey(null);
+				}}
+			>
+				<summary>
+					<span class="fm-perk-icon" aria-hidden="true">
+						{KIND_ICON[r.draft.kind]}
+					</span>
+					<span class="fm-perk-edit-text">
+						<span class="fm-perk-edit-name">{r.draft.title.trim() || 'New perk'}</span>
+						<span class="fm-perk-edit-sub">{perkSubline(r.draft)}</span>
+					</span>
+					<span class="fm-perk-edit-tags">
+						{r.removed ? (
+							<span class="fm-chip lock">Will be removed</span>
+						) : !r.saved ? (
+							<span class="fm-chip">New</span>
+						) : edited ? (
+							<span class="fm-chip">Changed</span>
+						) : (
+							status && <span class={`fm-chip state-${status}`}>{PERK_STATUS[status]}</span>
+						)}
+						{r.draft.hidden && (
+							<span class="fm-chip lock" title="Members only">
+								🔒
+							</span>
+						)}
+					</span>
+				</summary>
+				<div class="fm-perk-edit-body">
+					{r.saved?.review_note && !edited && <p class="fm-perk-state">Admin note: {r.saved.review_note}</p>}
+					{!r.removed && <PerkFields id={r.key} draft={r.draft} onChange={(draft) => set(r.key, { draft })} />}
+					<div class="fm-edit-row-tools fm-psec-tools">
+						<span class="fm-psec-move">
+							<button type="button" class="pf-button subtle" disabled={at === 0} aria-label="Move up" onClick={() => shift(r, -1)}>
+								↑
+							</button>
+							<button type="button" class="pf-button subtle" disabled={at === same.length - 1} aria-label="Move down" onClick={() => shift(r, 1)}>
+								↓
+							</button>
+							{sections.length > 0 && (
+								<select aria-label="Move to section" value={r.section} onChange={(e) => set(r.key, { section: e.currentTarget.value })}>
+									<option value={UNSORTED}>No section</option>
+									{sections.map((x) => (
+										<option key={x.id} value={x.id}>
+											{x.name || 'Unnamed section'}
+										</option>
+									))}
+								</select>
+							)}
+						</span>
+						{edited && !r.removed && (
+							<button type="button" class="pf-button subtle" onClick={() => set(r.key, { draft: perkFields(r.saved!) })}>
+								Undo changes
+							</button>
+						)}
+						<button type="button" class="pf-button subtle" onClick={() => (r.saved ? set(r.key, { removed: !r.removed }) : setRows(rows.filter((x) => x.key !== r.key)))}>
+							{r.removed ? 'Keep it' : 'Remove'}
+						</button>
+					</div>
+				</div>
+			</details>
+		);
+	};
+
 	return (
 		<>
 			<section class="pf-section">
@@ -720,69 +749,47 @@ function PerksTab({ b, isAdmin, onSaved }: { b: FamilyBundle; isAdmin: boolean; 
 					<h2>Perks</h2>
 				</header>
 				<p class="pf-intro">
-					A perk can be anything: a stat boost, a trait, a technique, gear, money, or protection in RP. Add or change as many as you like, then send them together. The admins
-					approve or deny each perk on its own, including whether it's <strong>members only</strong>. Changing a perk sends it back for approval.
+					Sort your perks into sections, like <em>Physical</em>, <em>Traits</em> or <em>Secret Technique</em>. A perk can just be described, or carry rules the site applies
+					to members: trait slots, system rules, a fighting style, a tracker. The admins approve each new or changed perk. Moving perks around doesn’t need approval.
 				</p>
-				{groups.map((g) => (
-					<div class="fm-perk-group" key={g.label}>
-						<h3 class="fm-perk-group-head">
-							{g.label} <span>{g.rows.length}</span>
-						</h3>
-						{g.rows.map((r) => {
-							const status = r.saved?.status;
-							const edited = r.saved && changed(r);
-							return (
-								<details class={`fm-perk-edit${status ? ` perk-${status}` : ''}${r.removed ? ' removed' : ''}`} key={r.key} open={!r.saved}>
-									<summary>
-										<span class="fm-perk-icon" aria-hidden="true">
-											{KIND_ICON[r.draft.kind]}
-										</span>
-										<span class="fm-perk-edit-text">
-											<span class="fm-perk-edit-name">{r.draft.title.trim() || 'New perk'}</span>
-											<span class="fm-perk-edit-sub">{perkSubline(r.draft)}</span>
-										</span>
-										<span class="fm-perk-edit-tags">
-											{r.removed ? (
-												<span class="fm-chip lock">Will be removed</span>
-											) : !r.saved ? (
-												<span class="fm-chip">New</span>
-											) : edited ? (
-												<span class="fm-chip">Changed</span>
-											) : (
-												status && <span class={`fm-chip state-${status}`}>{PERK_STATUS[status]}</span>
-											)}
-											{r.draft.hidden && (
-												<span class="fm-chip lock" title="Members only">
-													🔒 Members
-												</span>
-											)}
-										</span>
-									</summary>
-									<div class="fm-perk-edit-body">
-										{r.saved?.review_note && !edited && <p class="fm-perk-state">Admin note: {r.saved.review_note}</p>}
-										{!r.removed && <PerkFields id={r.key} draft={r.draft} onChange={(draft) => set(r.key, { draft })} />}
-										<div class="fm-edit-row-tools">
-											{edited && !r.removed && (
-												<button type="button" class="pf-button subtle" onClick={() => set(r.key, { draft: perkFields(r.saved!) })}>
-													Undo changes
-												</button>
-											)}
-											<button
-												type="button"
-												class="pf-button subtle"
-												onClick={() => (r.saved ? set(r.key, { removed: !r.removed }) : setRows(rows.filter((x) => x.key !== r.key)))}
-											>
-												{r.removed ? 'Keep it' : 'Remove'}
-											</button>
-										</div>
-									</div>
-								</details>
-							);
-						})}
-					</div>
-				))}
-				<button type="button" class="pf-button" onClick={() => setRows([...rows, { key: `new-${Date.now()}`, draft: { ...NEW_PERK } }])}>
-					+ Add a perk
+				{shown.map((sec) => {
+					const i = sections.indexOf(sec);
+					const list = rows.filter((r) => r.section === sec.id);
+					return (
+						<div class={`fm-psec${sec.id === UNSORTED ? ' unsorted' : ''}`} key={sec.id || '__unsorted'}>
+							<header class="fm-psec-head">
+								{sec.id === UNSORTED ? (
+									<h3 class="fm-psec-name">{sections.length ? 'No section' : 'Perks'}</h3>
+								) : (
+									<input class="fm-psec-input" aria-label="Section name" value={sec.name} maxLength={60} placeholder="Section name" onInput={(e) => renameSection(i, e.currentTarget.value)} />
+								)}
+								<span class="fm-psec-count">{list.filter((r) => !r.removed).length}</span>
+								{sec.id !== UNSORTED && (
+									<span class="fm-psec-move">
+										<button type="button" class="pf-button subtle" disabled={i === 0} aria-label="Move section up" onClick={() => moveSection(i, -1)}>
+											↑
+										</button>
+										<button type="button" class="pf-button subtle" disabled={i === sections.length - 1} aria-label="Move section down" onClick={() => moveSection(i, 1)}>
+											↓
+										</button>
+										<button type="button" class="pf-button subtle" aria-label={`Delete section ${sec.name}`} title="Delete the section (its perks move to No section)" onClick={() => dropSection(i)}>
+											✕
+										</button>
+									</span>
+								)}
+							</header>
+							<div class="fm-psec-list">
+								{list.length === 0 && <p class="pf-help">No perks here yet.</p>}
+								{list.map(perkRow)}
+							</div>
+							<button type="button" class="pf-button subtle fm-psec-add" onClick={() => addPerk(sec.id)}>
+								+ Add a perk{sec.name.trim() ? ` to ${sec.name.trim()}` : ''}
+							</button>
+						</div>
+					);
+				})}
+				<button type="button" class="pf-button fm-psec-new" onClick={() => setSections([...sections, { id: `n:${Date.now()}`, name: `Section ${sections.length + 1}` }])}>
+					+ Add a section
 				</button>
 				{isAdmin && (
 					<label class="pf-check fm-perk-note">
@@ -800,17 +807,25 @@ function PerksTab({ b, isAdmin, onSaved }: { b: FamilyBundle; isAdmin: boolean; 
 				)}
 			</section>
 			<SaveBar
-				dirty={sending.length > 0 || removed.length > 0}
+				dirty={sending.length > 0 || removed.length > 0 || moved}
 				problems={problems}
 				label={sending.length && !approveNow ? `Send ${sending.length} for review` : 'Save'}
 				status={summary}
 				onSave={async () => {
-					await sendPerks(
+					const names = sections.map((x) => x.name.trim());
+					const placed = (r: PerkRow) => ({ section: sections.find((x) => x.id === r.section)?.name.trim() ?? '', sort: placeIn(rows, r) });
+					if (sending.length || removed.length)
+						await sendPerks(
+							b.family.id,
+							sending.map((r) => ({ ...r.draft, ...placed(r) })),
+							removed.map((r) => r.saved!.id),
+							note,
+							approveNow,
+						);
+					await arrangePerks(
 						b.family.id,
-						sending.map((r) => r.draft),
-						removed.map((r) => r.saved!.id),
-						note,
-						approveNow,
+						names,
+						rows.filter((r) => r.saved && !r.removed && !sending.includes(r)).map((r) => ({ id: r.saved!.id, ...placed(r) })),
 					);
 					onSaved();
 				}}
@@ -824,7 +839,6 @@ function PerksTab({ b, isAdmin, onSaved }: { b: FamilyBundle; isAdmin: boolean; 
 export default function FamilyEditor({ b, families, isAdmin, onSaved }: { b: FamilyBundle; families: { id: string; name: string }[]; isAdmin: boolean; onSaved: () => void }) {
 	const [tab, setTab] = useState<Tab>('page');
 	const requests = b.members.filter((m) => m.status === 'requested').length;
-	const tryouts = b.tryouts.filter((t) => t.status === 'pending').length;
 	return (
 		<>
 			<nav class="pf-nav" aria-label="Edit family">
@@ -841,7 +855,6 @@ export default function FamilyEditor({ b, families, isAdmin, onSaved }: { b: Fam
 					>
 						{t.label}
 						{t.id === 'roster' && requests > 0 && <span class="mc-count"> {requests}</span>}
-						{t.id === 'tryouts' && tryouts > 0 && <span class="mc-count"> {tryouts}</span>}
 					</a>
 				))}
 			</nav>
@@ -849,7 +862,7 @@ export default function FamilyEditor({ b, families, isAdmin, onSaved }: { b: Fam
 			{tab === 'page' && <PageTab key={b.family.updated_at} b={b} onSaved={onSaved} />}
 			{tab === 'divisions' && <DivisionsTab key={JSON.stringify(b.divisions)} b={b} onSaved={onSaved} />}
 			{tab === 'roster' && <RosterTab key={JSON.stringify(b.members)} b={b} onSaved={onSaved} />}
-			{tab === 'tryouts' && <TryoutsTab b={b} onSaved={onSaved} />}
+			{tab === 'inheritance' && <InheritanceTab b={b} />}
 			{tab === 'relations' && <RelationsTab key={JSON.stringify([b.relations, b.notes])} b={b} families={families} onSaved={onSaved} />}
 			{tab === 'perks' && <PerksTab key={JSON.stringify(b.allPerks)} b={b} isAdmin={isAdmin} onSaved={onSaved} />}
 		</>

@@ -75,7 +75,6 @@ function todos(data: HomeData): Todo[] {
 	const f = data.family;
 	if (f?.status === 'needs_correction') list.push({ tone: 'warn', text: `${f.name} was sent back for correction.`, href: familyHref(f.slug), action: 'Open family' });
 	if (f?.joinRequests) list.push({ tone: 'info', text: `${f.name} has ${plural(f.joinRequests, 'join request')}.`, href: familyHref(f.slug), action: 'Review' });
-	if (f?.tryouts) list.push({ tone: 'info', text: `${f.name} has ${plural(f.tryouts, 'tryout')} waiting.`, href: familyHref(f.slug), action: 'Review' });
 	if (f?.reviews)
 		list.push({ tone: 'info', text: `${plural(f.reviews, 'new character')} picked ${f.name} and ${f.reviews === 1 ? 'waits' : 'wait'} for your review.`, href: `${portal}admin/review/`, action: 'Review' });
 	const a = data.admin;
@@ -104,7 +103,7 @@ function LoggedOut({ onError }: { onError: (m: string) => void }) {
 				<Tile icon="character" title="Characters" text="Make an original character or try out for a canon one. Admins review every sheet." />
 				<Tile icon="evolution" title="Evolutions" text="When an approved character grows, send in what changed and how they earned it." />
 				<Tile icon="equipment" title="Equipment" text="Pitch a custom item and a Gamemaster writes the crafting recipe for it." />
-				<Tile icon="family" title="Families" text="Found your own family, or ask to join one with an approved character." />
+				<Tile icon="family" title="Families" text="Found your own family, or make a new character for one from its page." />
 			</div>
 		</>
 	);
@@ -249,7 +248,7 @@ export default function PortalHome() {
 						<a href={families}>Directory</a>
 					</header>
 					{data.memberships.length === 0 && !data.family ? (
-						<p class="pf-empty">Not in a family yet. Open a family's page to ask to join.</p>
+						<p class="pf-empty">Not in a family yet. Characters join by being made for a family: start one from its page.</p>
 					) : (
 						<ul class="dd-rows">
 							{data.family && (

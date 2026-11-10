@@ -26,7 +26,7 @@ import {
 	uploadOcularImage,
 } from '../../lib/portal/api.ts';
 import type { EvolutionRoll } from '../../lib/portal/evolutionRolls.ts';
-import { loadFamilyChoices, loadLinkablePerks, type FamilyChoices, type LinkablePerk, type MyTryout } from '../../lib/portal/families.ts';
+import { loadFamilyChoices, loadLinkablePerks, type FamilyChoices, type LinkablePerk } from '../../lib/portal/families.ts';
 import { characterIssues, effectiveClaims } from '../../lib/portal/checks.ts';
 import { approvedText, hasBlockingIssues, rules, type Issue } from '../../lib/portal/rules.ts';
 import { applyHeavenly, heavenlyEffect, isHeavenly } from '../../lib/portal/heavenly.ts';
@@ -34,7 +34,9 @@ import type { Sheet } from '../../lib/portal/sheet.ts';
 import { systemById } from '../../lib/portal/systems.ts';
 import { applyTheme, defaultTheme, startPortalTheme, themeForRole } from '../../lib/portal/theme.ts';
 import { logIn, watchPlayer, type Player } from '../../lib/supabase.ts';
-import { FamiliesSection } from './FamiliesSection.tsx';
+import { InheritanceBanner } from './InheritanceBanner.tsx';
+import { loadCharacterInheritanceRolls, loadInheritanceFamily, type InheritanceFamily } from '../../lib/families/inheritanceApi.ts';
+import { applyInheritance, inheritanceEffects, inheritedPerks, type InheritanceRoll } from '../../lib/portal/inheritance.ts';
 import { Section, SelectField, TextArea, TextField } from './fields.tsx';
 import { StatsSection } from './StatsSection.tsx';
 import { defaults, SystemsSection } from './SystemsSection.tsx';
@@ -64,7 +66,6 @@ const STEPS: { id: string; label: string; ocOnly?: boolean }[] = [
 	{ id: 'combat', label: 'Combat', ocOnly: true },
 	{ id: 'systems', label: 'Systems', ocOnly: true },
 	{ id: 'storage', label: 'Storage', ocOnly: true },
-	{ id: 'families', label: 'Families' },
 	{ id: 'review', label: 'Review & send' },
 ];
 // Which step each rule check belongs to (Issue.section → step id).
@@ -77,7 +78,7 @@ const STEP_OF: Record<string, string> = {
 	Traits: 'traits',
 	Combat: 'combat',
 	Systems: 'systems',
-	Families: 'families',
+	Families: 'basics',
 };
 
 /** True while a media query matches (e.g. a wide screen). */
@@ -114,6 +115,8 @@ export default function SubmitForm() {
 	const [visited, setVisited] = useState<Set<string>>(() => new Set());
 	const [familyChoices, setFamilyChoices] = useState<FamilyChoices | null>(null);
 	const [familyPerks, setFamilyPerks] = useState<LinkablePerk[] | null>(null);
+	/** For a character made in a family's Inheritance: the family, its perks and the owner's rolls. */
+	const [inheritance, setInheritance] = useState<{ family: InheritanceFamily; rolls: InheritanceRoll[] } | null>(null);
 	const [myRolls, setMyRolls] = useState<MyRolls | null>(null);
 	const [characterRolls, setCharacterRolls] = useState<Partial<Record<RollKind, RollResult>>>({});
 	const refreshRolls = (characterId?: string | null) => {
@@ -151,7 +154,7 @@ export default function SubmitForm() {
 				setDraft(c);
 				refreshRolls(c.id);
 				heavenlyGrantFor(player.id, c.id).then(setHeavenlyGrant, () => setHeavenlyGrant(undefined));
-				loadFamilyChoices(c.id).then(setFamilyChoices, () => setFamilyChoices({ families: [], tryouts: [], memberships: [] }));
+				loadFamilyChoices(c.id).then(setFamilyChoices, () => setFamilyChoices({ families: [], memberships: [] }));
 				if (c.id) {
 					// A saved character has been through the form before: show every step's state.
 					setVisited(new Set(STEPS.map((st) => st.id)));
@@ -249,6 +252,31 @@ export default function SubmitForm() {
 		return () => void (stale = true);
 	}, [linkFamilies, Boolean(familyChoices)]);
 
+	// A character made in a family's Inheritance: load the family's perks and the owner's rolls.
+	const inheritFamily = draft?.sheet.inheritance?.familyId ?? '';
+	useEffect(() => {
+		if (!inheritFamily || !draft?.id) return setInheritance(null);
+		let stale = false;
+		Promise.all([loadInheritanceFamily(inheritFamily), loadCharacterInheritanceRolls(draft.id)]).then(
+			([family, rolls]) => !stale && setInheritance(family ? { family, rolls } : null),
+			() => !stale && setInheritance(null),
+		);
+		return () => void (stale = true);
+	}, [inheritFamily, draft?.id]);
+	const inheritedGot = useMemo(
+		() => (inheritance && draft?.sheet.inheritance && !draft.approvedAt ? inheritedPerks(inheritance.family.perks, draft.sheet.inheritance, inheritance.rolls) : []),
+		[inheritance, draft?.sheet.inheritance, draft?.approvedAt],
+	);
+	const inherit = inheritanceEffects(inheritedGot);
+	// Keep what the character inherits on the sheet (family traits and cards, fixed stats, styles).
+	useEffect(() => {
+		if (!inheritance || !draft?.sheet.inheritance || draft.approvedAt || readOnly) return;
+		const jjk = (id: string) => defaults(systemById.get(id)!.fields) as Record<string, string | number | string[]>;
+		const newKey = () => Math.random().toString(36).slice(2, 10);
+		if (applyInheritance(structuredClone(draft.sheet), inheritance.family.perks, inheritedGot, newKey, jjk))
+			updateSheet((x) => void applyInheritance(x, inheritance.family.perks, inheritedGot, newKey, jjk));
+	}, [inheritance, inheritedGot, draft?.sheet]);
+
 	// Keep a granted Heavenly Restriction's card fields and stats on the sheet.
 	useEffect(() => {
 		if (!grantedHeavenly || !draft || readOnly) return;
@@ -260,9 +288,17 @@ export default function SubmitForm() {
 	const issues: Issue[] = useMemo(
 		() =>
 			draft
-				? characterIssues(draft, { board, held, combos, familyIds: familyChoices?.memberships.map((m) => m.family_id) ?? [], familyPerks: familyPerks ?? undefined, heavenlyGrant })
+				? characterIssues(draft, {
+						board,
+						held,
+						combos,
+						familyIds: familyChoices?.memberships.map((m) => m.family_id) ?? [],
+						familyPerks: familyPerks ?? undefined,
+						heavenlyGrant,
+						inheritance: inheritance && { familyName: inheritance.family.name, perks: inheritance.family.perks, rolls: inheritance.rolls },
+					})
 				: [],
-		[draft, board, held, combos, familyChoices, familyPerks, heavenlyGrant],
+		[draft, board, held, combos, familyChoices, familyPerks, heavenlyGrant, inheritance],
 	);
 
 	// The steps this character has, and moving between them (the step lives in the URL hash).
@@ -434,14 +470,6 @@ export default function SubmitForm() {
 			))}
 		</ul>
 	);
-	const useTryout = (t: MyTryout) =>
-		change((d) => {
-			if (!d.name.trim()) d.name = t.character_name;
-			if (!d.sheet.appearance.image.trim()) d.sheet.appearance.image = t.image_url;
-			if (!d.sheet.lore.personality.trim()) d.sheet.lore.personality = t.about;
-			if (!d.sheet.lore.backstory.trim()) d.sheet.lore.backstory = t.backstory;
-			if (!d.sheet.families.includes(t.family_id)) d.sheet.families.push(t.family_id);
-		});
 	const pins: PinnedNote[] = draft.pinnedNotes;
 	const universeName = universes.find((u) => u.slug === draft.canonUniverse)?.name ?? draft.canonUniverse;
 	const articleProps = {
@@ -449,16 +477,16 @@ export default function SubmitForm() {
 		kind: draft.kind,
 		universeName,
 		sheet: s,
-		bonusPtp: draft.bonusPtp,
-		extraTraitSlots: draft.extraTraitSlots,
-		staffOverrides: draft.staffOverrides,
+		bonusPtp: draft.bonusPtp + inherit.bonusPtp,
+		extraTraitSlots: draft.extraTraitSlots + inherit.extraTraitSlots,
+		staffOverrides: { ...inherit.overrides, ...draft.staffOverrides },
 		progressed: draft.progressed,
 		adminCharacter: adminChar,
 	};
 	/** A step's pinned notes; card notes show in their card instead. */
 	const stepPins = (id: string) => <PinBoxes notes={pins.filter((n) => n.step === id && !(id === 'systems' && n.target))} sheet={s} />;
 	const pinCount = (id: string) => pins.filter((n) => n.step === id).length;
-	const familyNames = s.families.map((id) => familyChoices?.families.find((f) => f.id === id)?.name).filter(Boolean);
+	const familyNames = inheritance && s.inheritance ? [inheritance.family.name] : [];
 
 	return (
 		<div class="pf pf-wizard">
@@ -466,6 +494,10 @@ export default function SubmitForm() {
 				<div class={`pf-status status-${draft.status}`}>
 					<strong>{status.label}</strong> · {status.text}
 				</div>
+			)}
+
+			{inheritance && s.inheritance && !isEvolution && (
+				<InheritanceBanner family={inheritance.family} got={inheritedGot} rolls={inheritance.rolls} characterId={draft.id} editable={!readOnly} />
 			)}
 
 			{adminChar && (
@@ -725,7 +757,7 @@ export default function SubmitForm() {
 						<>
 							<div class="pf-step" hidden={current !== 'stats'}>
 								{stepPins('stats')}
-								<StatsSection sheet={s} update={updateSheet} readOnly={readOnly} isEvolution={!startRules} bonusPtp={draft.bonusPtp} staffOverrides={draft.staffOverrides} adminCharacter={adminChar} />
+								<StatsSection sheet={s} update={updateSheet} readOnly={readOnly} isEvolution={!startRules} bonusPtp={draft.bonusPtp + inherit.bonusPtp} staffOverrides={{ ...inherit.overrides, ...draft.staffOverrides }} adminCharacter={adminChar} />
 							</div>
 							<div class="pf-step" hidden={current !== 'traits'}>
 								{stepPins('traits')}
@@ -733,7 +765,7 @@ export default function SubmitForm() {
 									sheet={s}
 									update={updateSheet}
 									combos={combos}
-									extraSlots={draft.extraTraitSlots}
+									extraSlots={draft.extraTraitSlots + inherit.extraTraitSlots}
 									lockedTraits={new Set(draft.approvedSheet?.traits.map((t) => t.name) ?? [])}
 									readOnly={readOnly}
 									roller={roller}
@@ -823,25 +855,12 @@ export default function SubmitForm() {
 						</>
 					)}
 
-					<div class="pf-step" hidden={current !== 'families'}>
-						{stepPins('families')}
-						<FamiliesSection
-							choices={familyChoices}
-							picked={s.families}
-							setPicked={(ids) => updateSheet((x) => void (x.families = ids))}
-							onUseTryout={useTryout}
-							approved={draft.approvedAt && draft.id ? { id: draft.id, name: draft.name } : null}
-							onJoined={() => loadFamilyChoices(draft.id).then(setFamilyChoices)}
-							readOnly={readOnly}
-						/>
-					</div>
-
 					<div class="pf-step" hidden={current !== 'review'}>
 						<section class="pf-section pf-review" id="review" aria-labelledby="pf-review-title">
 							<header class="pf-section-head">
 								<h2 id="pf-review-title">Review & send</h2>
 							</header>
-							{familyNames.length > 0 && <p class="pf-help">Joining {familyNames.join(', ')}: the family’s owner or an admin reviews it.</p>}
+							{familyNames.length > 0 && !isEvolution && <p class="pf-help">Joining {familyNames.join(', ')}: the family’s owner reviews it first (or an admin).</p>}
 							{issues.length === approvedItems.length ? (
 								<p class="pf-ok">✅ Everything checks out. You’re ready to send.</p>
 							) : (

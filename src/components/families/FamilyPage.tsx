@@ -1,30 +1,28 @@
-// One family's page (?f=slug): the public view, join requests, and the owner's editor.
+// One family's page (?f=slug): the public view, joining (?inherit=<character id> is the Inheritance), and the owner's editor.
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { ComponentChildren, JSX } from 'preact';
 import {
 	FOUND_IN,
 	PERK_ACCESS,
-	PERK_KINDS,
 	RECRUITING,
 	STANDINGS,
-	deleteTryout,
 	familiesBase,
+	groupPerks,
 	loadFamilies,
 	loadFamily,
 	loadMyApprovedCharacters,
 	removeMember,
-	requestToJoin,
 	richText,
-	sendTryout,
 	type FamilyBundle,
 	type Member,
 	type MyCharacter,
-	type TryoutDraft,
 } from '../../lib/families/api.ts';
 import { PerkBuilt, isBuilt } from './PerkBuilders.tsx';
 import { portalConfigured, watchPlayer, logIn, type Player } from '../../lib/supabase.ts';
 import FamilyEditor from './FamilyEditor.tsx';
-import { FactTiles, StatusBanner, messageOf, useFamilyTheme } from './shared.tsx';
+import { InheritanceBuilder } from './InheritanceBuilder.tsx';
+import { loadMyInheritanceDrafts, startInheritance, type InheritanceDraft } from '../../lib/families/inheritanceApi.ts';
+import { FactTiles, LoginCard, StatusBanner, messageOf, useFamilyTheme } from './shared.tsx';
 
 function Portrait({ m, portraits }: { m: Member; portraits: Record<string, string> }) {
 	const src = (m.character_id && portraits[m.character_id]) || (/^https:\/\//.test(m.image_url) ? m.image_url : '');
@@ -77,168 +75,49 @@ function Block({ id, title, children, badge }: { id: string; title: string; chil
 	);
 }
 
-const TRYOUT_STATUS = { pending: 'Waiting for the owner', accepted: 'Accepted', declined: 'Declined' } as const;
-const EMPTY_TRYOUT: TryoutDraft = { division_id: null, character_name: '', image_url: '', about: '', backstory: '', sample: '' };
-const portalSubmit = `${import.meta.env.BASE_URL.replace(/\/?$/, '/')}submit/`;
+const DRAFT_STATE = { draft: 'Being made', pending: 'With the owner', needs_correction: 'Needs changes', denied: 'Denied' } as const;
+const inheritHref = (slug: string, id: string) => `${location.pathname}?f=${encodeURIComponent(slug)}&inherit=${encodeURIComponent(id)}`;
 
-/** The tryout form: a brand-new sample character, no stats. */
-function TryoutForm({ b, onSent, onCancel }: { b: FamilyBundle; onSent: () => void; onCancel: () => void }) {
-	const [t, setT] = useState<TryoutDraft>(EMPTY_TRYOUT);
-	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState('');
-	const set = <K extends keyof TryoutDraft>(k: K, v: TryoutDraft[K]) => setT({ ...t, [k]: v });
-	const imageBad = t.image_url.trim() !== '' && !/^https:\/\//.test(t.image_url.trim());
-	const ready = t.character_name.trim() && t.about.trim() && t.sample.trim() && !imageBad;
-	return (
-		<div class="fm-tryout">
-			<p class="pf-subhead">Your tryout</p>
-			<p class="pf-help">
-				Make up a <strong>brand-new character</strong> for {b.family.name}. No stats, no sheet: just who they are and a sample of how you'd RP them. Only the owner and admins can read it.
-			</p>
-			<div class="pf-grid">
-				<div class="pf-field">
-					<label class="pf-label" for="fm-t-name">
-						Character name <span class="pf-required">*</span>
-					</label>
-					<input id="fm-t-name" maxLength={100} value={t.character_name} onInput={(e) => set('character_name', e.currentTarget.value)} />
-				</div>
-				{b.divisions.length > 0 && (
-					<div class="pf-field">
-						<label class="pf-label" for="fm-t-div">
-							Trying out for
-						</label>
-						<select id="fm-t-div" value={t.division_id ?? ''} onChange={(e) => set('division_id', e.currentTarget.value || null)}>
-							<option value="">Any division</option>
-							{b.divisions.map((d) => (
-								<option key={d.id} value={d.id}>
-									{d.name}
-									{d.open_spots > 0 ? ` (${d.open_spots} open)` : ''}
-								</option>
-							))}
-						</select>
-					</div>
-				)}
-				<div class="pf-field">
-					<label class="pf-label" for="fm-t-img">
-						Picture link
-					</label>
-					<input id="fm-t-img" type="url" value={t.image_url} onInput={(e) => set('image_url', e.currentTarget.value)} placeholder="https://… (optional)" />
-					{imageBad && <p class="pf-help">The link must start with https://</p>}
-				</div>
-				<div class="pf-field pf-wide">
-					<label class="pf-label" for="fm-t-about">
-						Who they are <span class="pf-required">*</span>
-					</label>
-					<textarea
-						id="fm-t-about"
-						rows={4}
-						maxLength={4000}
-						value={t.about}
-						onInput={(e) => set('about', e.currentTarget.value)}
-						placeholder="Personality, look, and what they'd bring to the family."
-					/>
-				</div>
-				<div class="pf-field pf-wide">
-					<label class="pf-label" for="fm-t-back">
-						Backstory
-					</label>
-					<textarea
-						id="fm-t-back"
-						rows={4}
-						maxLength={4000}
-						value={t.backstory}
-						onInput={(e) => set('backstory', e.currentTarget.value)}
-						placeholder="How are they connected to the family? Optional."
-					/>
-				</div>
-				<div class="pf-field pf-wide">
-					<label class="pf-label" for="fm-t-sample">
-						RP sample <span class="pf-required">*</span>
-					</label>
-					<textarea
-						id="fm-t-sample"
-						rows={8}
-						maxLength={6000}
-						value={t.sample}
-						onInput={(e) => set('sample', e.currentTarget.value)}
-						placeholder="A short scene written as your character, the way you'd post it in RP."
-					/>
-					<p class="pf-help">{t.sample.length}/6000. **bold** and *italic* work.</p>
-				</div>
-			</div>
-			<div class="fm-edit-row-tools">
-				<button type="button" class="pf-button subtle" disabled={busy} onClick={onCancel}>
-					Cancel
-				</button>
-				<button
-					type="button"
-					class="pf-button primary"
-					disabled={!ready || busy}
-					onClick={async () => {
-						setBusy(true);
-						setError('');
-						try {
-							await sendTryout(b.family.id, t);
-							onSent();
-						} catch (e) {
-							setError(messageOf(e));
-							setBusy(false);
-						}
-					}}
-				>
-					Send tryout
-				</button>
-			</div>
-			{error && <p class="portal-error">{error}</p>}
-		</div>
-	);
-}
-
+/** Joining: characters join only by being made for the family, starting with its Inheritance. */
 function JoinPanel({ b, player, onChanged }: { b: FamilyBundle; player: Player | null; onChanged: () => void }) {
 	const [chars, setChars] = useState<MyCharacter[] | null>(null);
-	const [pick, setPick] = useState('');
-	const [message, setMessage] = useState('');
-	const [formOpen, setFormOpen] = useState(false);
+	const [drafts, setDrafts] = useState<InheritanceDraft[] | null>(null);
+	const [name, setName] = useState('');
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState('');
 	const [done, setDone] = useState('');
 	useEffect(() => {
-		if (player) loadMyApprovedCharacters().then(setChars, (e) => setError(messageOf(e)));
+		if (!player) return;
+		loadMyApprovedCharacters().then(setChars, (e) => setError(messageOf(e)));
+		loadMyInheritanceDrafts(b.family.id).then(setDrafts, () => setDrafts([]));
 	}, [player?.id]);
 
-	const recruiting = b.family.recruiting;
+	const open = b.family.recruiting === 'open';
 	if (b.family.status !== 'approved') return null;
+	const badge = <span class={`pf-badge${open ? ' ok' : ''}`}>{RECRUITING[b.family.recruiting]}</span>;
+	const how = `Characters join ${b.family.name} by being made for it: you start with the family’s Inheritance, then build the rest of the sheet. Characters that already exist can’t join.`;
 	if (!player)
 		return (
-			<Block id="join" title="Join" badge={<span class="pf-badge ok">{RECRUITING[recruiting]}</span>}>
-				<p class="pf-intro">
-					{recruiting === 'tryouts'
-						? 'This family holds tryouts. Log in with Discord to send one.'
-						: 'Log in with Discord to ask to join with one of your approved characters.'}
-				</p>
-				<button type="button" class="portal-button discord" onClick={() => logIn().catch((e) => setError(messageOf(e)))}>
-					Log in with Discord
-				</button>
+			<Block id="join" title="Join" badge={badge}>
+				<p class="pf-intro">{how}</p>
+				{open && (
+					<button type="button" class="portal-button discord" onClick={() => logIn().catch((e) => setError(messageOf(e)))}>
+						Log in with Discord to start one
+					</button>
+				)}
 				{error && <p class="portal-error">{error}</p>}
 			</Block>
 		);
-	if (!chars) return null;
+	if (!chars || !drafts) return null;
 
 	const mineHere = b.members.filter((m) => m.character_id && chars.some((c) => c.id === m.character_id));
-	const free = chars.filter((c) => !mineHere.some((m) => m.character_id === c.id));
-	const myTryouts = b.tryouts.filter((t) => t.player_id === player.id);
-	const passed = myTryouts.some((t) => t.status === 'accepted');
-	const waiting = myTryouts.some((t) => t.status === 'pending');
-	const canAsk = (recruiting === 'open' || passed) && free.length > 0;
 
-	async function run(action: () => Promise<void>, ok: string) {
+	async function leave(id: string, label: string) {
 		setBusy(true);
 		setError('');
 		try {
-			await action();
-			setDone(ok);
-			setPick('');
-			setMessage('');
+			await removeMember(id);
+			setDone(label);
 			onChanged();
 		} catch (e) {
 			setError(messageOf(e));
@@ -246,111 +125,70 @@ function JoinPanel({ b, player, onChanged }: { b: FamilyBundle; player: Player |
 			setBusy(false);
 		}
 	}
+	async function start() {
+		setBusy(true);
+		setError('');
+		try {
+			const id = await startInheritance(b.family.id, name);
+			location.href = inheritHref(b.family.slug, id);
+		} catch (e) {
+			setError(messageOf(e));
+			setBusy(false);
+		}
+	}
 
 	return (
-		<Block id="join" title="Join" badge={<span class="pf-badge ok">{RECRUITING[recruiting]}</span>}>
+		<Block id="join" title="Join" badge={badge}>
+			<p class="pf-intro">{how}</p>
 			{mineHere.length > 0 && (
 				<ul class="fm-mine">
 					{mineHere.map((m) => (
 						<li key={m.id}>
 							<strong>{m.name}</strong> · {m.status === 'active' ? 'Member' : 'Request pending'}
-							<button
-								type="button"
-								class="pf-button subtle"
-								disabled={busy}
-								onClick={() => run(() => removeMember(m.id), m.status === 'active' ? `${m.name} left the family.` : 'Request withdrawn.')}
-							>
+							<button type="button" class="pf-button subtle" disabled={busy} onClick={() => leave(m.id, m.status === 'active' ? `${m.name} left the family.` : 'Request withdrawn.')}>
 								{m.status === 'active' ? 'Leave' : 'Withdraw'}
 							</button>
 						</li>
 					))}
 				</ul>
 			)}
-			{mineHere.some((m) => m.status === 'active') && (
-				<p class="pf-help">Leaving removes your character from the roster, and they lose this family's perks.</p>
+			{mineHere.some((m) => m.status === 'active') && <p class="pf-help">Leaving removes your character from the roster, and they lose this family's perks.</p>}
+
+			{drafts.length > 0 && (
+				<>
+					<h3 class="pf-subhead">Your characters for {b.family.name}</h3>
+					<ul class="fm-mine">
+						{drafts.map((d) => (
+							<li key={d.id}>
+								<span>
+									<strong>{d.name || 'Unnamed'}</strong> · {DRAFT_STATE[d.status]}
+								</span>
+								<a class="pf-button subtle" href={inheritHref(b.family.slug, d.id)}>
+									Inheritance
+								</a>
+								<a class="pf-button subtle" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}submit/?id=${encodeURIComponent(d.id)}`}>
+									Sheet
+								</a>
+							</li>
+						))}
+					</ul>
+				</>
 			)}
 
-			{myTryouts.length > 0 && (
-				<ul class="fm-mine">
-					{myTryouts.map((t) => (
-						<li key={t.id} class={`tryout-${t.status}`}>
-							<span>
-								Tryout: <strong>{t.character_name}</strong> · <span class="fm-tryout-state">{TRYOUT_STATUS[t.status]}</span>
-								{t.owner_note && <span class="fm-request-msg"> “{t.owner_note}”</span>}
-							</span>
-							{t.status === 'pending' && (
-								<button type="button" class="pf-button subtle" disabled={busy} onClick={() => run(() => deleteTryout(t.id), 'Tryout withdrawn.')}>
-									Withdraw
-								</button>
-							)}
-						</li>
-					))}
-				</ul>
-			)}
-
-			{recruiting === 'tryouts' && passed && (
-				<p class="pf-intro">
-					Your tryout was accepted. <a href={portalSubmit}>Submit the character</a> in the portal, and once it's approved, ask to join with it below.
-				</p>
-			)}
-
-			{canAsk ? (
-				<div class="pf-grid">
+			{open ? (
+				<div class="fm-start">
 					<div class="pf-field">
-						<label class="pf-label" for="fm-join-char">
-							Character
+						<label class="pf-label" for="fm-start-name">
+							New character’s name
 						</label>
-						<select id="fm-join-char" value={pick} onChange={(e) => setPick(e.currentTarget.value)}>
-							<option value="">Choose…</option>
-							{free.map((c) => (
-								<option key={c.id} value={c.id}>
-									{c.name}
-								</option>
-							))}
-						</select>
+						<input id="fm-start-name" value={name} maxLength={100} placeholder="You can change it later" onInput={(e) => setName(e.currentTarget.value)} />
 					</div>
-					<div class="pf-field pf-wide">
-						<label class="pf-label" for="fm-join-msg">
-							Message to the owner
-						</label>
-						<textarea id="fm-join-msg" rows={2} maxLength={500} value={message} onInput={(e) => setMessage(e.currentTarget.value)} placeholder="Optional" />
-					</div>
-					<div class="pf-wide">
-						<button
-							type="button"
-							class="pf-button primary"
-							disabled={!pick || busy}
-							onClick={() => run(() => requestToJoin(b.family.id, free.find((c) => c.id === pick)!, message), 'Request sent. The owner will be told on Discord.')}
-						>
-							Ask to join
-						</button>
-					</div>
+					<button type="button" class="pf-button primary" disabled={!name.trim() || busy} onClick={start}>
+						{busy ? 'Starting…' : 'Start a family character'}
+					</button>
 				</div>
-			) : recruiting === 'tryouts' && !passed ? (
-				waiting ? (
-					<p class="pf-intro">Your tryout is with the owner. You'll be pinged on Discord when they decide.</p>
-				) : formOpen ? (
-					<TryoutForm
-						b={b}
-						onCancel={() => setFormOpen(false)}
-						onSent={() => {
-							setFormOpen(false);
-							setDone('Tryout sent. The owner will be told on Discord.');
-							onChanged();
-						}}
-					/>
-				) : (
-					<>
-						<p class="pf-intro">This family holds tryouts. Write up a brand-new sample character, and if the owner likes it, you can make that character and join.</p>
-						<button type="button" class="pf-button primary" onClick={() => setFormOpen(true)}>
-							Request a tryout
-						</button>
-					</>
-				)
-			) : recruiting === 'closed' && !passed ? (
-				<p class="pf-intro">This family isn't recruiting right now.</p>
 			) : (
-				<p class="pf-intro">{chars.length ? 'All your approved characters are already here.' : 'You need an approved character to ask to join.'}</p>
+				<p class="pf-intro">{b.family.name} is closed to new members right now.</p>
 			)}
 			{done && <p class="fm-done">{done}</p>}
 			{error && <p class="portal-error">{error}</p>}
@@ -358,7 +196,7 @@ function JoinPanel({ b, player, onChanged }: { b: FamilyBundle; player: Player |
 	);
 }
 
-function FamilyView({ b, player, onChanged }: { b: FamilyBundle; player: Player | null; onChanged: () => void }) {
+export function FamilyView({ b, player, onChanged }: { b: FamilyBundle; player: Player | null; onChanged: () => void }) {
 	const f = b.family;
 	const active = b.members.filter((m) => m.status === 'active');
 	const banner = /^https:\/\//.test(f.banner_url) ? f.banner_url : null;
@@ -366,7 +204,7 @@ function FamilyView({ b, player, onChanged }: { b: FamilyBundle; player: Player 
 	const relationsBy = STANDINGS.map((s) => ({ ...s, rows: b.relations.filter((r) => r.standing === s.id), note: b.notes.find((n) => n.standing === s.id)?.note }));
 	const openPerks = b.perks.filter((p) => p.unlocked);
 	const lockedPerks = b.perks.length - openPerks.length;
-	const perkGroups = PERK_KINDS.map((k) => ({ ...k, rows: openPerks.filter((p) => p.kind === k.id) })).filter((g) => g.rows.length);
+	const perkGroups = groupPerks(openPerks, b.family.perk_sections);
 
 	return (
 		<>
@@ -380,6 +218,11 @@ function FamilyView({ b, player, onChanged }: { b: FamilyBundle; player: Player 
 							</span>
 						))}
 						<span class={`fm-chip ${f.recruiting === 'closed' ? 'muted' : 'good'}`}>{RECRUITING[f.recruiting]}</span>
+						{f.sealed && (
+							<span class="fm-chip lock" title="Members' sheets and the perks are for the family only">
+								🔒 Sealed
+							</span>
+						)}
 					</p>
 					<h1 class="fm-title">{f.name}</h1>
 					{f.description && <p class="fm-lead">{f.description}</p>}
@@ -487,11 +330,13 @@ function FamilyView({ b, player, onChanged }: { b: FamilyBundle; player: Player 
 									<strong>{p.title}</strong>
 									<span class="fm-perk-tags">
 										{p.hidden && <span class="fm-chip lock">Members only</span>}
-										<span class="fm-chip">{PERK_ACCESS.find((x) => x.id === p.access)?.label}</span>
+										<span class="fm-chip">{PERK_ACCESS.find((x) => x.id === p.access)?.label.replace(/:.*/, '')}</span>
 									</span>
 								</summary>
+								{p.kind !== 'locked_power' && p.description && <Prose text={p.description} />}
 								<PerkBuilt kind={p.kind} details={p.details} />
-								{p.description ? <Prose text={p.description} /> : !isBuilt(p.kind ?? 'other') && <p class="pf-empty">No details.</p>}
+								{p.kind === 'locked_power' && p.description && <Prose text={p.description} />}
+								{!p.description && !isBuilt(p.kind ?? 'other') && <p class="pf-empty">No details.</p>}
 							</details>
 						))}
 					</div>
@@ -503,9 +348,13 @@ function FamilyView({ b, player, onChanged }: { b: FamilyBundle; player: Player 
 						</span>
 						<div>
 							<strong>
-								{lockedPerks} members-only perk{lockedPerks === 1 ? '' : 's'}
+								{f.sealed && lockedPerks === b.perks.length ? `${f.name} is sealed` : `${lockedPerks} members-only perk${lockedPerks === 1 ? '' : 's'}`}
 							</strong>
-							<p>Only this family's members can see {lockedPerks === 1 ? 'it' : 'them'}. Join the family to find out.</p>
+							<p>
+								{f.sealed
+									? `Its perks and its members’ sheets are for the family only. Start a character in its Inheritance and ask the owner to let you in.`
+									: `Only this family's members can see ${lockedPerks === 1 ? 'it' : 'them'}. Start a character in its Inheritance and ask the owner to let you in.`}
+							</p>
 						</div>
 					</div>
 				)}
@@ -518,6 +367,7 @@ function FamilyView({ b, player, onChanged }: { b: FamilyBundle; player: Player 
 
 export default function FamilyPage() {
 	const slug = useMemo(() => new URLSearchParams(location.search).get('f') ?? '', []);
+	const inherit = useMemo(() => new URLSearchParams(location.search).get('inherit') ?? '', []);
 	const [player, setPlayer] = useState<Player | null | undefined>(undefined);
 	const [bundle, setBundle] = useState<FamilyBundle | null>(null);
 	const [editing, setEditing] = useState(() => location.hash === '#edit');
@@ -571,10 +421,16 @@ export default function FamilyPage() {
 	return (
 		<div class="pf fm fm-page">
 			<div class="fm-toolbar">
-				<a class="pf-button subtle" href={familiesBase}>
-					← Directory
-				</a>
-				{manage && (
+				{inherit ? (
+					<a class="pf-button subtle" href={`${location.pathname}?f=${encodeURIComponent(slug)}`}>
+						← {bundle.family.name}
+					</a>
+				) : (
+					<a class="pf-button subtle" href={familiesBase}>
+						← Directory
+					</a>
+				)}
+				{manage && !inherit && (
 					<button
 						type="button"
 						class={`pf-button${editing ? '' : ' primary'}`}
@@ -590,7 +446,13 @@ export default function FamilyPage() {
 			</div>
 			{manage && <StatusBanner status={bundle.family.status} note={bundle.family.review_note} />}
 			{manage && !editing && pendingPerks > 0 && <p class="pf-help">{pendingPerks} perk{pendingPerks === 1 ? '' : 's'} waiting for an admin.</p>}
-			{editing && manage ? (
+			{inherit && !editing ? (
+				player ? (
+					<InheritanceBuilder b={bundle} characterId={inherit} />
+				) : (
+					<LoginCard text="Log in with Discord to work on your character’s Inheritance." onError={setError} />
+				)
+			) : editing && manage ? (
 				<FamilyEditor b={bundle} families={families} isAdmin={Boolean(player?.isAdmin)} onSaved={load} />
 			) : (
 				<FamilyView b={bundle} player={player ?? null} onChanged={load} />

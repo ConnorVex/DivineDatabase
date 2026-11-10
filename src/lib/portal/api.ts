@@ -165,6 +165,78 @@ export async function loadHeldClaims(characterId: string): Promise<Set<string>> 
 	return new Set((data ?? []).map((r) => r.claimable_id));
 }
 
+// ───────────────────────────── Claims (admin) ─────────────────────────────
+
+/** A claimable as the admin Claims tab edits it: the raw row, not the claim board's totals. */
+export interface Claimable {
+	id: string;
+	universe: string;
+	claim_type: ClaimRow['claim_type'];
+	category: string;
+	name: string;
+	max_users: number | null;
+	/** Holders tracked by hand, e.g. everyone who claimed before the Divine Database. */
+	manual_users: number;
+	note: string;
+	sort_order: number;
+}
+
+/** One character holding a claimable, added when the character is approved. */
+export interface ClaimHolder {
+	id: string;
+	claimable_id: string;
+	character_id: string | null;
+	holder_name: string;
+	counts_toward_limit: boolean;
+}
+
+export async function loadClaimAdmin(): Promise<{ claimables: Claimable[]; holders: ClaimHolder[] }> {
+	const [k, h] = await Promise.all([
+		db().from('claimables').select('id, universe, claim_type, category, name, max_users, manual_users, note, sort_order').order('sort_order'),
+		db().from('claims').select('id, claimable_id, character_id, holder_name, counts_toward_limit').order('created_at'),
+	]);
+	fail(k.error);
+	fail(h.error);
+	return { claimables: k.data ?? [], holders: h.data ?? [] };
+}
+
+/** Adds (no id) or updates a claimable (admins only). */
+export async function adminSaveClaimable(c: Omit<Claimable, 'id'> & { id?: string }): Promise<Claimable> {
+	const row = {
+		universe: c.universe,
+		claim_type: c.claim_type,
+		category: c.category.trim(),
+		name: c.name.trim(),
+		max_users: c.max_users,
+		manual_users: Math.max(0, Math.floor(c.manual_users)),
+		note: c.note.trim(),
+		sort_order: Math.floor(c.sort_order),
+	};
+	const q = c.id ? db().from('claimables').update(row).eq('id', c.id) : db().from('claimables').insert(row);
+	const { data, error } = await q.select('id, universe, claim_type, category, name, max_users, manual_users, note, sort_order').single();
+	if (error?.code === '23505') throw new Error(`There’s already a claim called “${row.name}” here.`);
+	fail(error);
+	return data as Claimable;
+}
+
+/** Removes a claimable and everyone holding it (admins only). */
+export async function adminDeleteClaimable(id: string) {
+	const { error } = await db().from('claimables').delete().eq('id', id);
+	fail(error);
+}
+
+/** Whether a holder takes up a slot (admins only). */
+export async function adminSetHolderCounts(id: string, counts: boolean) {
+	const { error } = await db().from('claims').update({ counts_toward_limit: counts }).eq('id', id);
+	fail(error);
+}
+
+/** Frees a holder's slot (admins only). The character's sheet isn't changed. */
+export async function adminRemoveHolder(id: string) {
+	const { error } = await db().from('claims').delete().eq('id', id);
+	fail(error);
+}
+
 // ───────────────────────────── Rolls ─────────────────────────────
 
 export type RollKind = 'potential' | 'cursed_energy';
@@ -677,8 +749,10 @@ export interface CharacterPageData {
 	name: string;
 	owner: string | null;
 	encrypted: boolean;
-	/** False: encrypted and this viewer isn't allowed, so there's no sheet. */
+	/** False: encrypted (or sealed) and this viewer isn't allowed, so there's no sheet. */
 	allowed: boolean;
+	/** The sealed family this character is a member of: only the family sees the sheet. */
+	sealed_by?: string | null;
 	owner_id?: string;
 	kind?: 'oc' | 'canon';
 	canon_universe?: string | null;
