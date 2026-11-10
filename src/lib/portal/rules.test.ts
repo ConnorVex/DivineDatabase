@@ -626,7 +626,11 @@ test('JJK Barrier Techniques are locked for a new character unless unlocked', ()
 	s.systems = [{ key: 'j', system: 'jujutsu-kaisen', fields: { start: 'Cursed Energy Utilization only', ceClass: 'Common', ceAmount: 10, barrierTechniques: 'Curtain' }, description: '', skills: [], rollProofs: {} }];
 	const locked = (ctx: object = {}) => messages(checkSheet(s, { ...ocCtx, ...ctx }), 'error').some((m) => /Barrier Techniques are locked/.test(m));
 	assert.ok(locked(), 'locked at the start');
-	assert.ok(!locked({ isEvolution: true }), 'learned with BTUP after approval');
+	assert.ok(locked({ isEvolution: true }), 'approval alone doesn’t open them');
+	assert.ok(!locked({ progressed: true }), 'open on a character staff marked as progressed');
+	const approvedSheet = goodSheet();
+	approvedSheet.systems = [{ ...s.systems[0], fields: { ...s.systems[0].fields, barrierTechniques: [{ kind: 'Curtain', name: '', notes: '' }] } }];
+	assert.ok(!locked({ isEvolution: true, approvedSheet }), 'kept when the approved card already has them');
 	assert.ok(!locked({ staffOverrides: { 'card:j.barrierTechniques': { to: 'Curtain' } } }), 'staff can unlock them');
 	s.traits = [{ name: 'Barrier Prodigy' } as (typeof s.traits)[number]];
 	assert.ok(!locked(), 'Barrier Prodigy unlocks them');

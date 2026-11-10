@@ -96,6 +96,10 @@ import type { PinnedNote } from '../../lib/portal/pins.ts';
 
 interface Props {
 	sheet: Sheet;
+	/** Staff marked the character as already progressed: Barrier Techniques are open. */
+	progressed?: boolean;
+	/** The approved version, for an evolution: cards that already had Barrier Techniques keep them. */
+	approvedSheet?: Sheet | null;
 	update: (fn: (s: Sheet) => void) => void;
 	requestedClaims: string[];
 	setRequestedClaims: (ids: string[]) => void;
@@ -1351,7 +1355,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 	const picked = Array.isArray(f[EXTRAS_KEY]) ? (f[EXTRAS_KEY] as string[]) : [];
 	const current = tabs.find((t) => t.id === props.tab) ?? tabs[0];
 	const labelOf = (t: PanelTab) => (typeof t.label === 'function' ? t.label(f) : t.label);
-	const barrierNatural = def.id !== 'jujutsu-kaisen' ? null : unlock ? unlockedText : barrierUnlocked(sheet, entry, { isEvolution: props.isEvolution, staffOverrides: props.staffOverrides });
+	const barrierNatural = def.id !== 'jujutsu-kaisen' ? null : unlock ? unlockedText : barrierUnlocked(sheet, entry, { progressed: props.progressed, staffOverrides: props.staffOverrides, approvedFields: props.approvedSheet?.systems.find((x) => x.key === entry.key)?.fields });
 	// A stat override can ask to start with Barrier Techniques too.
 	const barrierAsk = def.id === 'jujutsu-kaisen' && !barrierNatural && Boolean(entry.statOverride) && canOverride;
 	const barrierOpen = barrierNatural ?? (barrierAsk ? 'Opened by your stat override request.' : null);
@@ -1387,7 +1391,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 			return pot && !pot.state.open ? pot.state.reason : null;
 		}
 		if (t.lock === 'barrier' && !barrierOpen)
-			return 'New characters start without Barrier Techniques. They unlock with the Barrier Prodigy trait, a family ability that includes them, or when staff unlock them for you. After approval you learn them with BTUP.';
+			return 'Barrier Techniques stay locked, even after approval. They unlock with the Barrier Prodigy trait, a family ability that includes them, or when staff unlock them for you. Once open, you learn more with BTUP.';
 		if (t.lock === 'approval' && !props.isEvolution && !staffSet(t.approval?.key ?? 'cyberware'))
 			return t.approval?.note ?? 'Cyberware is obtained in RP, so it opens the moment your character is approved. Until then, browse what fits each slot.';
 		if (t.lock === 'heavenly' && !effect && !props.heavenlyGrant && !heavenlyAsk)

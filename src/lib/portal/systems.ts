@@ -906,16 +906,18 @@ export function barriersFromOld(fields: Fields): Fields {
 }
 
 /**
- * How a JJK card's Barrier Techniques are unlocked, or null while locked. A new character needs the
- * Barrier Prodigy trait, a family ability that includes them, or values staff set; after approval
- * (or when staff mark the character as already progressed) they're learned with BTUP as normal.
+ * How a JJK card's Barrier Techniques are unlocked, or null while locked. Approval alone doesn't open
+ * them: they need the Barrier Prodigy trait, a family ability that includes them, values staff set, or
+ * a character staff marked as already progressed. A card whose approved version already has Barrier
+ * Techniques keeps them (and keeps learning them with BTUP).
  */
 export function barrierUnlocked(
 	sheet: { traits: { name: string }[] },
 	entry: { key: string; fields: Fields; familyLink?: unknown },
-	ctx: { isEvolution?: boolean; staffOverrides?: Record<string, unknown> },
+	ctx: { progressed?: boolean; staffOverrides?: Record<string, unknown>; approvedFields?: Fields },
 ): string | null {
-	if (ctx.isEvolution) return 'Learned with BTUP.';
+	if (ctx.progressed) return 'Staff marked this character as already progressed.';
+	if (ctx.approvedFields && BARRIER_FIELDS.some((x) => barrierUsed(x, barriersFromOld(ctx.approvedFields!)[x.key]))) return 'Already on your approved character. Learn more with BTUP.';
 	if (sheet.traits.some((t) => t.name === 'Barrier Prodigy')) return 'Unlocked by your Barrier Prodigy trait.';
 	if (entry.familyLink && barrierUsed(BARRIER_FIELDS[0], barriersFromOld(entry.fields).barrierTechniques)) return 'Unlocked by your family ability.';
 	if (BARRIER_KEYS.some((k) => ctx.staffOverrides?.[`card:${entry.key}.${k}`])) return 'Unlocked by staff.';

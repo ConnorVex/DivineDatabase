@@ -832,6 +832,8 @@ export default function SubmitForm() {
 									combos={combos.map((c) => c.name)}
 									readOnly={readOnly}
 									isEvolution={!startRules}
+									progressed={draft.progressed}
+									approvedSheet={draft.approvedSheet}
 									roller={roller}
 									familyAbilities={familyPerks && familyPerks.filter((p) => p.kind === 'locked_power')}
 									familyName={(id) => familyChoices?.families.find((f) => f.id === id)?.name ?? 'A family'}

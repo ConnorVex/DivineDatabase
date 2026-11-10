@@ -548,7 +548,8 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 			const name = moves.ultimateLabel ?? 'Ultimate skill';
 			addHere('error', 'Systems', `${where}: only ${moves.ultimateCap} ${name}${moves.ultimateCap === 1 ? '' : 's'} allowed (you have ${ultimates}).`);
 		}
-		if (entry.system === 'jujutsu-kaisen' && !barrierUnlocked(sheet, entry, { isEvolution: ctx.isEvolution, staffOverrides: ctx.staffOverrides })) {
+		const approvedCard = ctx.approvedSheet?.systems.find((e) => e.key === entry.key)?.fields;
+		if (entry.system === 'jujutsu-kaisen' && !barrierUnlocked(sheet, entry, { progressed: ctx.progressed, staffOverrides: ctx.staffOverrides, approvedFields: approvedCard })) {
 			const used = def.fields.filter((x) => BARRIER_KEYS.includes(x.key) && barrierUsed(x, entry.fields[x.key]));
 			if (!used.length) {
 				// nothing to check
