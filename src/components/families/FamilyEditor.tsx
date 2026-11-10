@@ -1,6 +1,6 @@
 // The owner's editor for their family: page details, divisions, roster, relations and perks.
 // Admins get the same editor for any family.
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { ComponentChildren } from 'preact';
 import {
 	EDITABLE,
@@ -9,6 +9,8 @@ import {
 	STANDINGS,
 	acceptMember,
 	removeMember,
+	loadUnparalleled,
+	setUnparalleled,
 	richText,
 	saveDivisions,
 	sendPerks,
@@ -341,7 +343,65 @@ function RosterTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
 					onSaved();
 				}}
 			/>
+			{b.family.special_statuses.includes('Unparalleled Potential') && <UnparalleledBox b={b} />}
 		</>
+	);
+}
+
+/** Families with the Unparalleled Potential status: the owner gives it to members (and takes it back). */
+function UnparalleledBox({ b }: { b: FamilyBundle }) {
+	const members = b.members.filter((m) => m.status === 'active' && m.character_id);
+	const [has, setHas] = useState<Set<string> | null>(null);
+	const [busy, setBusy] = useState('');
+	const [error, setError] = useState('');
+	const load = () => loadUnparalleled(b.family.id).then((ids) => setHas(new Set(ids)), (e) => setError(messageOf(e)));
+	useEffect(() => void load(), [b.family.id]);
+
+	async function toggle(characterId: string, on: boolean) {
+		setBusy(characterId);
+		setError('');
+		try {
+			await setUnparalleled(b.family.id, characterId, on);
+			await load();
+		} catch (e) {
+			setError(messageOf(e));
+		} finally {
+			setBusy('');
+		}
+	}
+
+	return (
+		<section class="pf-section fm-unparalleled">
+			<header class="pf-section-head">
+				<h2>Unparalleled Potential</h2>
+				<span class="pf-badge">{has?.size ?? 0}</span>
+			</header>
+			<p class="pf-intro">
+				An admin gave {b.family.name} Unparalleled Potential to hand out. It sits between Apex and Divine (up to Phase 3, Sub-Tier 20) and is never rolled. Giving it replaces the
+				member’s Potential at once; taking it back returns the Potential they had before.
+			</p>
+			{members.length === 0 ? (
+				<p class="pf-empty">No portal characters in the family yet.</p>
+			) : (
+				<ul class="fm-requests">
+					{members.map((m) => {
+						const on = has?.has(m.character_id!) ?? false;
+						return (
+							<li key={m.id}>
+								<div>
+									<strong>{m.name}</strong>
+									{on && <span class="fm-tag fm-unparalleled-tag">Unparalleled</span>}
+								</div>
+								<button type="button" class={`pf-button${on ? ' subtle' : ' primary'}`} disabled={!has || busy === m.character_id} onClick={() => toggle(m.character_id!, !on)}>
+									{on ? 'Take it back' : 'Give Unparalleled'}
+								</button>
+							</li>
+						);
+					})}
+				</ul>
+			)}
+			{error && <p class="portal-error">{error}</p>}
+		</section>
 	);
 }
 

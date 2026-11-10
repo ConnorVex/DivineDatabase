@@ -507,6 +507,18 @@ export async function acceptMember(id: string) {
 	fail((await db().from('family_members').update({ status: 'active' }).eq('id', id)).error);
 }
 
+/** Members who have Unparalleled Potential from this family (owner and admins only). */
+export async function loadUnparalleled(familyId: string): Promise<string[]> {
+	const { data, error } = await db().rpc('family_unparalleled', { p_family: familyId });
+	fail(error);
+	return (data ?? []) as string[];
+}
+
+/** The owner gives (or takes back) Unparalleled Potential for a member's character. */
+export async function setUnparalleled(familyId: string, characterId: string, on: boolean) {
+	fail((await db().rpc('set_unparalleled', { p_family: familyId, p_character: characterId, p_on: on })).error);
+}
+
 /** Declines a request, kicks a member, or leaves (for the character's own player). */
 export async function removeMember(id: string) {
 	const { data, error } = await db().from('family_members').delete().eq('id', id).select('id');

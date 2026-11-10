@@ -136,7 +136,7 @@ const METAMORPHOSES: [string[], number][] = [
 	[['average'], 2],
 	[['great', 'high', 'insane'], 4],
 	[['immense', 'colossal'], 5],
-	[['tremendous', 'peak', 'ultimate', 'apex', 'divine'], 10],
+	[['tremendous', 'peak', 'ultimate', 'apex', 'unparalleled', 'divine'], 10],
 ];
 export const metamorphosisCap = (potential: string) => METAMORPHOSES.find(([ids]) => ids.includes(potential))?.[1] ?? 0;
 

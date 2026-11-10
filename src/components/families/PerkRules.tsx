@@ -85,7 +85,7 @@ export function TraitRulesBuilder({ value, onChange }: { value: TraitRules; onCh
 				<fieldset class="pf-field pf-checks pf-wide">
 					<legend class="pf-label">Potentials members can pick instead of rolling</legend>
 					<div class="pr-chips">
-						{rules.potentials.map((p) => {
+						{rules.potentials.filter((p) => !('familyOnly' in p)).map((p) => {
 							const on = value.potentials.includes(p.id);
 							return (
 								<label key={p.id} class={`pr-chip${on ? ' on' : ''}`}>

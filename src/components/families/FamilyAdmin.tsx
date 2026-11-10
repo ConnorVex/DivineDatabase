@@ -27,7 +27,7 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]['id'];
 
-const SPECIALS = ['Monarch Family', 'Exclusive Access'];
+const SPECIALS = ['Monarch Family', 'Exclusive Access', 'Unparalleled Potential'];
 
 export function ReviewFamily({ f, owner, onDone }: { f: FamilyCard; owner: string; onDone: () => void }) {
 	const [note, setNote] = useState('');

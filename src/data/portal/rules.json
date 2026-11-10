@@ -164,6 +164,14 @@
 			"rolled": true
 		},
 		{
+			"id": "unparalleled",
+			"label": "Unparalleled",
+			"maxPhase": 3,
+			"maxTier": 20,
+			"rolled": false,
+			"familyOnly": true
+		},
+		{
 			"id": "divine",
 			"label": "Divine",
 			"maxPhase": 4,

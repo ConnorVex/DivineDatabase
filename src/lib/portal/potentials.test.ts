@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { potentialState, potentialsFor } from './potentials.ts';
+import { metamorphosisCap, potentialState, potentialsFor } from './potentials.ts';
 
 const [awakening, variant] = potentialsFor('quirk');
 const entry = (fields: Record<string, string | number>) => ({ key: 'q', fields });
@@ -52,4 +52,14 @@ test('Overclock Instability: 1–5 nothing, 6–9 exit, 10 lost', async () => {
 	const { evolutionResult, overclockGain } = await import('./evolutionRolls.ts');
 	assert.deepEqual([1, 5, 6, 9, 10].map((n) => evolutionResult('overclock_instability', n)), ['steady', 'steady', 'exit', 'exit', 'lost']);
 	assert.deepEqual([0, 1, 2].map(overclockGain), [10, 8, 6]);
+});
+
+test('Unparalleled Potential sits between Apex and Divine and is never rolled', async () => {
+	const rules = (await import('../../data/portal/rules.json', { with: { type: 'json' } })).default;
+	const ids = rules.potentials.map((p) => p.id);
+	assert.equal(ids.indexOf('unparalleled'), ids.indexOf('apex') + 1);
+	assert.equal(ids.indexOf('divine'), ids.indexOf('unparalleled') + 1);
+	const u = rules.potentials.find((p) => p.id === 'unparalleled')!;
+	assert.deepEqual([u.maxPhase, u.maxTier, u.rolled], [3, 20, false]);
+	assert.equal(metamorphosisCap('unparalleled'), 10);
 });
