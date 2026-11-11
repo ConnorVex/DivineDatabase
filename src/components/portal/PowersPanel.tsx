@@ -5,7 +5,12 @@ import { useEffect, useMemo, useState } from 'preact/hooks';
 import type { AdminCharacter, PlayerSummary } from '../../lib/portal/api.ts';
 import {
 	deletePower,
+	familyList,
 	grantPower,
+	grantPowerToFamily,
+	powerFamilies,
+	revokeFamilyPower,
+	type PowerFamilyRow,
 	grantPowerToCharacter,
 	loadPowers,
 	powerGrants,
@@ -223,6 +228,7 @@ function PowerEditor(props: {
 			{dirty && d.id && <p class="pf-help">Save your changes before granting. Players with this power see an “Update the card” button after you change it.</p>}
 
 			{props.saved && !dirty && <GrantBox power={props.saved} players={props.players} characters={props.characters} onGranted={props.onGranted} />}
+			{props.saved && !dirty && <FamilyGrantBox power={props.saved} />}
 		</div>
 	);
 }
@@ -348,6 +354,102 @@ function GrantBox(props: { power: CustomPower; players: PlayerSummary[]; charact
 				</ul>
 			) : (
 				<p class="pf-empty">Not granted to anyone yet.</p>
+			)}
+		</fieldset>
+	);
+}
+
+/** Give a saved power to a family (its owner hands it to members), and the families that have it. */
+function FamilyGrantBox(props: { power: CustomPower }) {
+	const [families, setFamilies] = useState<{ id: string; name: string }[]>([]);
+	const [rows, setRows] = useState<PowerFamilyRow[] | null>(null);
+	const [family, setFamily] = useState('');
+	const [note, setNote] = useState('');
+	const [busy, setBusy] = useState(false);
+	const [msg, setMsg] = useState('');
+	const [revoking, setRevoking] = useState<number | null>(null);
+
+	const load = () => powerFamilies(props.power.id).then(setRows, (e) => setMsg(messageOf(e)));
+	useEffect(() => {
+		familyList().then(setFamilies, (e) => setMsg(messageOf(e)));
+	}, []);
+	useEffect(() => void load(), [props.power.id]);
+	const has = new Set(rows?.map((r) => r.family_id));
+
+	async function run(fn: () => Promise<void>, done: string) {
+		setBusy(true);
+		setMsg('');
+		try {
+			await fn();
+			setMsg(done);
+			await load();
+		} catch (e) {
+			setMsg(messageOf(e));
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	return (
+		<fieldset class="sys-group pf-wide pw-grant">
+			<legend>Give it to a family</legend>
+			<p class="pf-help">The family’s owner hands it to members on the family’s Roster tab, and the card goes straight onto that character. The owner can take it back.</p>
+			<div class="pf-grid">
+				<SelectField
+					label="Family"
+					value={family}
+					placeholder="Pick a family…"
+					options={families.filter((f) => !has.has(f.id)).map((f) => ({ value: f.id, label: f.name }))}
+					onChange={setFamily}
+				/>
+				<TextField label="Note" value={note} placeholder="Optional, e.g. founding technique" onInput={setNote} help="The owner sees it next to the power." />
+			</div>
+			<div class="pw-actions">
+				<button
+					type="button"
+					class="pf-button primary"
+					disabled={busy || !family}
+					onClick={() => run(() => grantPowerToFamily(props.power.id, family, note.trim()).then(() => (setFamily(''), setNote(''))), `Given to ${families.find((f) => f.id === family)?.name ?? 'the family'}.`)}
+				>
+					Give {props.power.name}
+				</button>
+				{msg && (
+					<span class="pf-help" role="status">
+						{msg}
+					</span>
+				)}
+			</div>
+			{rows && rows.length > 0 && (
+				<>
+					<h4 class="pf-subhead">Families with it</h4>
+					<ul class="pw-grants">
+						{rows.map((r) => (
+							<li key={r.id} class="pw-grant-row">
+								<div>
+									<strong>{r.family_name}</strong>
+									<span class="pf-help">
+										{r.holders === 0 ? 'Not handed out yet' : `On ${r.holders} member${r.holders === 1 ? '' : 's'}`} · {when(r.granted_at)}
+										{r.note ? ` · ${r.note}` : ''}
+									</span>
+								</div>
+								{revoking === r.id ? (
+									<div class="pw-revoke">
+										<button type="button" class="pf-button danger" disabled={busy} onClick={() => run(() => revokeFamilyPower(r.id).then(() => setRevoking(null)), `Taken back from ${r.family_name}.`)}>
+											Take back{r.holders ? ' and remove the cards' : ''}
+										</button>
+										<button type="button" class="pf-button subtle" onClick={() => setRevoking(null)}>
+											Cancel
+										</button>
+									</div>
+								) : (
+									<button type="button" class="pf-button subtle" onClick={() => setRevoking(r.id)}>
+										Take back
+									</button>
+								)}
+							</li>
+						))}
+					</ul>
+				</>
 			)}
 		</fieldset>
 	);

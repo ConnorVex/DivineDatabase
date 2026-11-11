@@ -30,6 +30,7 @@ import {
 	type RelationDraft,
 	type Standing,
 } from '../../lib/families/api.ts';
+import { giveFamilyPower, loadFamilyPowers, type FamilyPower } from '../../lib/portal/powers.ts';
 import { abilitySystem, systemById } from '../../lib/portal/systems.ts';
 import { AbilityBuilder, StatsBuilder, TraitPicker, blankDetails, detailProblems, isBuilt } from './PerkBuilders.tsx';
 import { ItemsBuilder, StyleBuilder, SystemRulesBuilder, TrackerBuilder, TraitRulesBuilder } from './PerkRules.tsx';
@@ -344,6 +345,7 @@ function RosterTab({ b, onSaved }: { b: FamilyBundle; onSaved: () => void }) {
 				}}
 			/>
 			{b.family.special_statuses.includes('Unparalleled Potential') && <UnparalleledBox b={b} />}
+			<FamilyPowersBox b={b} />
 		</>
 	);
 }
@@ -400,6 +402,81 @@ function UnparalleledBox({ b }: { b: FamilyBundle }) {
 					})}
 				</ul>
 			)}
+			{error && <p class="portal-error">{error}</p>}
+		</section>
+	);
+}
+
+/** Custom powers an admin granted the family: the owner puts each on members' characters (and takes it off). */
+function FamilyPowersBox({ b }: { b: FamilyBundle }) {
+	const members = b.members.filter((m) => m.status === 'active' && m.character_id);
+	const [powers, setPowers] = useState<FamilyPower[] | null>(null);
+	const [busy, setBusy] = useState('');
+	const [error, setError] = useState('');
+	const load = () => loadFamilyPowers(b.family.id).then(setPowers, (e) => setError(messageOf(e)));
+	useEffect(() => void load(), [b.family.id]);
+
+	async function toggle(p: FamilyPower, characterId: string, on: boolean) {
+		setBusy(`${p.id}:${characterId}`);
+		setError('');
+		try {
+			await giveFamilyPower(p.id, characterId, on);
+			await load();
+		} catch (e) {
+			setError(messageOf(e));
+		} finally {
+			setBusy('');
+		}
+	}
+
+	if (!powers?.length && !error) return null;
+	return (
+		<section class="pf-section fm-powers">
+			<header class="pf-section-head">
+				<h2>Family powers</h2>
+				<span class="pf-badge">{powers?.length ?? 0}</span>
+			</header>
+			<p class="pf-intro">
+				Powers an admin gave {b.family.name}. Giving one to a member puts its card straight onto their character, with its stats locked; they describe how they use it in an
+				evolution. Taking it back removes the card.
+			</p>
+			{powers?.map((p) => (
+				<div key={p.id} class="fm-power">
+					<h3 class="fm-power-name">
+						{p.name}
+						<span class="fm-tag">{systemById.get(p.system)?.label ?? p.system}</span>
+					</h3>
+					{p.description.trim() && <div class="fm-power-about" dangerouslySetInnerHTML={{ __html: richText(p.description) }} />}
+					{p.note && <p class="pf-help">Note from staff: {p.note}</p>}
+					{!p.ready ? (
+						<p class="pf-help">An admin needs to save this power again in the Power Builder before it can be handed out.</p>
+					) : members.length === 0 ? (
+						<p class="pf-empty">No portal characters in the family yet.</p>
+					) : (
+						<ul class="fm-requests">
+							{members.map((m) => {
+								const on = p.holders.includes(m.character_id!);
+								return (
+									<li key={m.id}>
+										<div>
+											<strong>{m.name}</strong>
+											{on && <span class="fm-tag fm-unparalleled-tag">Has it</span>}
+										</div>
+										<button
+											type="button"
+											class={`pf-button${on ? ' subtle' : ' primary'}`}
+											disabled={busy === `${p.id}:${m.character_id}`}
+											onClick={() => toggle(p, m.character_id!, !on)}
+										>
+											{on ? 'Take it back' : `Give ${p.name}`}
+										</button>
+									</li>
+								);
+							})}
+						</ul>
+					)}
+				</div>
+			))}
 			{error && <p class="portal-error">{error}</p>}
 		</section>
 	);

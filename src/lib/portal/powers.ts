@@ -109,3 +109,61 @@ export async function startEvolution(characterId: string, card: string) {
 export async function adjustMeter(characterId: string, card: string, change: number, reason: string) {
 	fail((await db().rpc('adjust_power_meter', { p_character: characterId, p_card: card, p_change: change, p_reason: reason })).error);
 }
+
+// ───────────────────────────── Family powers ─────────────────────────────
+
+/** A power granted to a family, as its owner sees it: who it's been handed to. */
+export interface FamilyPower {
+	id: number;
+	power_id: string;
+	name: string;
+	system: string;
+	description: string;
+	note: string;
+	granted_at: string;
+	/** False until an admin re-saves the power in the builder (older powers have no saved card). */
+	ready: boolean;
+	holders: string[];
+}
+
+export interface PowerFamilyRow {
+	id: number;
+	family_id: string;
+	family_name: string;
+	note: string;
+	granted_at: string;
+	holders: number;
+}
+
+/** Approved families, for the admin's "Give it to a family" box. */
+export async function familyList(): Promise<{ id: string; name: string }[]> {
+	const { data, error } = await db().from('families').select('id, name').eq('status', 'approved').order('name');
+	fail(error);
+	return (data ?? []) as { id: string; name: string }[];
+}
+
+export async function grantPowerToFamily(powerId: string, familyId: string, note: string) {
+	fail((await db().rpc('grant_power_to_family', { p_power: powerId, p_family: familyId, p_note: note })).error);
+}
+
+/** Admins: take a family's power back, and off every member it was handed to. */
+export async function revokeFamilyPower(grantId: number) {
+	fail((await db().rpc('revoke_family_power', { p_grant: grantId })).error);
+}
+
+export async function powerFamilies(powerId: string): Promise<PowerFamilyRow[]> {
+	const { data, error } = await db().rpc('power_families', { p_power: powerId });
+	fail(error);
+	return (data ?? []) as PowerFamilyRow[];
+}
+
+export async function loadFamilyPowers(familyId: string): Promise<FamilyPower[]> {
+	const { data, error } = await db().rpc('family_powers', { p_family: familyId });
+	fail(error);
+	return (data ?? []) as FamilyPower[];
+}
+
+/** The family's owner: put a family power on a member's character, or take it off. */
+export async function giveFamilyPower(grantId: number, characterId: string, on: boolean) {
+	fail((await db().rpc('give_family_power', { p_grant: grantId, p_character: characterId, p_on: on })).error);
+}

@@ -12297,3 +12297,26 @@ details.pf-live .wk-infobox-img {
 	padding: 0;
 	background: none;
 }
+
+/* ── Family powers on the Roster tab ── */
+.fm-power + .fm-power {
+	margin-top: 1.5rem;
+	padding-top: 1.25rem;
+	border-top: 1px solid var(--pf-line-strong);
+}
+.fm-power-name {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0;
+	font-size: var(--sl-text-lg);
+}
+.fm-power-about {
+	margin: 0.4rem 0 0;
+	color: var(--pf-muted);
+	font-size: var(--sl-text-sm);
+}
+.fm-power-about > :first-child {
+	margin-top: 0;
+}
