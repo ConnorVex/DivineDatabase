@@ -13,7 +13,7 @@ import type { LinkablePerk } from '../../lib/portal/families.ts';
 import { heavenlyOf } from '../../lib/portal/heavenly.ts';
 import { power, ptp, rankInfo, recoil, rules, traits, traitSlots, type StaffOverrides } from '../../lib/portal/rules.ts';
 import { PROOF_LABEL, familyCardChanged, hasFullSheet, type Sheet } from '../../lib/portal/sheet.ts';
-import { canonHolder, systemById, visibleFields } from '../../lib/portal/systems.ts';
+import { canonHolder, isTechniqueCard, jjkMainKey, systemById, techniqueFields, techniqueKeys, visibleFields } from '../../lib/portal/systems.ts';
 import { SkillTreeView } from './SkillTreeView.tsx';
 import { PillarCard } from './PillarSheet.tsx';
 import type { Pillar } from '../../lib/portal/pillars.ts';
@@ -281,12 +281,16 @@ function AbilityTabs(props: ArticleProps) {
 	const priority = s.systems.length > 1 ? s.prioritySystem : undefined;
 	const [openKey, setOpen] = useState<string | undefined>(undefined);
 	const open = s.systems.find((e) => e.key === openKey) ?? s.systems.find((e) => e.key === priority) ?? s.systems[0];
-	const titleOf = (e: (typeof s.systems)[number]) => e.powerLink?.title || String(e.fields.name ?? '').trim() || systemById.get(e.system)?.label || e.system;
+	const titleOf = (e: (typeof s.systems)[number]) => e.powerLink?.title || ['name', 'ctName', 'standName'].map((k) => String(e.fields[k] ?? '').trim()).find(Boolean) || systemById.get(e.system)?.label || e.system;
 
 	const e = open;
 	const def = systemById.get(e.system);
 	const ability = e.familyLink && perkById.get(e.familyLink.perkId)?.details.ability;
-	const shown = def ? visibleFields(def, e.fields).filter((f) => f.key !== 'name' && f.type !== 'list' && f.type !== 'textarea') : [];
+	// A second Jujutsu Kaisen card is just a Cursed Technique (its Cursed Energy is the main card's).
+	const technique = isTechniqueCard(s.systems, e);
+	const techKeys = technique ? techniqueKeys() : null;
+	const shown = def ? visibleFields(def, technique ? techniqueFields(e.fields) : e.fields).filter((f) => f.key !== 'name' && f.type !== 'list' && f.type !== 'textarea' && (!techKeys || techKeys.has(f.key))) : [];
+	const sysLabel = (x: (typeof s.systems)[number]) => (isTechniqueCard(s.systems, x) ? 'Cursed Technique' : (systemById.get(x.system)?.label ?? x.system));
 	const valueOf = (key: string) => {
 		const v = e.fields[key];
 		const text = Array.isArray(v) ? (v as string[]).join(', ') : v;
@@ -301,14 +305,14 @@ function AbilityTabs(props: ArticleProps) {
 		.map((g) => ({ ...g, fields: g.fields.filter((f) => valueOf(f.key)) }))
 		.filter((g) => g.fields.length);
 	const extras = [
-		...(e.fields.ceLevel ? [{ label: 'CE level', value: String(e.fields.ceLevel) }] : []),
+		...(e.fields.ceLevel && !technique ? [{ label: 'CE level', value: String(e.fields.ceLevel) }] : []),
 		...(props.claims ?? [])
 			// A canon ability shows on the card it was picked on.
 			.filter((b) => b.universe === def?.universe && (b.claim_type !== 'ability' || canonHolder(s.systems, b.universe, b.id)?.key === e.key))
 			.map((b) => ({ label: 'Canon claim', value: `${b.name} (${b.category || 'canon'} · ${b.max_users === null ? 'no limit' : `${b.used_slots}/${b.max_users}`})` })),
 	];
 	const canonClaim = e.familyLink || e.powerLink ? undefined : (props.claims ?? []).find((b) => b.claim_type === 'ability' && b.universe === def?.universe && canonHolder(s.systems, b.universe, b.id)?.key === e.key);
-	const texts = (def?.fields ?? []).filter((f) => f.type === 'textarea' && String(e.fields[f.key] ?? '').trim());
+	const texts = (def?.fields ?? []).filter((f) => f.type === 'textarea' && String(e.fields[f.key] ?? '').trim() && (!techKeys || techKeys.has(f.key)));
 	const lists = (def?.fields ?? [])
 		.filter((f) => f.type === 'list')
 		.map((f) => ({ f, rows: ((e.fields[f.key] as Record<string, string>[]) ?? []).filter((r) => Object.values(r).some((v) => String(v ?? '').trim())) }))
@@ -333,7 +337,7 @@ function AbilityTabs(props: ArticleProps) {
 									{titleOf(x)}
 								</span>
 								{/* The system's name, unless the card has no title of its own and already shows it. */}
-								{titleOf(x) !== (systemById.get(x.system)?.label ?? x.system) && <span class="wk-ab-tab-sys">{systemById.get(x.system)?.label ?? x.system}</span>}
+								{titleOf(x) !== sysLabel(x) && <span class="wk-ab-tab-sys">{sysLabel(x)}</span>}
 								{pinned && <span class="wk-ab-tab-pin" title="Has review notes" />}
 							</button>
 						);
@@ -343,7 +347,7 @@ function AbilityTabs(props: ArticleProps) {
 
 			<div class="wk-ability" role={s.systems.length > 1 ? 'tabpanel' : undefined}>
 				<header class="wk-ab-head">
-					<span class="wk-ab-kicker">{def?.label ?? e.system}</span>
+					<span class="wk-ab-kicker">{technique ? `Cursed Technique · uses ${titleOf(s.systems.find((x) => x.key === jjkMainKey(s.systems)) ?? e)}’s Cursed Energy` : (def?.label ?? e.system)}</span>
 					<h4 class="wk-h4">
 						{titleOf(e)}
 						{e.key === priority && <span class="wk-badge">priority</span>}

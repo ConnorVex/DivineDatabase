@@ -10,7 +10,7 @@ import traitsData from '../../data/portal/traits.json' with { type: 'json' };
 import type { LinkablePerk } from './families.ts';
 import { powerCardChanged, type MyPowerGrant } from './powerCards.ts';
 import { PROOF_LABEL, familyCardChanged, type PickedTrait, type Sheet, type SystemEntry } from './sheet.ts';
-import { BARRIER_KEYS, barrierUnlocked, barrierUsed, canonHolder, abilitySystem, countsTowardLimit, pastStart, startText, systemById, visibleFields, type Field, type Fields } from './systems.ts';
+import { isTechniqueCard, jjkMainKey, techniqueFields, techniqueKeys, BARRIER_KEYS, barrierUnlocked, barrierUsed, canonHolder, abilitySystem, countsTowardLimit, pastStart, startText, systemById, visibleFields, type Field, type Fields } from './systems.ts';
 import { potentialChanged, potentialCtxOf, potentialsFor } from './potentials.ts';
 import { DEVIL_CLASSES, FEAR_KEYS, TANK_MAX } from './devils.ts';
 import { AFFINITY_TRAIT } from './ghouls.ts';
@@ -488,7 +488,12 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 			for (const m of missingTraits(entry.skills, sheet.traits.map((t) => t.name))) addHere('error', 'Systems', `${def.label} (${entry.powerLink.title}): “${m.skill}” needs the ${m.trait} trait.`);
 			continue;
 		}
-		const where = link ? `${def.label} (${link.title})` : def.label;
+		// A second Jujutsu Kaisen card is just a Cursed Technique: its Cursed Energy is the main card's.
+		const technique = isTechniqueCard(sheet.systems, entry);
+		const fields = technique ? techniqueFields(entry.fields) : entry.fields;
+		const shownFields = technique ? visibleFields(def, fields).filter((x) => techniqueKeys().has(x.key)) : visibleFields(def, entry.fields);
+		const techniqueName = String(entry.fields.ctName ?? '').trim();
+		const where = link ? `${def.label} (${link.title})` : technique ? `Cursed Technique${techniqueName ? ` (${techniqueName})` : ''}` : def.label;
 		if (entry.customTree) {
 			for (const problem of treeProblems(entry.customTree, entry)) addHere('error', 'Systems', `${where}: ${problem}`);
 			const approved = ctx.approvedSheet?.systems.find((e) => e.key === entry.key)?.customTree;
@@ -515,7 +520,7 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 		const missingRolls = new Set<string>();
 		// Fields a Heavenly Restriction sets are checked with it (checkHeavenly).
 		const heavenlyFixed = entry.system === 'jujutsu-kaisen' ? (sheetHeavenly(sheet)?.fixed ?? {}) : {};
-		for (const field of visibleFields(def, entry.fields)) {
+		for (const field of shownFields) {
 			if (field.key in heavenlyFixed || staff(cardPath(entry.key, field.key))) continue;
 			if (field.rolled && field.required && blank(entry.fields[field.key])) {
 				if (!missingRolls.has(field.rolled)) addHere('error', 'Systems', `${where}: roll your ${field.label}.`);
@@ -533,7 +538,7 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 		// A new character starts at set stats and points; going past them needs a stat override staff approve.
 		if (!ctx.isEvolution) {
 			const fixed = entry.system === 'jujutsu-kaisen' ? (sheetHeavenly(sheet)?.fixed ?? {}) : {};
-			const past = visibleFields(def, entry.fields).filter((f) => !(f.key in fixed) && !staff(cardPath(entry.key, f.key)) && pastStart(f, entry.fields[f.key]));
+			const past = shownFields.filter((f) => !(f.key in fixed) && !staff(cardPath(entry.key, f.key)) && pastStart(f, entry.fields[f.key]));
 			const budget = systemBudget(sheet, entry);
 			const over = budget && budget.spent > budget.total ? budget : null;
 			const ask = entry.statOverride?.ask?.trim() ?? '';
@@ -547,8 +552,8 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 				if (over) addHere('error', 'Systems', `${where}: ${over.spent} ${over.label} spent, but you start with ${over.total}. Ask for a stat override to start higher.`);
 			}
 		}
-		for (const extra of def.checks?.(entry.fields, !ctx.isEvolution) ?? []) addHere(extra.level, 'Systems', extra.message);
-		const moves = def.startingMoves?.(entry.fields);
+		for (const extra of def.checks?.(fields, !ctx.isEvolution) ?? []) addHere(extra.level, 'Systems', extra.message);
+		const moves = def.startingMoves?.(fields);
 		for (const type of ['standard', 'ultimate'] as const) {
 			const max = moves?.[type];
 			if (max === undefined) continue;
@@ -565,7 +570,7 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 			addHere('error', 'Systems', `${where}: only ${moves.ultimateCap} ${name}${moves.ultimateCap === 1 ? '' : 's'} allowed (you have ${ultimates}).`);
 		}
 		const approvedCard = ctx.approvedSheet?.systems.find((e) => e.key === entry.key)?.fields;
-		if (entry.system === 'jujutsu-kaisen' && !barrierUnlocked(sheet, entry, { progressed: ctx.progressed, staffOverrides: ctx.staffOverrides, approvedFields: approvedCard })) {
+		if (entry.system === 'jujutsu-kaisen' && !technique && !barrierUnlocked(sheet, entry, { progressed: ctx.progressed, staffOverrides: ctx.staffOverrides, approvedFields: approvedCard })) {
 			const used = def.fields.filter((x) => BARRIER_KEYS.includes(x.key) && barrierUsed(x, entry.fields[x.key]));
 			if (!used.length) {
 				// nothing to check
@@ -844,7 +849,7 @@ function checkHeavenly(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel,
 	for (const e of sheet.systems) {
 		if (!HEAVENLY_SYSTEMS.includes(e.system)) add('error', 'Systems', `${name}: you lose every power system but Jujutsu Kaisen and Cyberpunk. Remove ${systemById.get(e.system)?.label ?? e.system}.`);
 	}
-	const card = sheet.systems.find((e) => e.system === 'jujutsu-kaisen')!;
+	const card = sheet.systems.find((e) => e.key === jjkMainKey(sheet.systems))!;
 	for (const [key, value] of Object.entries(effect.fixed)) {
 		if (card.fields[key] !== value && !staff(cardPath(card.key, key))) add('error', 'Systems', `${name}: ${systemById.get('jujutsu-kaisen')?.fields.find((f) => f.key === key)?.label ?? key} is ${value}.`);
 	}

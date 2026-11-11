@@ -142,6 +142,9 @@ export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) =
 								ℹ {n}
 							</p>
 						))}
+						{power && system === 'jujutsu-kaisen' && (
+							<p class="pf-help pf-wide">ℹ If the holder already has a Jujutsu Kaisen card, this one shows only its Cursed Technique and uses that card’s Cursed Energy.</p>
+						)}
 					</div>
 				</fieldset>
 				<fieldset class="sys-group pf-wide">

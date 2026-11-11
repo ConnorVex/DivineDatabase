@@ -28,7 +28,7 @@ import { deriveDevil } from '../../lib/portal/devils.ts';
 import { piecesOf, slotsOf } from '../../lib/portal/cyberware.ts';
 import { VARIANT_OF, quirkRollStage, type EvolutionRoll } from '../../lib/portal/evolutionRolls.ts';
 import { potentialCtxOf, potentialState, potentialsFor, type PotentialDef, type PotentialState } from '../../lib/portal/potentials.ts';
-import { abilitySystem, canonHolder, type MoveLimits, type DefaultMove, countsTowardLimit, familyScope, groupedFields, memberKeys, pastStart, startText, systemById, systems, visibleFields, type Field, type Fields, type FieldValue, type Option, type SystemDef, EXTRAS_GROUP, EXTRAS_KEY, barrierUnlocked, BARRIER_GROUP, BARRIER_KINDS, BARRIER_KEYS, OCULAR_GROUP, OCULAR_KEYS } from '../../lib/portal/systems.ts';
+import { abilitySystem, canonHolder, type MoveLimits, type DefaultMove, countsTowardLimit, familyScope, groupedFields, memberKeys, pastStart, startText, systemById, systems, visibleFields, type Field, type Fields, type FieldValue, type Option, type SystemDef, isTechniqueCard, jjkMainKey, techniqueFields, techniqueKeys, TECHNIQUE_GROUPS, EXTRAS_GROUP, EXTRAS_KEY, barrierUnlocked, BARRIER_GROUP, BARRIER_KINDS, BARRIER_KEYS, OCULAR_GROUP, OCULAR_KEYS } from '../../lib/portal/systems.ts';
 import { CheckboxGroup, NumberField, Section, SelectField, TextArea, TextField } from './fields.tsx';
 import { RollPanel, type Roller } from './RollPanel.tsx';
 import { PinBoxes } from './PinnedNotes.tsx';
@@ -1379,13 +1379,27 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 			const e = s.systems.find((x) => x.key === entry.key);
 			if (e) fn(e);
 		});
-	const panel: PanelDef = PANELS[def.id] ?? {
+	// A second Jujutsu Kaisen card is just a Cursed Technique: it uses the main card's Cursed Energy.
+	const technique = isTechniqueCard(sheet.systems, entry);
+	const basePanel: PanelDef = PANELS[def.id] ?? {
 		index: '',
 		intro: '',
 		describe: { label: 'Description', help: 'What this is and how it works.' },
 		tabs: [{ id: 'main', label: def.label, blocks: [{ kind: 'group', label: '' }, { kind: 'description' }] }, SKILLS_TAB, TREE_TAB],
 	};
-	const f = entry.fields;
+	const panel: PanelDef = technique
+		? {
+				...basePanel,
+				intro: '',
+				// Permission Based starts stay on the main card.
+				extrasIn: 'none',
+				tabs: [
+					{ id: 'ct', label: 'Cursed Technique', blocks: [{ kind: 'claim' }, { kind: 'group', label: 'Cursed Technique', title: 'Technique stats' }, { kind: 'description' }, { kind: 'skills' }] },
+					TREE_TAB,
+				],
+			}
+		: basePanel;
+	const f = technique ? techniqueFields(entry.fields) : entry.fields;
 	// Admin characters open everything, like the dev preview's ?all.
 	const free = Boolean(props.adminCharacter);
 	const unlock = Boolean(props.unlockAll) || free;
@@ -1441,7 +1455,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 
 	// Pillar status, given by Tatsuya or Minako: its own tab on the Fire Force card.
 	const pillar = usePillar(def.id === 'fire-force' ? props.roller.characterId : null);
-	const groups = groupedFields(def, f);
+	const groups = groupedFields(def, f).filter((g) => !technique || TECHNIQUE_GROUPS.includes(g.label));
 	const extraLabels = [EXTRAS_GROUP, ...(def.extras ?? []).map((x) => x.label)];
 	const potentials = potentialsFor(def.id);
 	const placed = new Set([...panel.tabs.flatMap((t) => t.blocks.flatMap((b) => (b.kind === 'group' ? [b.label] : []))), ...extraLabels, ...potentials.map((p) => p.group), ...(panel.tabs.some((t) => t.blocks.some((b) => b.kind === 'cyberware')) ? ['Cyberware'] : []), ...(def.id === 'chainsaw-man' ? ['Blood & power', 'Fear Points'] : []), ...(def.id === 'jojo' ? ['Upgrades', 'Canon Stand'] : []), ...(def.id === 'tokyo-ghoul' ? ['Rc Tank'] : []), ...(def.id === 'infamous' ? ['Evolution items', 'Karma bar', 'Mental Domination'] : []), ...(def.id === 'fire-force' ? ['Technique log', 'Adolla Links', 'Tephrosis clock'] : []), ...(def.id === 'jujutsu-kaisen' ? [OCULAR_GROUP] : [])]);
@@ -2037,7 +2051,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 			}
 			case 'progress': {
 				// BTUP only matters once Barrier Techniques are unlocked.
-				const upgrades = visibleFields(def, f).filter((x) => isUpgradeField(x) && !(x.key === 'btUpgradePoints' && !barrierOpen));
+				const upgrades = visibleFields(def, f).filter((x) => isUpgradeField(x) && !(x.key === 'btUpgradePoints' && !barrierOpen) && (!technique || techniqueKeys().has(x.key)));
 				return (
 					<Fragment key={i}>
 						{upgrades.length > 0 && (
@@ -2375,6 +2389,16 @@ export function SystemsSection(props: Props) {
 		return { tone: 'ok', text: 'Ready' };
 	};
 
+	// A Cursed Technique card says whose Cursed Energy it uses; the main card, which techniques use its.
+	const techniqueNote = (e: SystemEntry) => {
+		if (e.system === 'jujutsu-kaisen' && jjkMainKey(sheet.systems) === e.key) {
+			const others = sheet.systems.filter((x) => isTechniqueCard(sheet.systems, x));
+			return others.length ? `Jujutsu Kaisen System · also powers ${others.map(titleOf).join(', ')}` : null;
+		}
+		if (!isTechniqueCard(sheet.systems, e)) return null;
+		const main = sheet.systems.find((x) => x.key === jjkMainKey(sheet.systems));
+		return `Cursed Technique · uses ${main ? titleOf(main) : 'the main card'}’s Cursed Energy`;
+	};
 	const tiles = [...systems].sort((a, b) => (HOME[a.id]?.rank ?? 9) - (HOME[b.id]?.rank ?? 9) || Number(Boolean(HOME[b.id]?.bestFor)) - Number(Boolean(HOME[a.id]?.bestFor)));
 
 	if (currentEntry && currentDef) {
@@ -2393,7 +2417,7 @@ export function SystemsSection(props: Props) {
 								</button>
 								<div class="df-post-heading">
 									<h3 class="df-post-title">{titleOf(currentEntry)}</h3>
-									<span class="df-post-system">{sysName} System</span>
+									<span class="df-post-system">{techniqueNote(currentEntry) ?? `${sysName} System`}</span>
 								</div>
 								{currentEntry.familyLink && <span class="df-tag family">Family ability</span>}
 								{currentEntry.powerLink && <span class="df-tag family">Granted power</span>}
@@ -2466,7 +2490,7 @@ export function SystemsSection(props: Props) {
 								if (!def) return null;
 								const canon = canonClaimFor(sheet, entry, props.requestedClaims, props.claimBoard);
 								const theme = canon ? canonTheme(canon.name, canon.universe) : null;
-								const facts = [...(canon ? ['Canon'] : []), ...extractTags(def, entry).filter((t) => !/\bMoves?\b|Custom Tree/.test(t))].slice(0, 3);
+								const facts = [...(canon ? ['Canon'] : []), ...extractTags(def, entry).filter((t) => !/\bMoves?\b|Custom Tree/.test(t) && !(isTechniqueCard(sheet.systems, entry) && / CE$/.test(t)))].slice(0, 3);
 								const usable = entry.skills.filter((s) => !s.locked).length;
 								const status = statusOf(entry.key);
 								const title = titleOf(entry);
@@ -2480,7 +2504,7 @@ export function SystemsSection(props: Props) {
 										<div class="sh-card-top">
 											<div class="sh-card-names">
 												<h4 class="sh-card-title">{title}</h4>
-												<span class="sh-card-system">{getSystemDisplayName(entry.system, def.label)} System</span>
+												<span class="sh-card-system">{techniqueNote(entry) ?? `${getSystemDisplayName(entry.system, def.label)} System`}</span>
 											</div>
 											{priorityKey === entry.key && <span class="df-tag priority">Priority</span>}
 										</div>

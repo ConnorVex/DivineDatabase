@@ -118,7 +118,12 @@ export function heavenlyEffect(hr: unknown, fields: Record<string, unknown> = {}
 	}
 }
 
-const jjkCard = (sheet: Sheet) => sheet.systems.find((e) => e.system === 'jujutsu-kaisen');
+// The main Jujutsu Kaisen card carries it (other ones are just Cursed Techniques).
+// (Same as systems.ts jjkMainKey; inlined because systems.ts imports this file.)
+const jjkCard = (sheet: Sheet) => {
+	const jjk = sheet.systems.filter((e) => e.system === 'jujutsu-kaisen');
+	return jjk.find((e) => !e.familyLink && !e.powerLink) ?? jjk[0];
+};
 
 /** The sheet's Heavenly Restriction, if it has one. */
 export function heavenlyOf(sheet: Sheet): Heavenly | null {

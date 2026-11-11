@@ -195,7 +195,7 @@ const infamousClasses: Option[] = [
 const nameField = (label: string, showIf?: Field['showIf']): Field => ({ key: 'name', label, type: 'text', showIf, help: 'Shown as this card’s title.' });
 
 // A Jujutsu Kaisen card can start with only Cursed Energy Utilization: no technique yet.
-const JJK_TECHNIQUE = 'Cursed Technique';
+export const JJK_TECHNIQUE = 'Cursed Technique';
 const JJK_CEU_ONLY = 'Cursed Energy Utilization only';
 const JJK_HAS_TECHNIQUE = { key: 'start', in: [JJK_TECHNIQUE, ''] };
 
@@ -947,6 +947,25 @@ for (const def of systems) {
 }
 
 export const systemById = new Map(systems.map((s) => [s.id, s]));
+
+/** The Jujutsu Kaisen card that holds the character's Cursed Energy, Barriers, Ocular, Heavenly
+ * Restriction, vows and tools: their first own card, or else their first one (e.g. a granted power).
+ * Every other Jujutsu Kaisen card is a Cursed Technique card that uses it. */
+export function jjkMainKey(systems: { key: string; system: string; familyLink?: unknown; powerLink?: unknown }[]): string | undefined {
+	const jjk = systems.filter((e) => e.system === 'jujutsu-kaisen');
+	return (jjk.find((e) => !e.familyLink && !e.powerLink) ?? jjk[0])?.key;
+}
+
+/** A second (or third) Jujutsu Kaisen card: just a Cursed Technique, sharing the main card's Cursed Energy. */
+export const isTechniqueCard = (systems: Parameters<typeof jjkMainKey>[0], entry: { key: string; system: string }) =>
+	entry.system === 'jujutsu-kaisen' && jjkMainKey(systems) !== entry.key;
+
+/** The groups a Cursed Technique card shows. */
+export const TECHNIQUE_GROUPS = ['Cursed Technique'];
+export const techniqueKeys = () => new Set(systems.find((d) => d.id === 'jujutsu-kaisen')!.groups!.filter((g) => TECHNIQUE_GROUPS.includes(g.label)).flatMap((g) => g.keys));
+
+/** A Cursed Technique card's fields as its stats show them: always a technique, never restricted. */
+export const techniqueFields = (f: Fields): Fields => ({ ...f, start: JJK_TECHNIQUE, heavenlyRestriction: 'None' });
 
 /** The card a series' canon ability sits on: the one it was picked on, or (sheets from before cards
  * remembered it) that series' first card. Family ability cards never hold one. */

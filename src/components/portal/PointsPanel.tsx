@@ -6,9 +6,11 @@ import { adjustPoints, convertCustomPoints, convertPoints, loadPoints, removeSki
 import { CUSTOM, customTreeNodes } from '../../lib/portal/customTree.ts';
 import { applies, cardCurrencies, cardLabel } from '../../lib/portal/points.ts';
 import type { Sheet } from '../../lib/portal/sheet.ts';
-import { barrierUnlocked } from '../../lib/portal/systems.ts';
+import { barrierUnlocked, isTechniqueCard, techniqueFields } from '../../lib/portal/systems.ts';
 
 const BARRIER_TREE = 'jjk-barrier';
+const TECHNIQUE_TREE = 'jjk-cursed-technique';
+const TECHNIQUE_WALLETS = ['JJUUP', 'CTUP'];
 import { SkillTreeView } from './SkillTreeView.tsx';
 
 const messageOf = (e: unknown) => (e && typeof e === 'object' && 'message' in e ? String(e.message) : String(e));
@@ -59,7 +61,13 @@ export function PointsPanel({
 	}
 
 	if (!data) return error ? <p class="portal-error">{error}</p> : <p class="portal-status">Loading points…</p>;
-	const systemCurrencies = cardCurrencies(sheet, data.currencies);
+	// A second Jujutsu Kaisen card is just a Cursed Technique: its JJUUP and CTUP, and the CT tree.
+	const technique = (entry: (typeof sheet.systems)[number]) => isTechniqueCard(sheet.systems, entry);
+	const view = { ...sheet, systems: sheet.systems.map((e) => (technique(e) ? { ...e, fields: techniqueFields(e.fields) } : e)) };
+	const held = (card: string, code: string) => data.balances.some((b) => b.card_key === card && b.currency === code && b.balance !== 0);
+	const systemCurrencies = cardCurrencies(view, data.currencies).map((c) =>
+		technique(c.entry) ? { ...c, currencies: c.currencies.filter((x) => TECHNIQUE_WALLETS.includes(x.code) || held(c.entry.key, x.code)) } : c,
+	);
 	// Each card's wallets: its system points, plus its custom tree's own currency (kept in the CUSTOM wallet).
 	const customOf = (key: string) => {
 		const tree = sheet.systems.find((e) => e.key === key)?.customTree;
@@ -91,9 +99,10 @@ export function PointsPanel({
 	const balance = (card: string, code: string) => data.balances.find((b) => b.card_key === card && b.currency === code)?.balance ?? 0;
 	const tracked = new Set(data.currencies.map((c) => c.code));
 	const currencyName = (card: string, code: string) => (code === CUSTOM ? customOf(card)?.code || 'Custom' : code);
-	const treeCards = sheet.systems.flatMap((entry) => [
+	const treeCards = view.systems.flatMap((entry) => [
 		...data.trees
 			.filter((t) => t.system === entry.system && applies(t, entry))
+			.filter((t) => !technique(entry) || t.id === TECHNIQUE_TREE || data.unlocks.some((u) => u.card_key === entry.key && u.tree_id === t.id))
 			// The Barrier Techniques tree waits until they're unlocked (staff still see one with unlocks on it).
 			.filter(
 				(t) =>
