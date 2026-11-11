@@ -521,7 +521,8 @@ export function SkillsEditor({
 }) {
 	const set = (i: number, patch: Partial<Skill>) => onUpdate((prev) => prev.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 	const [editing, setEditing] = useState<number | null>(null);
-	const needs = limits ? describeMoves(limits, !isEvolution) : '';
+	// No limits (an admin character or a power an admin built): no "needs 1–2 …" either.
+	const needs = limits && !noLimits ? describeMoves(limits, !isEvolution) : '';
 	const standardName = limits?.label ?? 'Standard';
 	const typeName = { passive: 'Passive', standard: limits?.label ?? 'Standard', ultimate: limits?.ultimateLabel ?? 'Ultimate' };
 	const ultimateName = limits?.ultimateLabel ?? 'Ultimate';
@@ -1781,7 +1782,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 							defaults={def.defaultMoves?.(f)}
 							defaultsFrom={def.id === 'infamous' ? `Every ${String(f.class)} Conduit` : undefined}
 							isEvolution={props.isEvolution}
-							noLimits={Boolean(props.adminCharacter)}
+							noLimits={Boolean(props.adminCharacter || entry.powerLink)}
 							isTreeActive={Boolean(entry.customTree)}
 							tree={entry.customTree}
 							scalingSystem={entry.system}

@@ -181,6 +181,7 @@ export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) =
 								disabled={false}
 								limits={def.startingMoves?.(value.fields)}
 								isEvolution={false}
+								noLimits={power}
 								scalingSystem={system}
 								editScaling={Boolean(props.ownScaling)}
 								onUpdate={(fn) => onChange({ ...value, skills: fn(value.skills) })}
