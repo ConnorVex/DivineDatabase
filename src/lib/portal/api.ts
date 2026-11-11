@@ -30,6 +30,10 @@ export interface CharacterDraft {
 	adminCharacter: boolean;
 	/** 🔑 items an admin approved; they show as approved from then on. */
 	approvedPermissions: string[];
+	/** Checks staff ignored in Override Mode (issueKey); only admins change it. */
+	ignoredChecks: string[];
+	/** The player who owns it (null for a new one). */
+	ownerId: string | null;
 	/** The owner asks staff to encrypt it, and why. */
 	encryptionRequested: boolean;
 	encryptionReason: string;
@@ -88,6 +92,8 @@ export const newDraft = (): CharacterDraft => ({
 	pinnedNotes: [],
 	adminCharacter: false,
 	approvedPermissions: [],
+	ignoredChecks: [],
+	ownerId: null,
 	encryptionRequested: false,
 	encryptionReason: '',
 	encrypted: false,
@@ -114,6 +120,8 @@ export async function loadCharacter(id: string): Promise<CharacterDraft> {
 		pinnedNotes: normalizePins(data.pinned_notes),
 		adminCharacter: data.admin_character ?? false,
 		approvedPermissions: data.approved_permissions ?? [],
+		ignoredChecks: data.ignored_checks ?? [],
+		ownerId: data.owner_id ?? null,
 		encryptionRequested: data.encryption_requested ?? false,
 		encryptionReason: data.encryption_reason ?? '',
 		encrypted: data.encrypted ?? false,
@@ -534,6 +542,7 @@ export interface AdminCharacter {
 	encryption_reason: string;
 	encrypted: boolean;
 	approved_permissions: string[];
+	ignored_checks?: string[];
 	requested_claims: string[];
 	sheet: Sheet;
 	approved_sheet: Sheet | null;
@@ -555,7 +564,7 @@ export async function loadAllCharacters(): Promise<AdminCharacter[]> {
 }
 
 const ADMIN_CHARACTER_COLUMNS =
-	'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, bonus_ptp, staff_overrides, progressed, pinned_notes, admin_character, encryption_requested, encryption_reason, encrypted, approved_permissions, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at';
+	'id, owner_id, name, kind, canon_universe, status, hidden, extra_trait_slots, bonus_ptp, staff_overrides, progressed, pinned_notes, admin_character, encryption_requested, encryption_reason, encrypted, approved_permissions, ignored_checks, requested_claims, sheet, approved_sheet, approved_at, submitted_at, reviewed_at, updated_at, created_at';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const toAdminCharacter = (c: any): AdminCharacter => ({
 	...c,
@@ -596,6 +605,21 @@ export async function setExtraTraitSlots(id: string, slots: number) {
 /** Staff edit: saves the sheet with the values staff set (admins only). */
 export async function staffEditCharacter(id: string, sheet: Sheet, overrides: StaffOverrides) {
 	const { error } = await db().from('characters').update({ sheet, staff_overrides: overrides }).eq('id', id);
+	fail(error);
+}
+
+/** Override Mode: saves an admin's override. An approved character goes live at once (with a
+ * "Staff override" note in its history); any other keeps its status. */
+export async function overrideCharacter(id: string, o: { name: string; sheet: Sheet; approvedSheet: Sheet | null; claims: string[]; ignored: string[]; summary: string }) {
+	const { error } = await db().rpc('override_character', {
+		p_character: id,
+		p_name: o.name,
+		p_sheet: o.sheet,
+		p_approved_sheet: o.approvedSheet,
+		p_claims: o.claims,
+		p_ignored: o.ignored,
+		p_summary: o.summary,
+	});
 	fail(error);
 }
 

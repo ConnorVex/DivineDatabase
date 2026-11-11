@@ -417,7 +417,7 @@ function PlayerDetail({ player, players, initialCharacter }: { player: PlayerSum
 	);
 }
 
-/** Staff edit for the picked character (inside its section): set its stats, Potential or power fields by hand. */
+/** Override Mode for the picked character (inside its section), and values set with the old staff edit. */
 function StaffEditPanel({ characterId }: { characterId: string }) {
 	const [c, setC] = useState<AdminCharacter | null | undefined>(undefined);
 	const [error, setError] = useState('');
@@ -429,19 +429,23 @@ function StaffEditPanel({ characterId }: { characterId: string }) {
 	}, [characterId]);
 	return (
 		<div class="ov-staff">
-			<p class="pf-subhead">Staff edit</p>
+			<p class="pf-subhead">Override Mode</p>
 			{error ? (
 				<p class="portal-error">{error}</p>
 			) : c === undefined ? (
 				<p class="portal-status">Loading…</p>
 			) : !c ? (
 				<p class="pf-empty">This character no longer exists.</p>
-			) : c.kind !== 'oc' ? (
-				<p class="pf-help">Canon tryouts don’t have stats to set.</p>
-			) : c.approved_at ? (
-				<p class="pf-help">{c.name} is approved, so its stats change through evolutions. Staff edit is for characters that aren’t approved yet.</p>
+			) : c.admin_character ? (
+				<p class="pf-help">An admin character: open it in the form to change it.</p>
 			) : (
-				<StaffEditor c={c} onSaved={reload} />
+				<>
+					<p class="pf-help">Set anything on {c.name}, like an admin character, with every check open to ignore. {c.approved_at ? 'It’s approved, so saving puts it live at once.' : 'It keeps its status.'}</p>
+					<a class="pf-button" href={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}submit/?id=${c.id}&override`}>
+						🛠 Override Mode
+					</a>
+					<StaffEditor c={c} onSaved={reload} />
+				</>
 			)}
 		</div>
 	);

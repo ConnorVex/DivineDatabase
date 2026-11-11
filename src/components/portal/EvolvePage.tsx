@@ -170,7 +170,7 @@ export default function EvolvePage() {
 		);
 
 	const errors = issues.filter((i) => i.level === 'error');
-	const others = issues.filter((i) => i.level !== 'error' && i.level !== 'approved');
+	const others = issues.filter((i) => i.level !== 'error' && i.level !== 'approved' && i.level !== 'ignored');
 	const approvedItems = issues.filter((i) => i.level === 'approved');
 	const reviewing = open?.status === 'pending' || c.status === 'pending';
 	const role = rules.roles.find((r) => r.id === c.sheet.role)?.label;

@@ -111,6 +111,7 @@ export function StatsSection({
 	bonusPtp = 0,
 	staffOverrides = {},
 	adminCharacter = false,
+	unlocked = false,
 }: {
 	sheet: Sheet;
 	update: (fn: (s: Sheet) => void) => void;
@@ -121,6 +122,8 @@ export function StatsSection({
 	staffOverrides?: StaffOverrides;
 	/** An admin's own character: every rank, any Potential, and Error Tiers. */
 	adminCharacter?: boolean;
+	/** Override Mode: open like an admin character (no Error Tiers). */
+	unlocked?: boolean;
 }) {
 	const staff = (key: string) => Boolean(staffOverrides[`stats.${key}`]);
 	const s = sheet.stats;
@@ -128,14 +131,15 @@ export function StatsSection({
 	const r = recoil(sheet);
 	const budget = ptp(sheet, bonusPtp, staffOverrides);
 	const top = phaseTopValue(s.phase);
-	const overBudget = !adminCharacter && !isEvolution && budget.roleKnown && budget.spent > budget.available;
+	const free = adminCharacter || unlocked;
+	const overBudget = !free && !isEvolution && budget.roleKnown && budget.spent > budget.available;
 	const intelIndex = Math.max(0, INTEL.findIndex((i) => i.value === s.intelligence));
 	const phase = rules.stats.phases.find((x) => x.phase === s.phase);
 	// A Heavenly Restriction can set the physical stats and the phase.
 	const heavenly = isEvolution ? null : sheetHeavenly(sheet);
 	const statsLocked = Boolean(heavenly?.lockStats && heavenly.baseRank);
 	// The Divine S.T.S opens with Divine Potential (or on an admin character).
-	const divine = adminCharacter || sheet.potential.grade === 'divine' || (['strength', 'speed', 'defense', 'stamina'] as const).some((k) => (rankInfo(s[k])?.tier ?? 0) > 20);
+	const divine = free || sheet.potential.grade === 'divine' || (['strength', 'speed', 'defense', 'stamina'] as const).some((k) => (rankInfo(s[k])?.tier ?? 0) > 20);
 	const allRanks = divine ? [...rankOptions, ...divineOptions] : rankOptions;
 	const statOptions = statsLocked && !rankOptions.some((o) => o.value === heavenly!.baseRank) ? [{ value: heavenly!.baseRank!, label: `${heavenly!.baseRank} · Heavenly` }, ...allRanks] : allRanks;
 	const errors = new Set(sheet.errorStats ?? []);
@@ -222,7 +226,7 @@ export function StatsSection({
 						</div>
 						<div class={`hud-tile ${overBudget ? 'bad' : ''}`}>
 							<span class="hud-tile-label">PTP</span>
-							{adminCharacter ? (
+							{free ? (
 								<strong>∞</strong>
 							) : (
 								<strong>
@@ -231,8 +235,8 @@ export function StatsSection({
 								</strong>
 							)}
 							<span class="hud-tile-sub">
-								{adminCharacter
-									? 'No limits on an admin character'
+								{free
+									? adminCharacter ? 'No limits on an admin character' : 'No limits in Override Mode'
 									: !budget.roleKnown
 									? 'Pick a role first'
 									: (budget.noPtp
@@ -258,9 +262,9 @@ export function StatsSection({
 					.map((ph) => ({ value: String(ph.phase), label: `${ph.label} (Tiers ${ph.minTier}–${ph.maxTier})` }))}
 			/>
 			{adminCharacter && <ErrorToggle k="phase" />}
-			{adminCharacter && (
+			{free && (
 				<SelectField
-					label="Potential (admin character)"
+					label={adminCharacter ? 'Potential (admin character)' : 'Potential (set by staff)'}
 					value={sheet.potential.grade}
 					disabled={readOnly}
 					onChange={(v) => update((x) => void (x.potential = { ...x.potential, grade: v, roll: null }))}

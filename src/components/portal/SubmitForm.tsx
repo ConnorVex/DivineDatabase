@@ -13,6 +13,7 @@ import {
 	rollEvolution,
 	loadUniverses,
 	newDraft,
+	overrideCharacter,
 	publishAdminCharacter,
 	setEncryption,
 	saveCharacter,
@@ -28,7 +29,9 @@ import {
 import type { EvolutionRoll } from '../../lib/portal/evolutionRolls.ts';
 import { loadFamilyChoices, loadLinkablePerks, type FamilyChoices, type LinkablePerk } from '../../lib/portal/families.ts';
 import { characterIssues, effectiveClaims } from '../../lib/portal/checks.ts';
-import { approvedText, hasBlockingIssues, rules, type Issue } from '../../lib/portal/rules.ts';
+import { approvedText, hasBlockingIssues, issueKey, rules, type Issue } from '../../lib/portal/rules.ts';
+import { mergeOverride } from '../../lib/portal/override.ts';
+import { sheetChanges } from '../../lib/portal/diff.ts';
 import { applyHeavenly, heavenlyEffect, isHeavenly } from '../../lib/portal/heavenly.ts';
 import type { Sheet } from '../../lib/portal/sheet.ts';
 import { systemById } from '../../lib/portal/systems.ts';
@@ -136,6 +139,19 @@ export default function SubmitForm() {
 	/** The Heavenly Restriction this account may use here (undefined until known, or if it can't be checked). */
 	const [heavenlyGrant, setHeavenlyGrant] = useState<string | null | undefined>(undefined);
 	const [powerGrants, setPowerGrants] = useState<MyPowerGrant[] | undefined>(undefined);
+	/** Override Mode: what the admin started from (to merge onto the character as it is when they save). */
+	const overrideBase = useRef<{ sheet: Sheet; name: string; claims: string[]; ignored: string[] } | null>(null);
+	const [overrideUnsent, setOverrideUnsent] = useState(false);
+	const [overrideSummary, setOverrideSummary] = useState('');
+	const [overrideFlash] = useState(() => {
+		try {
+			const msg = sessionStorage.getItem('override-saved') ?? '';
+			sessionStorage.removeItem('override-saved');
+			return msg;
+		} catch {
+			return '';
+		}
+	});
 	latest.current = draft;
 
 	useEffect(() => watchPlayer((p, error) => (error ? setLoadError(messageOf(error)) : setPlayer(p))), []);
@@ -149,14 +165,22 @@ export default function SubmitForm() {
 		if (!player) return;
 		const id = new URLSearchParams(location.search).get('id');
 		Promise.all([loadUniverses(), loadClaimBoard(), id ? loadCharacter(id) : Promise.resolve(newDraft()), id ? loadHeldClaims(id) : Promise.resolve(new Set<string>())])
-			.then(async ([u, b, c, h]) => {
+			.then(async ([u, b, loaded, h]) => {
+				// Override Mode (admins, saved characters): an approved one is edited from its approved version.
+				const overriding = player.isAdmin && Boolean(loaded.id) && !loaded.adminCharacter && new URLSearchParams(location.search).has('override');
+				const c = overriding && loaded.approvedAt && loaded.approvedSheet ? { ...loaded, sheet: structuredClone(loaded.approvedSheet) } : loaded;
+				if (overriding) {
+					overrideBase.current = { sheet: structuredClone(c.sheet), name: c.name, claims: [...c.requestedClaims], ignored: [...c.ignoredChecks] };
+					setOverrideUnsent(Boolean(loaded.approvedAt && loaded.approvedSheet && JSON.stringify(loaded.sheet) !== JSON.stringify(loaded.approvedSheet)));
+				}
+				const owner = overriding ? (c.ownerId ?? player.id) : player.id;
 				setUniverses(u);
 				setBoard(b);
 				setHeld(h);
 				setDraft(c);
 				refreshRolls(c.id);
-				heavenlyGrantFor(player.id, c.id).then(setHeavenlyGrant, () => setHeavenlyGrant(undefined));
-				grantsWithPowers(player.id).then(setPowerGrants, () => setPowerGrants(undefined));
+				heavenlyGrantFor(owner, c.id).then(setHeavenlyGrant, () => setHeavenlyGrant(undefined));
+				grantsWithPowers(owner).then(setPowerGrants, () => setPowerGrants(undefined));
 				loadFamilyChoices(c.id).then(setFamilyChoices, () => setFamilyChoices({ families: [], memberships: [] }));
 				if (c.id) {
 					// A saved character has been through the form before: show every step's state.
@@ -169,7 +193,9 @@ export default function SubmitForm() {
 			.catch((e) => setLoadError(messageOf(e)));
 	}, [player?.id]);
 
-	const readOnly = draft?.status === 'denied';
+	/** Override Mode: an admin sets anything on someone's character; the checks can be ignored. */
+	const override = Boolean(overrideBase.current && draft?.id);
+	const readOnly = draft?.status === 'denied' && !override;
 	const isEvolution = Boolean(draft?.approvedAt);
 	// Rolls made on a system's tab after approval (e.g. Quirk Instability).
 	const [evolutionRolls, setEvolutionRolls] = useState<EvolutionRoll[]>([]);
@@ -198,7 +224,8 @@ export default function SubmitForm() {
 
 	async function save(status?: 'draft' | 'pending') {
 		const current = latest.current;
-		if (!current || readOnly) return null;
+		// Override Mode saves only on purpose (saveOverride), never as a draft.
+		if (!current || readOnly || overrideBase.current) return null;
 		if (saving.current) {
 			// Another save is running; it schedules a fresh one when it finishes.
 			return null;
@@ -238,7 +265,7 @@ export default function SubmitForm() {
 
 	// Autosave a moment after the last change.
 	useEffect(() => {
-		if (saveState !== 'unsaved' || !draft?.name.trim() || readOnly) return;
+		if (saveState !== 'unsaved' || !draft?.name.trim() || readOnly || override) return;
 		const timer = setTimeout(() => save(), 1500);
 		return () => clearTimeout(timer);
 	}, [draft, saveState, retry]);
@@ -381,7 +408,50 @@ export default function SubmitForm() {
 		});
 	}, [characterRolls, draft?.sheet.systems.length]);
 
+	/** Override Mode: lay the admin's changes over the character as it is now, and save (live, if approved). */
+	async function saveOverride() {
+		const d = latest.current;
+		const base = overrideBase.current;
+		if (!d?.id || !base) return;
+		if (hasBlockingIssues(issues)) {
+			setStep('review');
+			return;
+		}
+		setSaveState('saving');
+		setSaveError('');
+		try {
+			const now = await loadCharacter(d.id);
+			const approved = Boolean(now.approvedAt && now.approvedSheet);
+			const sheet = mergeOverride(base.sheet, d.sheet, now.sheet);
+			const approvedSheet = approved ? mergeOverride(base.sheet, d.sheet, now.approvedSheet!) : null;
+			const changes = sheetChanges(base.sheet, d.sheet).length + (d.name.trim() !== base.name ? 1 : 0);
+			await overrideCharacter(d.id, {
+				name: mergeOverride(base.name, d.name.trim(), now.name),
+				sheet,
+				approvedSheet,
+				claims: effectiveClaims({ ...d, requestedClaims: mergeOverride(base.claims, d.requestedClaims, now.requestedClaims) }, board),
+				ignored: d.ignoredChecks,
+				summary: overrideSummary.trim() || `${changes} change${changes === 1 ? '' : 's'}`,
+			});
+			try {
+				sessionStorage.setItem('override-saved', approved ? 'Override saved. It’s live.' : 'Override saved.');
+			} catch {
+				/* storage blocked: the page still reloads with the saved character */
+			}
+			location.reload();
+		} catch (e) {
+			setSaveState('error');
+			setSaveError(messageOf(e));
+		}
+	}
+	const ignore = (i: Issue, on: boolean) =>
+		change((d) => {
+			const key = issueKey(i);
+			d.ignoredChecks = on ? [...new Set([...d.ignoredChecks, key])] : d.ignoredChecks.filter((k) => k !== key);
+		});
+
 	async function submit() {
+		if (override) return saveOverride();
 		if (hasBlockingIssues(issues)) {
 			setStep('review');
 			return;
@@ -448,6 +518,7 @@ export default function SubmitForm() {
 	const warnings = issues.filter((i) => i.level === 'warning');
 	const permissions = issues.filter((i) => i.level === 'permission');
 	const approvedItems = issues.filter((i) => i.level === 'approved');
+	const ignoredItems = issues.filter((i) => i.level === 'ignored');
 	const status = draft.status ? STATUS_TEXT[draft.status] : null;
 	const oc = draft.kind === 'oc';
 	const index = steps.findIndex((st) => st.id === current);
@@ -459,18 +530,24 @@ export default function SubmitForm() {
 	 * its worst open check, or a tick. A fresh form isn't covered in red marks. */
 	const stepState = (id: string) => {
 		if (id === 'review' || !(visited.has(id) || current === 'review')) return 'todo';
-		const own = issues.filter((i) => STEP_OF[i.section] === id && i.level !== 'approved');
+		const own = issues.filter((i) => STEP_OF[i.section] === id && i.level !== 'approved' && i.level !== 'ignored');
 		if (own.some((i) => i.level === 'error')) return 'error';
 		if (own.length > 0) return 'warn';
 		return 'done';
 	};
-	const IssueList = ({ list }: { list: Issue[] }) => (
+	/** In Override Mode each check gets Ignore (or Un-ignore, for one already ignored). */
+	const IssueList = ({ list, ignorable }: { list: Issue[]; ignorable?: 'ignore' | 'unignore' }) => (
 		<ul>
 			{list.map((i, n) => (
-				<li key={n}>
+				<li key={n} class={ignorable ? 'pf-issue-row' : undefined}>
 					<button type="button" class="pf-issue-jump" onClick={() => setStep(STEP_OF[i.section] ?? 'review')}>
 						<span class="pf-issue-section">{i.section === 'Tryout' ? 'Tryout' : label(STEP_OF[i.section] ?? '') || i.section}</span> {i.message}
 					</button>
+					{ignorable && (
+						<button type="button" class="pf-button subtle pf-ignore" onClick={() => ignore(i, ignorable === 'ignore')}>
+							{ignorable === 'ignore' ? 'Ignore' : 'Un-ignore'}
+						</button>
+					)}
 				</li>
 			))}
 		</ul>
@@ -495,7 +572,7 @@ export default function SubmitForm() {
 
 	return (
 		<div class="pf pf-wizard">
-			{status && (
+			{status && !override && (
 				<div class={`pf-status status-${draft.status}`}>
 					<strong>{status.label}</strong> · {status.text}
 				</div>
@@ -509,6 +586,20 @@ export default function SubmitForm() {
 				<div class="pf-status admin-banner" role="note">
 					<strong>🛡 Admin character</strong> · No rule checks or limits. {isEvolution ? 'Your changes go live as soon as you send them.' : 'It’s approved as soon as you send it.'}
 				</div>
+			)}
+
+			{override && (
+				<div class="pf-status override-banner" role="note">
+					<strong>🛠 Override Mode</strong> · Everything is open, like an admin character. The checks still run: ignore any you don’t want on the Review step (they stay
+					ignored for this character). Nothing saves until you press Save override.{' '}
+					{isEvolution ? 'It’s approved, so saving puts it live at once and adds a “Staff override” note to its history.' : 'It keeps its status; the player sends it as usual.'}
+					{overrideUnsent && <> The player has unsent evolution changes; your changes are added to those too.</>}
+				</div>
+			)}
+			{overrideFlash && (
+				<p class="pf-ok" role="status">
+					✅ {overrideFlash}
+				</p>
 			)}
 
 			{pins.length > 0 && (
@@ -762,7 +853,7 @@ export default function SubmitForm() {
 						<>
 							<div class="pf-step" hidden={current !== 'stats'}>
 								{stepPins('stats')}
-								<StatsSection sheet={s} update={updateSheet} readOnly={readOnly} isEvolution={!startRules} bonusPtp={draft.bonusPtp + inherit.bonusPtp} staffOverrides={{ ...inherit.overrides, ...draft.staffOverrides }} adminCharacter={adminChar} />
+								<StatsSection sheet={s} update={updateSheet} readOnly={readOnly} isEvolution={!startRules} bonusPtp={draft.bonusPtp + inherit.bonusPtp} staffOverrides={{ ...inherit.overrides, ...draft.staffOverrides }} adminCharacter={adminChar} unlocked={override} />
 							</div>
 							<div class="pf-step" hidden={current !== 'traits'}>
 								{stepPins('traits')}
@@ -847,7 +938,7 @@ export default function SubmitForm() {
 									heavenlyGrant={heavenlyGrant}
 									staffOverrides={draft.staffOverrides}
 									issues={issues}
-									adminCharacter={adminChar}
+									adminCharacter={adminChar || override}
 								/>
 							</div>
 							<div class="pf-step" hidden={current !== 'storage'}>
@@ -871,27 +962,27 @@ export default function SubmitForm() {
 								<h2 id="pf-review-title">Review & send</h2>
 							</header>
 							{familyNames.length > 0 && !isEvolution && <p class="pf-help">Joining {familyNames.join(', ')}: the family’s owner reviews it first (or an admin).</p>}
-							{issues.length === approvedItems.length ? (
-								<p class="pf-ok">✅ Everything checks out. You’re ready to send.</p>
+							{issues.length === approvedItems.length + ignoredItems.length ? (
+								<p class="pf-ok">✅ Everything checks out.{override ? '' : ' You’re ready to send.'}</p>
 							) : (
 								<>
 									{errors.length > 0 && (
 										<div class="pf-issue-group error">
-											<h3>⛔ Fix before sending ({errors.length})</h3>
-											<IssueList list={errors} />
+											<h3>⛔ {override ? 'Fix or ignore before saving' : 'Fix before sending'} ({errors.length})</h3>
+											<IssueList list={errors} ignorable={override ? 'ignore' : undefined} />
 										</div>
 									)}
 									{warnings.length > 0 && (
 										<div class="pf-issue-group warning">
 											<h3>⚠️ Warnings ({warnings.length})</h3>
 											<p class="pf-help">You can still send it; the reviewer sees these too.</p>
-											<IssueList list={warnings} />
+											<IssueList list={warnings} ignorable={override ? 'ignore' : undefined} />
 										</div>
 									)}
 									{permissions.length > 0 && (
 										<div class="pf-issue-group permission">
 											<h3>🔑 Needs permission ({permissions.length})</h3>
-											<IssueList list={permissions} />
+											<IssueList list={permissions} ignorable={override ? 'ignore' : undefined} />
 										</div>
 									)}
 								</>
@@ -901,6 +992,22 @@ export default function SubmitForm() {
 									<h3>✅ Approved by staff ({approvedItems.length})</h3>
 									<IssueList list={approvedItems.map((i) => ({ ...i, message: approvedText(i.message) }))} />
 								</div>
+							)}
+							{override && ignoredItems.length > 0 && (
+								<div class="pf-issue-group ignored">
+									<h3>🙈 Ignored by staff ({ignoredItems.length})</h3>
+									<p class="pf-help">They don’t block saving or sending, and the player doesn’t see them.</p>
+									<IssueList list={ignoredItems} ignorable="unignore" />
+								</div>
+							)}
+							{override && isEvolution && (
+								<TextField
+									label="What you changed"
+									value={overrideSummary}
+									placeholder="Optional, e.g. event reward: Strength to S"
+									onInput={setOverrideSummary}
+									help="Shown in the character’s review history as “Staff override by you: …”. Left empty, it just counts the changes."
+								/>
 							)}
 							<h3 class="pf-subhead pf-review-page">Your page</h3>
 							<p class="pf-help">This is how your character’s page looks to reviewers, and on the database once approved.</p>
@@ -944,7 +1051,7 @@ export default function SubmitForm() {
 						<span>←<span class="pf-long"> Back</span></span>
 					</button>
 				)}
-				{!readOnly && (
+				{!readOnly && !override && (
 					<button type="button" class="pf-button" disabled={!draft.name.trim() || saveState === 'saving'} onClick={() => save()}>
 						<span>Save<span class="pf-long"> draft</span></span>
 					</button>
@@ -956,7 +1063,11 @@ export default function SubmitForm() {
 				) : (
 					!readOnly && (
 						<button type="button" class="pf-button primary" disabled={saveState === 'saving'} onClick={submit}>
-							{adminChar
+							{override
+								? isEvolution
+									? 'Save override (goes live)'
+									: 'Save override'
+								: adminChar
 								? isEvolution
 									? 'Publish changes'
 									: 'Approve & publish'

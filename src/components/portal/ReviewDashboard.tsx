@@ -45,7 +45,7 @@ import { EquipmentReview } from './EquipmentReview.tsx';
 import { loadCraftingItems, loadEquipmentQueue, type CraftingItem, type EquipmentQueueItem } from '../../lib/portal/equipment.ts';
 import { familyHref, loadFamilies, loadMyFamily, loadPerkQueue, type Family, type FamilyCard, type PerkRequest } from '../../lib/families/api.ts';
 import { loadFamilyChoices, loadLinkablePerks, type LinkablePerk } from '../../lib/portal/families.ts';
-import { applyApproved, approvedText, checkSheet, denyStatOverride, ENCRYPTION_ITEM, isStatOverride, type Issue } from '../../lib/portal/rules.ts';
+import { applyApproved, approvedText, checkSheet, issueKey, denyStatOverride, ENCRYPTION_ITEM, isStatOverride, type Issue } from '../../lib/portal/rules.ts';
 import { AdminRail } from './AdminRail.tsx';
 import { PowersPanel } from './PowersPanel.tsx';
 import { MafoQueue } from './MafoSheet.tsx';
@@ -134,6 +134,7 @@ function IssueList({
 		['warning', '⚠️ Warnings'],
 		['permission', '🔑 Needs permission'],
 		['approved', '✅ Already approved'],
+		['ignored', '🙈 Ignored by staff (Override Mode)'],
 	] as const;
 	return (
 		<>
@@ -275,7 +276,7 @@ function Detail(props: {
 				progressed: c.progressed,
 				adminCharacter: c.admin_character,
 				encryptionRequest: c.encryption_requested && !c.encrypted ? { reason: c.encryption_reason } : null,
-			}), c.approved_permissions),
+			}), c.approved_permissions).map((i) => (i.level !== 'approved' && c.ignored_checks?.includes(issueKey(i)) ? { ...i, level: 'ignored' as const } : i)),
 		[c, held, combos, props.board, perks, memberOf, heavenlyGrant, powerGrants],
 	);
 	const changes = useMemo(() => (c.approved_sheet ? sheetChanges(c.approved_sheet, c.sheet) : []), [c]);
@@ -374,9 +375,9 @@ function Detail(props: {
 							View page
 						</a>
 					)}
-					{props.admin && (
-						<a class="pf-button subtle" href={`${base}submit/?id=${c.id}`}>
-							Open in form
+					{props.admin && !c.admin_character && (
+						<a class="pf-button" href={`${base}submit/?id=${c.id}&override`}>
+							🛠 Override Mode
 						</a>
 					)}
 				</span>
@@ -681,7 +682,7 @@ export function CharacterQueue(props: {
 								progressed: c.progressed,
 								adminCharacter: c.admin_character,
 								families: c.sheet.families,
-							}).filter((i) => i.level === 'error').length;
+							}).filter((i) => i.level === 'error' && !c.ignored_checks?.includes(issueKey(i))).length;
 							return (
 								<li key={c.id}>
 									<button type="button" class={selected === c.id ? 'active' : undefined} onClick={() => setSelected(c.id)}>

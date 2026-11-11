@@ -37,7 +37,7 @@ const traitByName = new Map(traits.map((t) => [t.name, t]));
 const slotsByRarity = new Map(rules.traitSlots.rarities.map((r) => [r.id, r.slots]));
 
 /** 'error' blocks sending for review; 'warning' is shown to player and admins; 'permission' flags a pick that needs an admin's OK. */
-export type IssueLevel = 'error' | 'warning' | 'permission' | 'approved';
+export type IssueLevel = 'error' | 'warning' | 'permission' | 'approved' | 'ignored';
 export interface Issue {
 	level: IssueLevel;
 	section: string;
@@ -810,6 +810,14 @@ export const hasBlockingIssues = (issues: Issue[]) => issues.some((i) => i.level
 /** "needs permission" items an admin already approved become 'approved' (the message stays the same, so it still matches). */
 export const applyApproved = (issues: Issue[], approved: readonly string[] | undefined) =>
 	approved?.length ? issues.map((i) => (i.level === 'permission' && approved.includes(i.message) ? { ...i, level: 'approved' as const } : i)) : issues;
+
+/** A check's identity for Override Mode's Ignore: its section, card and wording, with numbers left out
+ * so a changed count (e.g. "45/40 PTP") stays the same check. */
+export const issueKey = (i: Pick<Issue, 'section' | 'message' | 'card'>) => `${i.section}|${i.card ?? ''}|${i.message.replace(/\d+(\.\d+)?/g, '#')}`;
+
+/** Checks staff ignored in Override Mode become 'ignored': they don't block, and players don't see them. */
+export const applyIgnored = (issues: Issue[], ignored: readonly string[] | undefined) =>
+	ignored?.length ? issues.map((i) => (i.level !== 'approved' && ignored.includes(issueKey(i)) ? { ...i, level: 'ignored' as const } : i)) : issues;
 
 /** An approved item's text without the "needs permission" part. */
 export const approvedText = (message: string) => message.replace(/ needs? permission\.?/, '');

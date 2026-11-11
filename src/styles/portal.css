@@ -12320,3 +12320,36 @@ details.pf-live .wk-infobox-img {
 .fm-power-about > :first-child {
 	margin-top: 0;
 }
+
+/* ── Override Mode: the banner, and Ignore on each check ── */
+.override-banner {
+	border-left-color: #f97316;
+	background: color-mix(in srgb, #f97316 8%, var(--pf-panel));
+}
+.pf-issue-group.ignored {
+	border-left-color: var(--sl-color-gray-4);
+	opacity: 0.85;
+}
+.pf-issue-group li.pf-issue-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem 0.75rem;
+	list-style: none;
+	margin-left: -1.1rem;
+}
+.pf-issue-row > .pf-issue-jump {
+	flex: 1 1 12rem;
+	min-width: 0;
+}
+.pf .pf-issue-row > .pf-ignore {
+	flex: none;
+	margin: 0;
+	padding: 0.3rem 0.8rem;
+	font-size: var(--sl-text-xs);
+}
+@media (max-width: 30rem) {
+	.pf-issue-group li.pf-issue-row {
+		flex-wrap: wrap;
+	}
+}

@@ -95,11 +95,18 @@ export default function CharacterPage() {
 					<ViewerPanel characterId={page.id} ownerId={page.owner_id} onStopped={load} />
 				</section>
 			)}
-			{page.mine && (
-				<p>
-					<a class="pf-button" href={`${portal}submit/?id=${page.id}`}>
-						✎ Edit
-					</a>
+			{(page.mine || (admin && !page.admin_character)) && (
+				<p class="cp-actions">
+					{page.mine && (
+						<a class="pf-button" href={`${portal}submit/?id=${page.id}`}>
+							✎ Edit
+						</a>
+					)}
+					{admin && !page.admin_character && (
+						<a class="pf-button" href={`${portal}submit/?id=${page.id}&override`}>
+							🛠 Override Mode
+						</a>
+					)}
 				</p>
 			)}
 		</div>

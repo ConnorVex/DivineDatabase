@@ -3,7 +3,7 @@ import type { CharacterDraft, ClaimRow, Combo } from './api.ts';
 import type { LinkablePerk } from './families.ts';
 import type { BoardPerk } from '../families/api.ts';
 import { inheritanceEffects, inheritanceIssues, inheritedOptions, inheritedPerks, type InheritanceRoll } from './inheritance.ts';
-import { applyApproved, checkSheet, type Issue } from './rules.ts';
+import { applyApproved, applyIgnored, checkSheet, type Issue } from './rules.ts';
 import { systemById } from './systems.ts';
 import type { MyPowerGrant } from './powerCards.ts';
 
@@ -67,5 +67,5 @@ export function characterIssues(draft: CharacterDraft, data: CheckData): Issue[]
 			list.unshift({ level: 'error', section: 'Basics', message: `${taken.name} is already claimed.` });
 		}
 	}
-	return list;
+	return applyIgnored(list, draft.ignoredChecks);
 }
