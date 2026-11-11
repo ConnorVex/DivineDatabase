@@ -2,10 +2,11 @@
 // The Divine Database top bar, shown at the top of every portal and family page.
 // Admin links stay hidden until the logged-in player turns out to be an admin. The Admin Panel also
 // shows for family owners (as Family Reviews), who review the new characters that pick their family.
+// The Inbox link shows once a player is logged in, with a count of their unread messages.
 // Usage: <PortalNav current="submit" />
 
 interface Props {
-	current?: 'home' | 'submit' | 'mine' | 'gallery' | 'families' | 'review';
+	current?: 'home' | 'submit' | 'mine' | 'inbox' | 'gallery' | 'families' | 'review';
 }
 
 const { current } = Astro.props;
@@ -14,6 +15,7 @@ const links = [
 	{ id: 'home', label: 'Home', href: `${base}` },
 	{ id: 'submit', label: 'Submit', href: `${base}submit/` },
 	{ id: 'mine', label: 'My Stuff', href: `${base}characters/` },
+	{ id: 'inbox', label: 'Inbox', href: `${base}inbox/`, player: true },
 	{ id: 'gallery', label: 'Gallery', href: `${base}gallery/` },
 	{ id: 'families', label: 'Families', href: `${base}families/` },
 	{ id: 'review', label: 'Admin Panel', href: `${base}admin/review/`, admin: true, reviewer: true },
@@ -24,9 +26,15 @@ const links = [
 	<ul class="dd-nav-links">
 		{
 			links.map((link) => (
-				<li hidden={link.admin} data-admin-link={link.admin ? '' : undefined} data-reviewer-link={link.reviewer ? '' : undefined}>
+				<li
+					hidden={link.admin || link.player}
+					data-admin-link={link.admin ? '' : undefined}
+					data-reviewer-link={link.reviewer ? '' : undefined}
+					data-player-link={link.player ? '' : undefined}
+				>
 					<a href={link.href} aria-current={link.id === current ? 'page' : undefined}>
 						{link.label}
+						{link.id === 'inbox' && <span class="dd-nav-badge" data-inbox-badge hidden />}
 					</a>
 				</li>
 			))
@@ -40,6 +48,7 @@ const links = [
 
 <script>
 	import { portalConfigured, supabase, watchPlayer } from '../../lib/supabase';
+	import { unreadCount } from '../../lib/portal/inbox';
 
 	const nav = document.querySelector<HTMLElement>('[data-dd-nav]');
 	// Keep the current tab in view on phones, where the links scroll sideways.
@@ -52,9 +61,29 @@ const links = [
 		list.scrollLeft += a.left - b.left - (b.width - a.width) / 2;
 	};
 	showCurrent();
+	const badge = nav?.querySelector<HTMLElement>('[data-inbox-badge]');
+	const showCount = (n: number) => {
+		if (!badge) return;
+		badge.hidden = n <= 0;
+		badge.textContent = n > 99 ? '99+' : String(n);
+		badge.closest('a')!.setAttribute('aria-label', n > 0 ? `Inbox, ${n} unread` : 'Inbox');
+	};
+	// The Inbox page clears the count when it opens.
+	window.addEventListener('dd-inbox-count', (e) => showCount(Number((e as CustomEvent).detail) || 0));
+	let loggedIn = false;
+	const onInbox = nav?.querySelector('[aria-current="page"]')?.getAttribute('href')?.endsWith('inbox/') ?? false;
+	// Before the inbox migration runs the count isn't there yet; the badge just stays hidden.
+	const refreshCount = () => {
+		if (loggedIn && !onInbox) unreadCount().then(showCount, () => showCount(0));
+	};
+	document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && refreshCount());
 	if (nav && portalConfigured) {
 		watchPlayer((player) => {
 			for (const el of nav.querySelectorAll<HTMLElement>('[data-admin-link]')) el.hidden = !player?.isAdmin;
+			for (const el of nav.querySelectorAll<HTMLElement>('[data-player-link]')) el.hidden = !player;
+			loggedIn = !!player;
+			if (player) refreshCount();
+			else showCount(0);
 			if (player && !player.isAdmin && supabase) {
 				// Owners of an approved family review the characters that pick it.
 				supabase

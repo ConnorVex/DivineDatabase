@@ -1,0 +1,12 @@
+---
+// The player's inbox: decisions on everything they sent, with the reasons, in one place.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import PortalNav from '../components/portal/PortalNav.astro';
+import Inbox from '../components/portal/Inbox.tsx';
+import '../styles/portal.css';
+---
+
+<StarlightPage frontmatter={{ title: 'Inbox', description: 'Decisions on everything you sent, with the reasons.', template: 'splash', tableOfContents: false, pagefind: false }}>
+	<PortalNav current="inbox" />
+	<Inbox client:only="preact" />
+</StarlightPage>
