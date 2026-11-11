@@ -2,6 +2,7 @@
 // S.T.S stats) and wiki sections for lore, traits, combat and each power system. Used on the
 // review page; the submit form's Review step can use it too.
 import type { ComponentChildren } from 'preact';
+import { CanonSkills } from './CanonBuilds.tsx';
 import { PowerTags, ScalingTags } from './SkillScaling.tsx';
 import { useState } from 'preact/hooks';
 import type { ClaimRow, Combo } from '../../lib/portal/api.ts';
@@ -306,6 +307,7 @@ function AbilityTabs(props: ArticleProps) {
 			.filter((b) => b.universe === def?.universe && (b.claim_type !== 'ability' || canonHolder(s.systems, b.universe, b.id)?.key === e.key))
 			.map((b) => ({ label: 'Canon claim', value: `${b.name} (${b.category || 'canon'} · ${b.max_users === null ? 'no limit' : `${b.used_slots}/${b.max_users}`})` })),
 	];
+	const canonClaim = e.familyLink || e.powerLink ? undefined : (props.claims ?? []).find((b) => b.claim_type === 'ability' && b.universe === def?.universe && canonHolder(s.systems, b.universe, b.id)?.key === e.key);
 	const texts = (def?.fields ?? []).filter((f) => f.type === 'textarea' && String(e.fields[f.key] ?? '').trim());
 	const lists = (def?.fields ?? [])
 		.filter((f) => f.type === 'list')
@@ -444,6 +446,7 @@ function AbilityTabs(props: ArticleProps) {
 					</div>
 				))}
 
+				<CanonSkills claim={canonClaim} system={e.system} fields={e.fields} compact />
 				{(moves.length > 0 || e.skills.length > 0) && (
 					<div class="wk-sub">
 						<p class="wk-sub-label">

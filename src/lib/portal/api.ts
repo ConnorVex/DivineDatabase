@@ -1,4 +1,5 @@
 // Database calls used by the portal pages. Row-level security decides what each one may see.
+import type { CanonBuild } from './canonBuilds.ts';
 import { supabase } from '../supabase.ts';
 import type { Balance, Conversion, Currency, LedgerRow, SkillNode, SkillTree, Unlock } from './points.ts';
 import { normalizeSheet, type Sheet } from './sheet.ts';
@@ -897,4 +898,21 @@ export async function uploadOcularImage(file: File): Promise<string> {
 	const { error } = await db().storage.from('ocular-images').upload(path, file, { contentType: file.type, upsert: false });
 	fail(error);
 	return db().storage.from('ocular-images').getPublicUrl(path).data.publicUrl;
+}
+
+// Canon power builds (canon_builds): anyone reads them; admins save and delete.
+export async function loadCanonBuilds(): Promise<CanonBuild[]> {
+	const { data, error } = await db().from('canon_builds').select('claimable_id, about, skills, variants, updated_at');
+	fail(error);
+	return (data ?? []) as CanonBuild[];
+}
+
+export async function saveCanonBuild(claimId: string, b: Pick<CanonBuild, 'about' | 'skills' | 'variants'>) {
+	const { error } = await db().rpc('save_canon_build', { p_claim: claimId, p_about: b.about, p_skills: b.skills, p_variants: b.variants });
+	fail(error);
+}
+
+export async function deleteCanonBuild(claimId: string) {
+	const { error } = await db().rpc('delete_canon_build', { p_claim: claimId });
+	fail(error);
 }

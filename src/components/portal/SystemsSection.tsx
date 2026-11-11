@@ -1,5 +1,6 @@
 // Power system cards: each system's own stat block, canon picks and skills.
 import { Fragment } from 'preact';
+import { CanonSkills } from './CanonBuilds.tsx';
 import { PowerTags, ScalingEditor, ScalingTags } from './SkillScaling.tsx';
 import { useState } from 'preact/hooks';
 import type { ClaimRow, Universe } from '../../lib/portal/api.ts';
@@ -1775,6 +1776,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 			case 'skills':
 				return (
 					<div class="pf-wide" key={i}>
+						{!linked && <CanonSkills claim={canonClaimFor(sheet, entry, props.requestedClaims, props.claimBoard)} system={entry.system} fields={f} />}
 						<SkillsEditor
 							skills={entry.skills}
 							disabled={skillsLocked}

@@ -5621,7 +5621,7 @@
 	display: grid;
 	gap: 0.35rem;
 }
-.wk-skills li {
+.wk-skills > li {
 	margin: 0;
 	padding: 0.4rem 0.65rem;
 	border-left: 3px solid var(--wk-accent);
@@ -5629,13 +5629,13 @@
 	background: color-mix(in srgb, var(--wk-accent) 5%, transparent);
 	font-size: var(--sl-text-sm);
 }
-.wk-skills li.ultimate {
+.wk-skills > li.ultimate {
 	border-left-color: var(--sl-color-orange-high);
 }
-.wk-skills li.passive {
+.wk-skills > li.passive {
 	border-left-color: var(--pf-muted);
 }
-.wk-skills p {
+.wk-skills > li > p {
 	margin: 0.15rem 0 0;
 	font-size: var(--sl-text-xs);
 	color: var(--pf-muted);
@@ -12567,3 +12567,53 @@ details.pf-live .wk-infobox-img {
 .ssc-chip button { display: inline-flex; align-items: center; margin-left: 0.15rem; border: 0; background: none; color: inherit; cursor: pointer; font-size: 0.95rem; line-height: 1; padding: 0 0.1rem; }
 .ssc-tag-add { display: flex; gap: 0.5rem; }
 .ssc-tag-add input { flex: 1; min-width: 0; }
+
+/* Canon power builds: the admin list and builder, and the canon skills on a card. */
+.cbx-search { width: 100%; max-width: 26rem; margin: 0 0 1rem; }
+.cbx-universe { margin: 0 0 1.25rem; }
+.cbx-universe-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.6rem; margin: 0 0 0.5rem; font-size: 1rem; }
+.cbx-list { display: grid; gap: 0.5rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr)); margin: 0; padding: 0; list-style: none; }
+.cbx-item {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.15rem;
+	width: 100%;
+	padding: 0.6rem 0.75rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.6rem;
+	background: color-mix(in srgb, var(--pf-field) 50%, transparent);
+	color: var(--pf-text);
+	text-align: left;
+	cursor: pointer;
+}
+.cbx-item:hover, .cbx-item:focus-visible { border-color: var(--pf-accent); }
+.cbx-item.built { border-left: 3px solid var(--pf-accent); }
+.cbx-item-meta { font-size: 0.78rem; color: var(--pf-muted); }
+.cbx-tabs { display: flex; gap: 0.35rem; overflow-x: auto; scrollbar-width: none; margin: 0 0 0.75rem; }
+.cbx-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	flex: none;
+	padding: 0.4rem 0.8rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 999px;
+	background: none;
+	color: var(--pf-muted);
+	cursor: pointer;
+	font: inherit;
+	font-size: 0.85rem;
+}
+.cbx-tab.active { border-color: var(--pf-accent); color: var(--pf-text); background: color-mix(in srgb, var(--pf-accent) 15%, transparent); }
+.cbx-skills { display: grid; gap: 0.75rem; margin: 0 0 1rem; }
+.cbx-skills.compact { margin: 0.5rem 0 0; gap: 0.5rem; }
+.cbx-group-title { margin: 0 0 0.4rem; font-weight: 600; }
+.cbx-about { margin: 0 0 0.5rem; white-space: pre-line; }
+.cbx-locked { border: 1px dashed var(--pf-line); border-radius: 0.6rem; padding: 0.55rem 0.75rem; }
+.cbx-locked > summary { cursor: pointer; color: var(--pf-muted); font-size: 0.88rem; }
+.cbx-locked[open] > summary { margin-bottom: 0.5rem; }
+.cbx-locked .df-technique-card, .cbx-locked .wk-skills { opacity: 0.75; }
+.cbx-group-title .pf-help { display: block; margin-top: 0.1rem; font-weight: 400; line-height: 1.35; }
+.wk-skills .ssc-tag { font-size: 0.72rem; }
+.wk-skills .ssc-upgrade-list { font-size: 0.8rem; }

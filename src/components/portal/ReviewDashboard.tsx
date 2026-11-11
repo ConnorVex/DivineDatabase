@@ -2,6 +2,7 @@
 // for evolutions, and approve / send back / deny with a note. Family owners get the new
 // characters that picked their family; row-level security decides what each reviewer can read.
 import type { ComponentChildren } from 'preact';
+import { CanonBuildsPanel } from './CanonBuilds.tsx';
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import {
 	adminDeleteCharacter,
@@ -83,10 +84,10 @@ const KINDS = [
 	{ id: 'equipment', label: 'Equipment', icon: '⚔️' },
 	{ id: 'mafo', label: 'M:AFO', icon: '🌀' },
 ] as const;
-type Kind = (typeof KINDS)[number]['id'] | 'players' | 'claims' | 'powers' | 'site';
+type Kind = (typeof KINDS)[number]['id'] | 'players' | 'claims' | 'powers' | 'canon' | 'site';
 const kindFromUrl = (): Kind => {
 	const t = new URLSearchParams(location.search).get('type');
-	return t === 'players' || t === 'claims' || t === 'powers' || t === 'site' || KINDS.some((k) => k.id === t) ? (t as Kind) : 'characters';
+	return t === 'players' || t === 'claims' || t === 'powers' || t === 'canon' || t === 'site' || KINDS.some((k) => k.id === t) ? (t as Kind) : 'characters';
 };
 
 const STATUS_LABEL: Record<Status, string> = {
@@ -834,7 +835,7 @@ export default function ReviewDashboard() {
 	if (!all) return <p class="portal-status">Loading submissions…</p>;
 
 	const pendingFamilies = families.filter((f) => f.status === 'pending');
-	const counts: Record<Exclude<Kind, 'players' | 'claims' | 'powers' | 'site'>, number> = {
+	const counts: Record<Exclude<Kind, 'players' | 'claims' | 'powers' | 'canon' | 'site'>, number> = {
 		characters: all.filter((c) => c.status === 'pending').length,
 		families: pendingFamilies.length,
 		perks: perks.reduce((n, r) => n + r.perks.length, 0),
@@ -867,6 +868,7 @@ export default function ReviewDashboard() {
 			{shownKind === 'mafo' && <MafoQueue items={mafo} onDone={load} />}
 			{shownKind === 'claims' && <ClaimsPanel universes={universes} onChanged={load} />}
 			{shownKind === 'powers' && <PowersPanel players={[...players.values()]} characters={all} onChanged={load} />}
+			{shownKind === 'canon' && <CanonBuildsPanel universes={universes} />}
 			{shownKind === 'site' && <MaintenancePanel />}
 			{shownKind === 'players' && <PlayersView players={[...players.values()]} focus={focus} focusCharacter={focusChar} onFocus={(id) => (setFocusChar(null), setKind('players', id))} />}
 		</>
@@ -889,6 +891,7 @@ export default function ReviewDashboard() {
 					{ id: 'players', label: 'Players & rolls', icon: '🎲' },
 					{ id: 'claims', label: 'Claims', icon: '📌' },
 					{ id: 'powers', label: 'Powers', icon: '🔮' },
+					{ id: 'canon', label: 'Canon powers', icon: '📜' },
 					{ id: 'site', label: 'Maintenance', icon: '🛠️' },
 				]}
 				active={shownKind}
