@@ -918,6 +918,21 @@
 .perk-ability {
 	margin-block: 0.5rem;
 }
+/* The compact system-card style has no padding (character cards pad their tabs); the builder's body needs its own. */
+.perk-ability > .pf-grid {
+	padding: 0.75rem 0.9rem 0.9rem;
+}
+@media (min-width: 50rem) {
+	.perk-ability > .pf-grid {
+		padding: 1rem 1.25rem 1.25rem;
+	}
+	.perk-ability > .pf-help {
+		margin-inline: 1.25rem;
+	}
+	.perk-ability > .system-card-head {
+		padding-inline: 1.25rem;
+	}
+}
 .perk-built {
 	margin-block: 0.5rem 0.75rem;
 }
