@@ -12504,3 +12504,66 @@ details.pf-live .wk-infobox-img {
 		text-align: center;
 	}
 }
+
+/* A custom power's own scaling: skill tags, the editor in the skill form, the power's tags. */
+.ssc-tag-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	margin: 0.4rem 0 0.2rem;
+	padding: 0;
+	list-style: none;
+}
+.ssc-tag {
+	font-size: 0.74rem;
+	color: var(--pf-muted);
+	background: color-mix(in srgb, var(--pf-field) 70%, transparent);
+}
+.ssc-tag.ssc-cost { color: color-mix(in srgb, #3b82f6 70%, var(--pf-text)); border-color: color-mix(in srgb, #3b82f6 35%, var(--pf-line)); }
+.ssc-tag.ssc-power { color: color-mix(in srgb, #e11d48 70%, var(--pf-text)); border-color: color-mix(in srgb, #e11d48 35%, var(--pf-line)); }
+.ssc-tag.ssc-effect { color: color-mix(in srgb, #a855f7 70%, var(--pf-text)); border-color: color-mix(in srgb, #a855f7 35%, var(--pf-line)); }
+.ssc-tag.ssc-trait { color: color-mix(in srgb, #d97706 75%, var(--pf-text)); border-color: color-mix(in srgb, #d97706 35%, var(--pf-line)); }
+.ssc-tag.ssc-technique { color: var(--pf-text); font-weight: 600; }
+.ssc-upgrade-list { margin: 0.3rem 0 0.4rem; font-size: 0.85rem; }
+.ssc-upgrade-list summary { cursor: pointer; color: var(--pf-muted); }
+.ssc-upgrade-list ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+.ssc-upgrade-list li { margin: 0.15rem 0; }
+.wk-skills .ssc-tag-list { margin-top: 0.3rem; }
+
+.ssc-editor {
+	margin: 0.75rem 0 0;
+	padding: 0.75rem 0.85rem 0.85rem;
+	border: 1px dashed var(--pf-line);
+	border-radius: 0.6rem;
+	min-width: 0;
+}
+.ssc-editor > legend { padding: 0 0.35rem; font-weight: 600; font-size: 0.85rem; }
+.ssc-grid { display: grid; gap: 0.6rem 0.9rem; grid-template-columns: 1fr; }
+@media (min-width: 40rem) { .ssc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.ssc-grid > .pf-wide { grid-column: 1 / -1; }
+.ssc-upgrades { margin-top: 0.85rem; display: grid; gap: 0.55rem; }
+.ssc-upgrades-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.75rem; }
+.ssc-upgrade {
+	display: grid;
+	gap: 0.5rem;
+	grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr) auto;
+	padding: 0.6rem;
+	border: 1px solid var(--pf-line);
+	border-radius: 0.5rem;
+	background: color-mix(in srgb, var(--pf-field) 45%, transparent);
+}
+.ssc-upgrade > .pf-field:first-child { grid-column: 1 / 3; }
+.ssc-upgrade > .pf-field:nth-child(3) { grid-column: 2 / 4; }
+.ssc-upgrade > .ssc-upgrade-remove { grid-column: 3; grid-row: 1; align-self: end; margin-bottom: 0.2rem; }
+@media (min-width: 40rem) {
+	.ssc-upgrade { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; }
+	.ssc-upgrade > .pf-field:first-child, .ssc-upgrade > .pf-field:nth-child(3) { grid-column: auto; }
+	.ssc-upgrade > .ssc-upgrade-remove { grid-column: 4; }
+}
+.ssc-upgrade-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; }
+
+.ssc-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0 0 0.4rem; padding: 0; list-style: none; }
+.ssc-chip { align-items: center; }
+.ssc-chip button { display: inline-flex; align-items: center; margin-left: 0.15rem; border: 0; background: none; color: inherit; cursor: pointer; font-size: 0.95rem; line-height: 1; padding: 0 0.1rem; }
+.ssc-tag-add { display: flex; gap: 0.5rem; }
+.ssc-tag-add input { flex: 1; min-width: 0; }

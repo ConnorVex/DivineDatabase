@@ -27,6 +27,7 @@ import type { SystemEntry } from '../../lib/portal/sheet.ts';
 import { systemById } from '../../lib/portal/systems.ts';
 import { AbilityBuilder } from '../families/PerkBuilders.tsx';
 import { CustomTreeBuilder } from './CustomTreeBuilder.tsx';
+import { PowerScalingBox } from './SkillScaling.tsx';
 import { defaults } from './SystemsSection.tsx';
 import { SelectField, TextArea, TextField } from './fields.tsx';
 
@@ -145,7 +146,9 @@ function PowerEditor(props: {
 		setBusy(true);
 		setMsg('');
 		try {
-			const id = await savePower({ id: d.id, name: d.name.trim(), system, ability: d.ability, description: d.description, drawbacks: d.drawbacks, tree: d.tree, evolves_to: d.evolves_to, evolution: d.evolution });
+			// With the usual scaling, skills keep none of their own.
+			const ability = d.ability.scaling?.custom ? d.ability : { ...d.ability, scaling: undefined, skills: d.ability.skills.map(({ scaling: _, ...sk }) => sk) };
+			const id = await savePower({ id: d.id, name: d.name.trim(), system, ability, description: d.description, drawbacks: d.drawbacks, tree: d.tree, evolves_to: d.evolves_to, evolution: d.evolution });
 			setMsg('Saved.');
 			props.onSaved(id);
 		} catch (e) {
@@ -182,7 +185,9 @@ function PowerEditor(props: {
 				</div>
 			</fieldset>
 
-			<AbilityBuilder forPower value={d.ability} onChange={(ability) => set({ ability, tree: systemOf({ ability }) === system ? d.tree : null })} description={d.description} onDescription={(description) => set({ description })} />
+			<PowerScalingBox system={system} value={d.ability.scaling} onChange={(scaling) => set({ ability: { ...d.ability, scaling } })} />
+
+			<AbilityBuilder forPower ownScaling={Boolean(d.ability.scaling?.custom)} value={d.ability} onChange={(ability) => set({ ability, tree: systemOf({ ability }) === system ? d.tree : null })} description={d.description} onDescription={(description) => set({ description })} />
 
 			<fieldset class="sys-group pf-wide">
 				<legend>Drawbacks</legend>

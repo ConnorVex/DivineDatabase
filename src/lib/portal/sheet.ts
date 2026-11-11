@@ -6,6 +6,7 @@ import { techniquesFromOld } from './fireforceLogs.ts';
 import { jojoFromPath } from './jojo.ts';
 import type { PerkAccess } from '../families/api.ts';
 import type { CustomTree } from './customTree.ts';
+import type { SkillScaling } from './skillScaling.ts';
 import { barriersFromOld, ocularFromOld, familyScope, memberKeys, systemById, type Fields } from './systems.ts';
 
 export type SkillType = 'passive' | 'standard' | 'ultimate';
@@ -19,6 +20,8 @@ export interface Skill {
 	treeNodeId?: string;
 	/** On the tree but not learned yet: past the starting skills, or added after approval. Unlocked with points. */
 	locked?: boolean;
+	/** A custom power's own scaling for this skill (its cost, power, upgrades…), set by an admin. */
+	scaling?: SkillScaling;
 }
 
 /** A card copied from a family's ability perk. The family's part stays locked; the player adds the rest. */
@@ -52,6 +55,8 @@ export interface PowerLink {
 	/** What the power is, and its drawbacks, as the admin wrote them. */
 	about: string;
 	drawbacks: string;
+	/** The technique's tags when the power has its own scaling, e.g. its grade. */
+	tags?: string[];
 }
 
 export interface SystemEntry {

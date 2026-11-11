@@ -2,6 +2,7 @@
 // S.T.S stats) and wiki sections for lore, traits, combat and each power system. Used on the
 // review page; the submit form's Review step can use it too.
 import type { ComponentChildren } from 'preact';
+import { PowerTags, ScalingTags } from './SkillScaling.tsx';
 import { useState } from 'preact/hooks';
 import type { ClaimRow, Combo } from '../../lib/portal/api.ts';
 import type { FamilyCard } from '../../lib/families/api.ts';
@@ -361,6 +362,7 @@ function AbilityTabs(props: ArticleProps) {
 				{e.powerLink && (
 					<div class="wk-power">
 						<p class="wk-sub-label">Granted power</p>
+						<PowerTags tags={e.powerLink.tags} />
 						{e.powerLink.about.trim() && <div class="wk-prose" dangerouslySetInnerHTML={richText(e.powerLink.about)} />}
 						{e.powerLink.drawbacks.trim() && (
 							<>
@@ -460,6 +462,7 @@ function AbilityTabs(props: ArticleProps) {
 									<strong>{sk.name || 'Unnamed'}</strong> <span class="trait-meta">{sk.type}</span>
 									{sk.mastery && <span class="trait-meta"> · {sk.mastery}</span>}
 									{sk.locked && <span class="trait-meta"> · locked (on the skill tree)</span>}
+									<ScalingTags skill={sk} system={e.system} />
 									{sk.effect && <p>{sk.effect}</p>}
 								</li>
 							))}

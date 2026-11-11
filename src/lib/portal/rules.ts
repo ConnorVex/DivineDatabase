@@ -1,6 +1,7 @@
 // Live rule checks for the submit form. Everything here is a pure function of the sheet,
 // so the same checks can run in the form, on the admin dashboard and in tests.
 import { currencyChanged, treeProblems } from './customTree.ts';
+import { missingTraits } from './skillScaling.ts';
 import { HEAVENLY_RANKS, HEAVENLY_SYSTEMS, heavenlyOf, sheetHeavenly } from './heavenly.ts';
 import { DIVINE_PHASE, DIVINE_RANKS } from './divine.ts';
 import ranksData from '../../data/portal/ranks.json' with { type: 'json' };
@@ -483,6 +484,8 @@ function checkSystems(sheet: Sheet, ctx: CheckContext, add: (level: IssueLevel, 
 		if (entry.powerLink) {
 			// A granted power is the admin's design: check the grant, not the build.
 			checkPowerLink(entry, ctx, `${def.label} (${entry.powerLink.title})`, addHere);
+			// A skill with its own scaling can need a trait.
+			for (const m of missingTraits(entry.skills, sheet.traits.map((t) => t.name))) addHere('error', 'Systems', `${def.label} (${entry.powerLink.title}): “${m.skill}” needs the ${m.trait} trait.`);
 			continue;
 		}
 		const where = link ? `${def.label} (${link.title})` : def.label;

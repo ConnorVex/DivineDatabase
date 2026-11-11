@@ -78,7 +78,7 @@ export function detailProblems(kind: PerkKind, details: PerkDetails, title: stri
 	return [];
 }
 
-export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) => void; description: string; onDescription: (v: string) => void; forPower?: boolean }) {
+export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) => void; description: string; onDescription: (v: string) => void; forPower?: boolean; ownScaling?: boolean }) {
 	const { value, onChange } = props;
 	const power = Boolean(props.forPower);
 	const system = abilitySystem(value);
@@ -181,6 +181,8 @@ export function AbilityBuilder(props: { value: Ability; onChange: (v: Ability) =
 								disabled={false}
 								limits={def.startingMoves?.(value.fields)}
 								isEvolution={false}
+								scalingSystem={system}
+								editScaling={Boolean(props.ownScaling)}
 								onUpdate={(fn) => onChange({ ...value, skills: fn(value.skills) })}
 							/>
 						</div>

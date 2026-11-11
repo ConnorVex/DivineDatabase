@@ -1,5 +1,6 @@
 // Power system cards: each system's own stat block, canon picks and skills.
 import { Fragment } from 'preact';
+import { PowerTags, ScalingEditor, ScalingTags } from './SkillScaling.tsx';
 import { useState } from 'preact/hooks';
 import type { ClaimRow, Universe } from '../../lib/portal/api.ts';
 import type { LinkablePerk } from '../../lib/portal/families.ts';
@@ -497,6 +498,8 @@ export function SkillsEditor({
 	defaults = [],
 	defaultsFrom,
 	noLimits = false,
+	scalingSystem,
+	editScaling = false,
 }: {
 	skills: Skill[];
 	/** Moves the system always gives, shown first and not editable. */
@@ -511,6 +514,10 @@ export function SkillsEditor({
 	tree?: CustomTree | null;
 	/** An admin character: as many skills of each kind as they like. */
 	noLimits?: boolean;
+	/** The card's system, for the names in skills' own scaling tags. */
+	scalingSystem?: string;
+	/** The Power Builder with the power's own scaling on: each skill sets its own. */
+	editScaling?: boolean;
 }) {
 	const set = (i: number, patch: Partial<Skill>) => onUpdate((prev) => prev.map((s, j) => (j === i ? { ...s, ...patch } : s)));
 	const [editing, setEditing] = useState<number | null>(null);
@@ -592,6 +599,7 @@ export function SkillsEditor({
 									<span class="df-tag df-tag-locked">Locked</span>
 								</div>
 							</div>
+							<ScalingTags skill={skill} system={scalingSystem} />
 							<p class="pf-help">
 								{isEvolution ? 'Unlock it on the Evolve page' : 'Unlocks after approval'}
 								{nodeCost(skill) ? ` for ${nodeCost(skill)}` : ''}. Edit it in the Skill Tree.
@@ -633,6 +641,7 @@ export function SkillsEditor({
 									</div>
 								)}
 							</div>
+							<ScalingTags skill={skill} system={scalingSystem} />
 							{skill.effect ? (
 								<p class="df-technique-effect">{skill.effect}</p>
 							) : (
@@ -702,6 +711,7 @@ export function SkillsEditor({
 									onInput={(v) => set(i, { effect: v })}
 								/>
 							</div>
+							{editScaling && <ScalingEditor system={scalingSystem} value={skill.scaling} onChange={(scaling) => set(i, { scaling })} />}
 
 							<div class="df-technique-edit-footer">
 								{!disabled ? (
@@ -970,6 +980,7 @@ function PowerSource(props: { entry: SystemEntry; grants?: MyPowerGrant[]; disab
 			<p class="pf-help">
 				<strong>Granted power.</strong> {link.powerId === 'mafo' ? 'Tatsuya granted it to you.' : 'An admin designed it and granted it to you.'} Its stats{link.ownSkills ? '' : ', skills'} and skill tree are set; {link.own.length || link.ownSkills ? 'fill in the parts left open and ' : ''}describe how your character uses it below.
 			</p>
+			<PowerTags tags={link.tags} />
 			{link.about.trim() && <div class="pw-about" dangerouslySetInnerHTML={richText(link.about)} />}
 			{link.drawbacks.trim() && (
 				<div class="pw-drawbacks">
@@ -1773,6 +1784,7 @@ function SystemPanel(props: Props & { entry: SystemEntry; def: SystemDef; tab: s
 							noLimits={Boolean(props.adminCharacter)}
 							isTreeActive={Boolean(entry.customTree)}
 							tree={entry.customTree}
+							scalingSystem={entry.system}
 							onUpdate={(fn) =>
 								setEntry((e) => {
 									const prev = e.skills || [];

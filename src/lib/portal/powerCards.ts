@@ -1,6 +1,7 @@
 // Granted powers' cards, without the database: the types, building a card from a power, and
 // checking a card against its power. The rules check uses these, so they stay free of the client.
 import type { CustomTree } from './customTree.ts';
+import type { PowerScaling } from './skillScaling.ts';
 import { sameAbility, type Skill, type SystemEntry } from './sheet.ts';
 import { familyScope, memberKeys, systemById, type Field, type Fields, type FieldValue } from './systems.ts';
 
@@ -10,6 +11,8 @@ export interface PowerAbility {
 	fields: Fields;
 	skills: Skill[];
 	parts?: string[];
+	/** The power doesn't follow the series' usual scaling: each skill has its own (see skillScaling.ts). */
+	scaling?: PowerScaling;
 }
 
 export interface CustomPower {
@@ -104,7 +107,7 @@ export function cardFromPower(power: CustomPower, grantId: number | null): Syste
 		skills: ownSkills ? [] : structuredClone(power.ability.skills ?? []),
 		rollProofs: {},
 		customTree: power.tree ? structuredClone(power.tree) : null,
-		powerLink: { powerId: power.id, grantId, title: power.name, own, ownSkills, about: power.description, drawbacks: power.drawbacks },
+		powerLink: { powerId: power.id, grantId, title: power.name, own, ownSkills, about: power.description, drawbacks: power.drawbacks, ...(power.ability.scaling?.custom && power.ability.scaling.tags.length ? { tags: [...power.ability.scaling.tags] } : {}) },
 	};
 }
 
@@ -129,6 +132,7 @@ export function powerCardChanged(entry: SystemEntry, power: CustomPower) {
 		link.title !== power.name ||
 		link.about !== power.description ||
 		link.drawbacks !== power.drawbacks ||
+		(link.tags ?? []).join('\n') !== (fresh.powerLink!.tags ?? []).join('\n') ||
 		!sameAbility({ fields: entry.fields, skills: skills ? entry.skills : [] }, { fields: fresh.fields, skills: skills ? fresh.skills : [] }, own)
 	);
 }
